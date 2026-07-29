@@ -25,6 +25,10 @@ When reviewing Python's built-in `sqlite3` module:
   )
 
 Return ONLY valid JSON.
+All JSON string values must be on a single line.
+Do not insert literal line breaks inside JSON strings.
+Do not wrap the JSON in Markdown code fences.
+Escape any special characters required by JSON.
 
 Use exactly this schema:
 

@@ -1,0 +1,10 @@
+{
+  "expected_issues": [
+    {
+      "accepted_categories": [
+        "sql_injection"
+      ],
+      "minimum_severity": "high"
+    }
+  ]
+}

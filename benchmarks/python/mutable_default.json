@@ -1,0 +1,12 @@
+{
+  "expected_issues": [
+    {
+      "accepted_categories": [
+        "mutable_default_argument",
+        "mutable_default",
+        "shared_mutable_default"
+      ],
+      "minimum_severity": "medium"
+    }
+  ]
+}

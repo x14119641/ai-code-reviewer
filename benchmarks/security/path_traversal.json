@@ -1,0 +1,11 @@
+{
+  "expected_issues": [
+    {
+      "accepted_categories": [
+        "path_traversal",
+        "directory_traversal"
+      ],
+      "minimum_severity": "high"
+    }
+  ]
+}

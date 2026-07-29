@@ -56,11 +56,15 @@ def review_folder_command(
 
         for i, result in enumerate(review_files(files, model), start=1):
             console.rule(f"[cyan]Reviewing {i}/{total}[/cyan] -> {result.path}")
+            if result.error:
+                console.print(f"[red]{result.error}[/red]")
+                continue
             print_review(result.review)
         console.print(f"\n[green]✓ Reviewed {total} Python files.[/green]")
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         console.print(f"[red]Review Failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+        
 
 
 if __name__ == "__main__":

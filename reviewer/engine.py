@@ -18,7 +18,8 @@ VALID_SEVERITIES = ["low", "medium", "high", "critical"]
 @dataclass
 class ReviewResult:
     path: Path
-    review: CodeReview
+    review: CodeReview | None
+    error: str | None = None
 
 
 def find_python_files(path: Path) -> list[Path]:
@@ -40,7 +41,9 @@ def parse_review_response(response: str) -> CodeReview:
     try:
         data: Any = json.loads(response)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("The model returned invalid JSON.") from exc
+        raise RuntimeError(
+            f"The model returned invalid JSON:\n\n{response}"
+        ) from exc
 
     if not isinstance(data, dict):
         raise RuntimeError("The model response must be a JSON object.")

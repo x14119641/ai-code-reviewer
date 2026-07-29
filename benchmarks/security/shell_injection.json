@@ -1,0 +1,8 @@
+{
+  "expected_issues": [
+    {
+      "category": "command_injection",
+      "minimum_severity": "high"
+    }
+  ]
+}
