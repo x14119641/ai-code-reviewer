@@ -61,4 +61,5 @@ Additional models and quantizations may be added as the project evolves.
 ```bash
 uv run python main.py --help
 uv run python main.py review examples/user_lookup.py
+uv run python main.py review-folder examples
 ```
