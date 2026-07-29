@@ -1,10 +1,10 @@
 {
+  "name": "SQL Injection",
   "expected_issues": [
     {
-      "accepted_categories": [
-        "sql_injection"
-      ],
-      "minimum_severity": "high"
+      "category": "security",
+      "severity": "critical",
+      "explanation": "User-controlled input is directly interpolated into a SQL query, allowing SQL injection."
     }
   ]
 }

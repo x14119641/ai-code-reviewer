@@ -1,8 +1,10 @@
 {
+  "name": "Shell Injection",
   "expected_issues": [
     {
-      "category": "command_injection",
-      "minimum_severity": "high"
+      "category": "security",
+      "severity": "critical",
+      "explanation": "User-controlled input is passed to a shell command, allowing command injection."
     }
   ]
 }

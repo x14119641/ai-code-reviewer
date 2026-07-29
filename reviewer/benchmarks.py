@@ -1,7 +1,8 @@
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from reviewer.models import Benchmark, ExpectedIssue
 
 
 VALID_SEVERITIES = {"low", "medium", "high", "critical"}
@@ -10,22 +11,7 @@ VALID_SEVERITIES = {"low", "medium", "high", "critical"}
 class BenchmarkLoadError(ValueError):
     """Raised when a benchmark definition cannot be loaded or validated."""
 
-@dataclass(frozen=True)
-class ExpectedIssue:
-    category: str
-    severity: str
-    description: str
 
-@dataclass(frozen=True)
-class Benchmark:
-    name: str
-    code_path: Path
-    source_code: str
-    expected_issues: tuple[ExpectedIssue, ...]
-
-    @property
-    def expects_issues(self) -> bool:
-        return bool(self.expected_issues)
     
 
 def load_benchmark(code_path:Path) -> Benchmark:
@@ -149,7 +135,7 @@ def _build_expected_issue(
     
     category = raw_issue.get("category")
     severity = raw_issue.get("severity")
-    description = raw_issue.get("description")
+    explanation = raw_issue.get("explanation")
     
     if not isinstance(category, str) or not category.strip():
         raise BenchmarkLoadError(
@@ -162,9 +148,9 @@ def _build_expected_issue(
             f"Expected issue field 'severity' must be a string: "
             f"{location}"
         )
-
-    normalized_severity = severity.strip().lower()
     
+    normalized_severity = severity.strip().lower()
+
     if normalized_severity not in VALID_SEVERITIES:
         allowed = ", ".join(sorted(VALID_SEVERITIES))
 
@@ -172,15 +158,15 @@ def _build_expected_issue(
             f"Invalid expected severity '{severity}' at {location}. "
             f"Allowed values: {allowed}"
         )
-        
-    if not isinstance(description, str) or not description.strip():
+
+    if not isinstance(explanation, str) or not explanation.strip():
         raise BenchmarkLoadError(
-            f"Expected issue field 'description' must be a "
+            f"Expected issue field 'explanation' must be a "
             f"non-empty string: {location}"
         )
 
     return ExpectedIssue(
         category=category.strip().lower(),
         severity=normalized_severity,
-        description=description.strip(),
+        explanation=explanation.strip(),
     )

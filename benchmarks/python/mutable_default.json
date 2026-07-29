@@ -1,12 +1,10 @@
 {
+  "name": "Mutable Default Argument",
   "expected_issues": [
     {
-      "accepted_categories": [
-        "mutable_default_argument",
-        "mutable_default",
-        "shared_mutable_default"
-      ],
-      "minimum_severity": "medium"
+      "category": "bug",
+      "severity": "medium",
+      "explanation": "A mutable object is used as a default function argument, causing state to be shared across function calls."
     }
   ]
 }
