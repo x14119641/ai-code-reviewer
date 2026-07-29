@@ -1,4 +1,5 @@
 from pathlib import Path
+from dataclasses import dataclass
 
 
 from reviewer.llm import generate_review
@@ -6,7 +7,12 @@ from reviewer.prompts import build_review_prompt
 
 IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
 
-
+@dataclass
+class ReviewResult:
+    path:Path
+    review:str
+    
+    
 def find_python_files(path: Path) -> list[Path]:
     """Find Python files recursively, excluding ignored directories."""
     if not path.exists():
@@ -40,3 +46,19 @@ def review_file(
     prompt = build_review_prompt(code)
 
     return generate_review(prompt=prompt, model=model)
+
+
+def review_folder(path:Path, model:str) -> list[ReviewResult]:
+    """Review evey Python file inside a directory."""
+    files = find_python_files(path=path)
+    
+    results = []
+    
+    for file in files:
+        review = review_file(path=file, model=model)
+        results.append(
+            ReviewResult(
+                path=file,review=review
+            )
+        )
+    return results
