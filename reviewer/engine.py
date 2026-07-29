@@ -1,5 +1,6 @@
 from pathlib import Path
 from dataclasses import dataclass
+from reviewer.models import Issue, CodeReview
 
 
 from reviewer.llm import generate_review
@@ -15,7 +16,7 @@ IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
 @dataclass
 class ReviewResult:
     path: Path
-    review: str
+    review: CodeReview
 
 
 def find_python_files(path: Path) -> list[Path]:
@@ -33,10 +34,25 @@ def find_python_files(path: Path) -> list[Path]:
     return sorted(files)
 
 
+
+def parse_review(data:dict)->CodeReview:
+    issues = [
+        Issue(
+            severity=item["severity"],
+            category=item["category"],
+            title=item["title"],
+            explanation=item["explanation"],
+            recommendation=item["recommendation"]
+        ) for item in data["issues"]
+    ]
+    
+    return CodeReview(issues=issues)
+
+
 def review_file(
     path: Path,
     model: str,
-) -> None:
+) -> CodeReview:
     """Read and review one source-code file"""
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -53,8 +69,10 @@ def review_file(
     response =  generate_review(prompt=prompt, model=model)
 
     try:
-        return json.loads(response)
+        data = json.loads(response)
+        return parse_review(data)
     except json.JSONDecodeError as exc:
+        print(response)
         raise RuntimeError("The model returned invalid JSON") from exc
 
 def review_folder(path: Path, model: str) -> Iterator[ReviewResult]:
