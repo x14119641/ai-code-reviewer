@@ -50,11 +50,11 @@ def review_file(
     return generate_review(prompt=prompt, model=model)
 
 
-def review_folder(path: Path, model: str) -> list[ReviewResult]:
-    """Review evey Python file inside a directory."""
+def review_folder(path: Path, model: str) -> Iterator[ReviewResult]:
+    """Review all Python files found in a directory."""
     files = find_python_files(path=path)
 
-    return list(review_files(files, model))
+    yield from review_files(files, model)
 
 
 def review_files(files: Iterable[Path], model: str) -> Iterator[ReviewResult]:
