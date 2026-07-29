@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 
-from reviewer.engine import review_file
+from reviewer.engine import find_python_files, review_file
 
 
 def test_review_file_raises_when_file_does_not_exists(tmp_path:Path) -> None:
@@ -70,3 +70,69 @@ def test_review_file_builds_prompt_and_calls_llm(tmp_path:Path, monkeypatch: pyt
         "prompt": "PROMPT",
         "model": "test-model"
     }
+    
+    
+def test_find_python_files_finds_python_files_recursively(tmp_path:Path) -> None:
+    root_file = tmp_path / "main.py"
+    root_file.write_text("", encoding="utf-8")
+    
+    package = tmp_path / "package"
+    package.mkdir()
+    
+    nested_file = package / "service.py"
+    nested_file.write_text("", encoding="utf-8")
+    
+    result = find_python_files(tmp_path)
+    
+    assert result == [root_file, nested_file]
+    
+
+def test_find_python_files_ignores_excluded_directories(
+    tmp_path: Path,
+) -> None:
+    valid_file = tmp_path / "main.py"
+    valid_file.write_text("", encoding="utf-8")
+
+    for directory_name in (".git", ".venv", "__pycache__"):
+        directory = tmp_path / directory_name
+        directory.mkdir()
+
+        ignored_file = directory / "ignored.py"
+        ignored_file.write_text("", encoding="utf-8")
+
+    result = find_python_files(tmp_path)
+
+    assert result == [valid_file]
+    
+
+def test_find_python_files_ignores_non_python_files(
+    tmp_path: Path,
+) -> None:
+    python_file = tmp_path / "main.py"
+    python_file.write_text("", encoding="utf-8")
+
+    text_file = tmp_path / "notes.txt"
+    text_file.write_text("", encoding="utf-8")
+
+    result = find_python_files(tmp_path)
+
+    assert result == [python_file]
+    
+
+def test_find_python_files_raises_when_directory_does_not_exist(
+    tmp_path: Path,
+) -> None:
+    missing_directory = tmp_path / "missing"
+
+    with pytest.raises(FileNotFoundError, match="Path not found"):
+        find_python_files(missing_directory)
+
+
+def test_find_python_files_raises_when_path_is_file(
+    tmp_path: Path,
+) -> None:
+    file = tmp_path / "example.py"
+    file.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Not a directory"):
+        find_python_files(file)
