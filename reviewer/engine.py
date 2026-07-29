@@ -6,6 +6,9 @@ from reviewer.llm import generate_review
 from reviewer.prompts import build_review_prompt
 from collections.abc import Iterable, Iterator
 
+import json
+
+
 IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
 
 
@@ -47,8 +50,12 @@ def review_file(
 
     prompt = build_review_prompt(code)
 
-    return generate_review(prompt=prompt, model=model)
+    response =  generate_review(prompt=prompt, model=model)
 
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("The model returned invalid JSON") from exc
 
 def review_folder(path: Path, model: str) -> Iterator[ReviewResult]:
     """Review all Python files found in a directory."""

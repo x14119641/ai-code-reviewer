@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.markdown import Markdown
+from rich.pretty import Pretty
 
 from reviewer.engine import review_file, review_files, find_python_files
 
@@ -27,7 +27,7 @@ def review_command(
         console.print(f"[red]Could not read the file:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
-    console.print(Markdown(result))
+    console.print(Pretty(result))
 
 
 @app.command("review-folder")
@@ -45,7 +45,7 @@ def review_folder_command(
 
         for i, result in enumerate(review_files(files, model), start=1):
             console.rule(f"[cyan]Reviewing {i}/{total}[/cyan] -> {result.path}")
-            console.print(Markdown(result.review))
+            console.print(Pretty(result.review))
         console.print(f"\n[green]✓ Reviewed {total} Python files.[/green]")
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         console.print(f"[red]Review Failed:[/red] {exc}")
