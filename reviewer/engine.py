@@ -22,7 +22,7 @@ def review_file(
     try:
         code = path.read_text(encoding="utf-8")
     except OSError as exc:
-        raise RuntimeError(f"Could not read the file: {exc}") from exc
+        raise 
 
     prompt = build_review_prompt(code)
 
