@@ -24,7 +24,7 @@ def review_command(
 
     try:
         result = review_file(path=path, model=model)
-    except OSError as exc:
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
         console.print(f"[red]Could not read the file:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
