@@ -7,10 +7,12 @@ from reviewer.llm import generate_review
 from reviewer.prompts import build_review_prompt
 from collections.abc import Iterable, Iterator
 
+from typing import Any
 import json
 
-
 IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
+
+VALID_SEVERITIES = ["low", "medium", "high", "critical"]
 
 
 @dataclass
@@ -34,19 +36,61 @@ def find_python_files(path: Path) -> list[Path]:
     return sorted(files)
 
 
+def parse_review_response(response: str) -> CodeReview:
+    try:
+        data: Any = json.loads(response)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("The model returned invalid JSON.") from exc
 
-def parse_review(data:dict)->CodeReview:
-    issues = [
-        Issue(
-            severity=item["severity"],
-            category=item["category"],
-            title=item["title"],
-            explanation=item["explanation"],
-            recommendation=item["recommendation"]
-        ) for item in data["issues"]
-    ]
-    
+    if not isinstance(data, dict):
+        raise RuntimeError("The model response must be a JSON object.")
+
+    issues_data = data.get("issues")
+
+    if not isinstance(issues_data, list):
+        raise RuntimeError("The model response must contain an 'issues' list.")
+
+    issues: list[Issue] = []
+
+    for index, item in enumerate(issues_data):
+        if not isinstance(item, dict):
+            raise RuntimeError(f"Issue {index} must be a JSON object.")
+
+        required_fields = {
+            "severity",
+            "category",
+            "title",
+            "explanation",
+            "recommendation",
+        }
+
+        missing_fields = required_fields - item.keys()
+
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise RuntimeError(
+                f"Issue {index} is missing required fields: {missing}"
+            )
+
+        severity = item["severity"]
+
+        if severity not in VALID_SEVERITIES:
+            raise RuntimeError(
+                f"Issue {index} has invalid severity: {severity}"
+            )
+
+        issues.append(
+            Issue(
+                severity=severity,
+                category=item["category"],
+                title=item["title"],
+                explanation=item["explanation"],
+                recommendation=item["recommendation"],
+            )
+        )
+
     return CodeReview(issues=issues)
+
 
 
 def review_file(
@@ -66,14 +110,10 @@ def review_file(
 
     prompt = build_review_prompt(code)
 
-    response =  generate_review(prompt=prompt, model=model)
+    response = generate_review(prompt=prompt, model=model)
 
-    try:
-        data = json.loads(response)
-        return parse_review(data)
-    except json.JSONDecodeError as exc:
-        print(response)
-        raise RuntimeError("The model returned invalid JSON") from exc
+    return parse_review_response(response)
+
 
 def review_folder(path: Path, model: str) -> Iterator[ReviewResult]:
     """Review all Python files found in a directory."""
