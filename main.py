@@ -4,6 +4,8 @@ import typer
 from rich.console import Console
 
 from reviewer.engine import review_file, review_files, find_python_files
+from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
+from reviewer.models import CodeReview
 
 app = typer.Typer()
 console = Console()
@@ -32,7 +34,7 @@ def review_command(
     path: Path,
     model: str = typer.Option("qwen3.5:9b", help="Ollama model used for the review"),
 ) -> None:
-
+    """Review a single Python file in a folder."""
     try:
         result = review_file(path=path, model=model)
         print_review(review=result)
@@ -67,5 +69,46 @@ def review_folder_command(
         
 
 
+@app.command("benchmark")
+def benchmark_command(
+    path: Path,
+    model: str=typer.Option("qwen3.5:9b", help="Ollama model used for the benchemark"),
+) -> None:
+    """Evaluate the AI reviewer using benchmark cases."""
+    try:
+        benchmark_paths = find_benchmark_files(path)
+        
+        if not benchmark_paths:
+            console.print("[yellow]No benchmark files found.[/yellow]")
+            return
+        total = len(benchmark_paths)
+        current = 0
+        
+        def review_with_model(source_path:Path) ->CodeReview:
+            nonlocal current
+            current +=1
+            console.rule(
+                f"[cyan]Becnhmark {current}/{total}[/cyan] -> {source_path}"
+            )
+            return review_file(source_path, model)
+        
+        run = run_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model
+        )
+        
+        console.rule("[bold green]Benchmark results[/bold green]")
+        
+        console.print(f"[bold]Model:[/bold] {model}")
+        console.print(f"[bold]Benchmark:[/bold]{run.total}")
+        console.print(f"[green]Passed:[/green] {run.passed}")
+        console.print(f"[red]Failed:[/red] {run.failed}")
+        console.print(f"[yellow]False positives:[/yellow] {run.false_positives}")
+        console.print(f"[yellow]False negatives:[/yellow] {run.false_negatives}")
+        console.print(f"[bold cyan]Accuracy:[/bold cyan] {run.accuracy:.2%}")
+        
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        console.print(f"[red]Benchmark Failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
 if __name__ == "__main__":
     app()

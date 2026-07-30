@@ -22,6 +22,19 @@ class ReviewResult:
     error: str | None = None
 
 
+def clean_json_response(response: str) -> str:
+    cleaned = response.strip()
+
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[len("```json"):].strip()
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[len("```"):].strip()
+
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3].strip()
+
+    return cleaned
+
 def find_python_files(path: Path) -> list[Path]:
     """Find Python files recursively, excluding ignored directories."""
     if not path.exists():
@@ -38,8 +51,9 @@ def find_python_files(path: Path) -> list[Path]:
 
 
 def parse_review_response(response: str) -> CodeReview:
+    cleaned_response = clean_json_response(response)
     try:
-        data: Any = json.loads(response)
+        data: Any = json.loads(cleaned_response)
     except json.JSONDecodeError as exc:
         raise RuntimeError(
             f"The model returned invalid JSON:\n\n{response}"
