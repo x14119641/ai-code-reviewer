@@ -1,11 +1,10 @@
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from reviewer.models import Benchmark, ExpectedIssue
+from reviewer.taxonomy import ( VALID_CATEGORIES, VALID_RULES, VALID_SEVERITIES, IssueCategory, IssueRule, Severity)
 
-
-VALID_SEVERITIES = {"low", "medium", "high", "critical"}
 
 
 class BenchmarkLoadError(ValueError):
@@ -119,54 +118,49 @@ def _build_benchmark(
     
 
 def _build_expected_issue(
-    raw_issue: Any,
+    data: Any,
     *,
     definition_path: Path,
     issue_index: int,
 ) -> ExpectedIssue:
-    location = (
-        f"{definition_path}, expected_issues[{issue_index}]"
-    )
-
-    if not isinstance(raw_issue, dict):
+    if not isinstance(data, dict):
         raise BenchmarkLoadError(
-            f"Expected issue must be a JSON object: {location}"
-        )
-    
-    category = raw_issue.get("category")
-    severity = raw_issue.get("severity")
-    explanation = raw_issue.get("explanation")
-    
-    if not isinstance(category, str) or not category.strip():
-        raise BenchmarkLoadError(
-            f"Expected issue field 'category' must be a "
-            f"non-empty string: {location}"
+            f"Expected issue {issue_index} must be a JSON object: "
+            f"{definition_path}"
         )
 
-    if not isinstance(severity, str):
+    severity = data.get("severity")
+    rule = data.get("rule")
+    category = data.get("category")
+    explanation = data.get("explanation")
+
+    if category not in VALID_CATEGORIES:
         raise BenchmarkLoadError(
-            f"Expected issue field 'severity' must be a string: "
-            f"{location}"
+            f"Expected issue {issue_index} has invalid category "
+            f"{category!r}: {definition_path}"
         )
-    
-    normalized_severity = severity.strip().lower()
 
-    if normalized_severity not in VALID_SEVERITIES:
-        allowed = ", ".join(sorted(VALID_SEVERITIES))
-
+    if rule not in VALID_RULES:
         raise BenchmarkLoadError(
-            f"Invalid expected severity '{severity}' at {location}. "
-            f"Allowed values: {allowed}"
+            f"Expected issue {issue_index} has invalid rule "
+            f"{rule!r}: {definition_path}"
+        )
+
+    if severity not in VALID_SEVERITIES:
+        raise BenchmarkLoadError(
+            f"Expected issue {issue_index} has invalid severity "
+            f"{severity!r}: {definition_path}"
         )
 
     if not isinstance(explanation, str) or not explanation.strip():
         raise BenchmarkLoadError(
-            f"Expected issue field 'explanation' must be a "
-            f"non-empty string: {location}"
+            f"Expected issue {issue_index} field 'explanation' "
+            f"must be a non-empty string: {definition_path}"
         )
 
     return ExpectedIssue(
-        category=category.strip().lower(),
-        severity=normalized_severity,
+        severity=cast(Severity, severity),
+        rule=cast(IssueRule, rule),
+        category=cast(IssueCategory, category),
         explanation=explanation.strip(),
     )

@@ -3,6 +3,7 @@
   "expected_issues": [
     {
       "category": "bug",
+      "rule": "mutable_default_argument",
       "severity": "medium",
       "explanation": "A mutable object is used as a default function argument, causing state to be shared across function calls."
     }

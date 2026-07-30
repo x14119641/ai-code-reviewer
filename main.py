@@ -11,13 +11,14 @@ app = typer.Typer()
 console = Console()
 
 
-def print_review(review) -> None:
+def print_review(review: CodeReview) -> None:
     if not review.issues:
         console.print("[green]No meaningful issues found.[/green]")
         return
     for issue in review.issues:
         console.print(f"[bold]{issue.title}[/bold]")
         console.print(f"[yellow]Severity:[/yellow] {issue.severity}")
+        console.print(f"[magenta]Rule:[/magenta] {issue.rule}")
         console.print(f"[cyan]Category:[/cyan] {issue.category}")
         console.print(issue.explanation)
         console.print(f"[green]Recommendation:[/green] {issue.recommendation}")
@@ -34,7 +35,7 @@ def review_command(
     path: Path,
     model: str = typer.Option("qwen3.5:9b", help="Ollama model used for the review"),
 ) -> None:
-    """Review a single Python file in a folder."""
+    """Review a single Python file."""
     try:
         result = review_file(path=path, model=model)
         print_review(review=result)
@@ -66,49 +67,91 @@ def review_folder_command(
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         console.print(f"[red]Review Failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
-        
 
 
 @app.command("benchmark")
 def benchmark_command(
     path: Path,
-    model: str=typer.Option("qwen3.5:9b", help="Ollama model used for the benchemark"),
+    model: str = typer.Option("qwen3.5:9b", help="Ollama model used for the benchmark"),
 ) -> None:
     """Evaluate the AI reviewer using benchmark cases."""
     try:
         benchmark_paths = find_benchmark_files(path)
-        
+
         if not benchmark_paths:
             console.print("[yellow]No benchmark files found.[/yellow]")
             return
         total = len(benchmark_paths)
         current = 0
-        
-        def review_with_model(source_path:Path) ->CodeReview:
+
+        def review_with_model(source_path: Path) -> CodeReview:
             nonlocal current
-            current +=1
-            console.rule(
-                f"[cyan]Becnhmark {current}/{total}[/cyan] -> {source_path}"
-            )
+            current += 1
+            console.rule(f"[cyan]Benchmark {current}/{total}[/cyan] -> {source_path}")
             return review_file(source_path, model)
-        
+
         run = run_benchmarks(
-            benchmark_paths=benchmark_paths,
-            review_function=review_with_model
+            benchmark_paths=benchmark_paths, review_function=review_with_model
         )
-        
+        console.print()
+        console.rule("[bold]Individual results[/bold]")
+
+        for evaluation in run.evaluations:
+            benchmark_name = evaluation.benchmark.name
+            file_name = evaluation.benchmark.code_path.name
+
+            if evaluation.passed:
+                console.print(
+                    f"[bold green]PASS[/bold green] "
+                    f"{benchmark_name} "
+                    f"[dim]({file_name})[/dim]"
+                )
+                continue
+
+            expected_rules = [
+                issue.rule for issue in evaluation.benchmark.expected_issues
+            ]
+
+            actual_rules = [issue.rule for issue in evaluation.review.issues]
+
+            console.print(
+                f"[bold red]FAIL[/bold red] "
+                f"{benchmark_name} "
+                f"[dim]({file_name})[/dim]"
+            )
+
+            console.print(
+                "  Expected: "
+                f"{', '.join(expected_rules) if expected_rules else 'no issues'}"
+            )
+
+            console.print(
+                "  Actual:   "
+                f"{', '.join(actual_rules) if actual_rules else 'no issues'}"
+            )
+
+            if evaluation.false_positive:
+                console.print("  Result: [red]False positive[/red]")
+            elif evaluation.false_negative:
+                console.print("  Result: [red]False negative[/red]")
+            elif not evaluation.rule_matched:
+                console.print("  Result: [red]Wrong rule[/red]")
+
+        console.print()
         console.rule("[bold green]Benchmark results[/bold green]")
-        
+
         console.print(f"[bold]Model:[/bold] {model}")
-        console.print(f"[bold]Benchmark:[/bold]{run.total}")
+        console.print(f"[bold]Benchmarks:[/bold] {run.total}")
         console.print(f"[green]Passed:[/green] {run.passed}")
         console.print(f"[red]Failed:[/red] {run.failed}")
         console.print(f"[yellow]False positives:[/yellow] {run.false_positives}")
         console.print(f"[yellow]False negatives:[/yellow] {run.false_negatives}")
         console.print(f"[bold cyan]Accuracy:[/bold cyan] {run.accuracy:.2%}")
-        
+
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         console.print(f"[red]Benchmark Failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+
+
 if __name__ == "__main__":
     app()

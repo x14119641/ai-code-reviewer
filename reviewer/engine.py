@@ -1,13 +1,20 @@
 from pathlib import Path
 from dataclasses import dataclass
 from reviewer.models import Issue, CodeReview
-
+from reviewer.taxonomy import (
+    IssueCategory,
+    IssueRule,
+    Severity,
+    VALID_CATEGORIES,
+    VALID_RULES,
+    VALID_SEVERITIES,
+)
 
 from reviewer.llm import generate_review
 from reviewer.prompts import build_review_prompt
 from collections.abc import Iterable, Iterator
 
-from typing import Any
+from typing import Any, cast
 import json
 
 IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
@@ -75,6 +82,7 @@ def parse_review_response(response: str) -> CodeReview:
 
         required_fields = {
             "severity",
+            "rule",
             "category",
             "title",
             "explanation",
@@ -90,16 +98,29 @@ def parse_review_response(response: str) -> CodeReview:
             )
 
         severity = item["severity"]
+        category = item["category"]
+        rule = item["rule"]
 
         if severity not in VALID_SEVERITIES:
             raise RuntimeError(
                 f"Issue {index} has invalid severity: {severity}"
             )
 
+        if category not in VALID_CATEGORIES:
+            raise RuntimeError(
+                f"Issue {index} has invalid category: {category}"
+            )
+
+        if rule not in VALID_RULES:
+            raise RuntimeError(
+                f"Issue {index} has invalid rule: {rule}"
+            )
+
         issues.append(
             Issue(
-                severity=severity,
-                category=item["category"],
+                severity=cast(Severity, severity),
+                rule=cast(IssueRule, rule),
+                category=cast(IssueCategory, category),
                 title=item["title"],
                 explanation=item["explanation"],
                 recommendation=item["recommendation"],

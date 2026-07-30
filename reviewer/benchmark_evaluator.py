@@ -1,22 +1,24 @@
-from reviewer.models import Benchmark, BenchmarkEvaluation,CodeReview
+from reviewer.models import (
+    Benchmark,
+    BenchmarkEvaluation,
+    CodeReview,
+    ExpectedIssue,
+    Issue,
+)
 
 
 def _find_matching_issue(
-    benchmark: Benchmark,
+    benchmarck: Benchmark,
     review: CodeReview,
-):
-    for expected in benchmark.expected_issues:
+) -> tuple[ExpectedIssue, Issue] | None:
+    for expected in benchmarck.expects_issues():
         for actual in review.issues:
             if expected.rule == actual.rule:
                 return expected, actual
-
     return None
 
 
-def evaluate_benchmark(
-    benchmark: Benchmark,
-    review: CodeReview,
-) -> BenchmarkEvaluation:
+def evaluate_benchmark(benchmark: Benchmark, review: CodeReview) -> BenchmarkEvaluation:
     expected_issue_count = len(benchmark.expected_issues)
     actual_issue_count = len(review.issues)
 

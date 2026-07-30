@@ -3,6 +3,7 @@
   "expected_issues": [
     {
       "category": "security",
+      "rule": "shell_injection",
       "severity": "critical",
       "explanation": "User-controlled input is passed to a shell command, allowing command injection."
     }

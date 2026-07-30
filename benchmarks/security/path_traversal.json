@@ -3,8 +3,9 @@
   "expected_issues": [
     {
       "category": "security",
+      "rule": "path_traversal",
       "severity": "high",
-      "explanation": "User-controlled input is used to construct a file path without validation, allowing path traversal."
+      "explanation": "User-controlled input is used to construct a file path without validation."
     }
   ]
 }

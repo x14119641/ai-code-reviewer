@@ -3,6 +3,7 @@
   "expected_issues": [
     {
       "category": "security",
+      "rule": "sql_injection",
       "severity": "critical",
       "explanation": "User-controlled input is directly interpolated into a SQL query, allowing SQL injection."
     }

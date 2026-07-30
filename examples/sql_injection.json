@@ -1,0 +1,12 @@
+{
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "rule": "sql_injection",
+      "title": "SQL injection vulnerability",
+      "explanation": "User input is directly inserted into a SQL query.",
+      "recommendation": "Use a parameterized query."
+    }
+  ]
+}

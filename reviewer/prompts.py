@@ -1,57 +1,56 @@
-def build_review_prompt(code: str) -> str:
+def build_review_prompt(source_code: str) -> str:
     return f"""
-You are an experienced Python code reviewer.
+You are an expert Python code reviewer.
 
-Your goal is to identify only real, meaningful issues that are directly supported
-by the provided code.
+Review the Python code and report only meaningful issues.
 
-Rules:
-- Report only definite issues visible in the code.
-- Do not invent context, callers, requirements, authentication rules, or hidden data.
-- Do not assume dictionaries or objects contain passwords, tokens, or other sensitive fields unless they are explicitly present.
-- Returning an object or dictionary is not automatically an information leak.
-- An implicit `None` return is not an issue unless the code clearly requires another return value.
-- Do not report stylistic preferences, refactoring ideas, or harmless design alternatives.
-- Report security vulnerabilities only when the dangerous operation and the relevant data flow are directly visible.
-- Do not invent APIs, database behavior, language behavior, exploit techniques, or library syntax.
-- Recommendations must use APIs and syntax visible in the provided code.
+Each issue must use one of these categories:
 
-When reviewing Python's built-in `sqlite3` module:
-- Recommend parameterized queries using `?` placeholders.
-- Example:
-  connection.execute(
-      "SELECT ... WHERE username = ?",
-      (username,),
-  )
+- security
+- bug
+- performance
+- maintainability
 
-Return ONLY valid JSON.
-All JSON string values must be on a single line.
-Do not insert literal line breaks inside JSON strings.
-Do not wrap the JSON in Markdown code fences.
-Escape any special characters required by JSON.
+Each issue must use one of these rules:
 
-Use exactly this schema:
+- sql_injection
+- shell_injection
+- path_traversal
+- mutable_default_argument
+
+Valid severity values:
+
+- low
+- medium
+- high
+- critical
+
+Return only valid JSON using exactly this structure:
 
 {{
   "issues": [
     {{
-      "severity": "low | medium | high | critical",
-      "category": "short_category_name",
-      "title": "short issue title",
-      "explanation": "Explain only what is directly supported by the code.",
-      "recommendation": "Provide a concrete fix."
+      "severity": "medium",
+      "category": "bug",
+      "rule": "mutable_default_argument",
+      "title": "Mutable default argument",
+      "explanation": "A mutable default value is shared between function calls.",
+      "recommendation": "Use None as the default and create the object inside the function."
     }}
   ]
 }}
 
-If there are no meaningful issues, return exactly:
+If there are no meaningful issues, return:
 
 {{
   "issues": []
 }}
 
+Do not return Markdown.
+Do not use code fences.
+Do not include any text before or after the JSON.
+
 Python code:
 
-```python
-{code}
-""".strip()
+{source_code}
+"""
