@@ -51,3 +51,37 @@ class BenchmarkEvaluation:
     category_matched: bool
     severity_matched: bool
     passed: bool
+
+
+@dataclass(frozen=True)
+class BenchmarkRun:
+    model: str
+    evaluations: tuple[BenchmarkEvaluation,...]
+    duration_seconds:float
+    invalid_responses:int=0
+    
+    @property
+    def benchmark_count(self) ->int:
+        return len(self.evaluations)
+    
+    @property
+    def passed(self)->int:
+        return sum(evaluation.passed for evaluation in self.evaluations)
+    
+    @property
+    def failed(self)->int:
+        return self.benchmark_count - self.passed
+    
+    @property
+    def false_positives(self) -> int:
+        return sum(evaluation.false_positive for evaluation in self.evaluations)
+
+    @property
+    def false_negatives(self) -> int:
+            return sum(evaluation.false_negative for evaluation in self.evaluations)
+        
+    @property
+    def accuracy(self) -> float:
+        if self.benchmark_count == 0:
+            return 0.0
+        return self.passed / self.benchmark_count
