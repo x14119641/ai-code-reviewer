@@ -1,0 +1,12 @@
+{
+  "name": "Shell Injection via subprocess shell true",
+  "code_path": "subprocess_shell_true.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "rule": "shell_injection",
+      "explanation": "Untrusted input is included in a command executed with shell=True."
+    }
+  ]
+}

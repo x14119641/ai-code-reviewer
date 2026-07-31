@@ -1,0 +1,5 @@
+{
+  "name": "Safe subprocess argument list",
+  "code_path": "argument_list_safe.py",
+  "expected_issues": []
+}

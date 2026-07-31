@@ -1,0 +1,12 @@
+{
+  "name": "CSV built by concatenation",
+  "code_path": "csv_builder.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "category": "performance",
+      "rule": "string_concatenation_in_loop",
+      "explanation": "Building a string using repeated concatenation inside a loop is inefficient."
+    }
+  ]
+}

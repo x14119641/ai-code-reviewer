@@ -1,0 +1,5 @@
+{
+  "name": "Dictionary lookup",
+  "code_path": "dictionary_lookup_safe.py",
+  "expected_issues": []
+}

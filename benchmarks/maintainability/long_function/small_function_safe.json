@@ -1,0 +1,5 @@
+{
+  "name": "Small focused function",
+  "code_path": "small_function_safe.py",
+  "expected_issues": []
+}

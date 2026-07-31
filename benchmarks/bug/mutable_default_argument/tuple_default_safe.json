@@ -1,0 +1,5 @@
+{
+  "name": "Immutable tuple default argument",
+  "code_path": "tuple_default_safe.py",
+  "expected_issues": []
+}

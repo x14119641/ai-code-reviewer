@@ -1,0 +1,12 @@
+{
+  "name": "SQL Injection via string concatenation",
+  "code_path": "string_concatenation.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "rule": "sql_injection",
+      "explanation": "Untrusted input is concatenated directly into an SQL query."
+    }
+  ]
+}

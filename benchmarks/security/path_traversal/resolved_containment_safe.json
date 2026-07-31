@@ -1,0 +1,5 @@
+{
+  "name": "Safe resolved path containment",
+  "code_path": "resolved_containment_safe.py",
+  "expected_issues": []
+}

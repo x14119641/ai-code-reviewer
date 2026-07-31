@@ -1,0 +1,5 @@
+{
+  "name": "Efficient set lookup",
+  "code_path": "safe_set_lookup.py",
+  "expected_issues": []
+}

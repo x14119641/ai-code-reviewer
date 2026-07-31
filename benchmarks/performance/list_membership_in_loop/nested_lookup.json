@@ -1,0 +1,12 @@
+{
+  "name": "Repeated blacklist lookup",
+  "code_path": "nested_lookup.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "performance",
+      "rule": "list_membership_in_loop",
+      "explanation": "Repeated membership checks against a list inside a loop can become inefficient for large collections."
+    }
+  ]
+}

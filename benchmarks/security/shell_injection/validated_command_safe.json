@@ -1,0 +1,5 @@
+{
+  "name": "Safe validated service command",
+  "code_path": "validated_command_safe.py",
+  "expected_issues": []
+}

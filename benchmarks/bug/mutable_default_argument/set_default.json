@@ -1,0 +1,12 @@
+{
+  "name": "Mutable set default argument",
+  "code_path": "set_default.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "mutable_default_argument",
+      "explanation": "A mutable set is used as a default argument, causing state to leak between function calls."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Path traversal via absolute path override",
+  "code_path": "absolute_path_override.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "category": "security",
+      "rule": "path_traversal",
+      "explanation": "User-controlled input is joined to the trusted configuration directory without containment validation. An absolute path can replace the intended base directory."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Repeated list membership lookup",
+  "code_path": "list_membership.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "performance",
+      "rule": "list_membership_in_loop",
+      "explanation": "Repeated membership checks against a list inside a loop result in O(n²) behavior. Consider using a set for faster lookups."
+    }
+  ]
+}

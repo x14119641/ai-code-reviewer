@@ -1,0 +1,12 @@
+{
+  "name": "Path Traversal in report download",
+  "code_path": "download_report.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "category": "security",
+      "rule": "path_traversal",
+      "explanation": "The requested report name is used as part of a filesystem path without validating the resolved location."
+    }
+  ]
+}

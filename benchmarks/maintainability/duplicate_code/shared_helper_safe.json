@@ -1,0 +1,5 @@
+{
+  "name": "Shared helper avoids duplication",
+  "code_path": "shared_helper_safe.py",
+  "expected_issues": []
+}

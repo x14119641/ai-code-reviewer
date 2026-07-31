@@ -20,7 +20,7 @@ def evaluate_benchmark(
     expected_issue_count = len(benchmark.expected_issues)
     actual_issue_count = len(review.issues)
 
-    expects_issues = expected_issue_count > 0
+    expects_issues = benchmark.expects_issues
     detected_issues = actual_issue_count > 0
 
     false_positive = not expects_issues and detected_issues

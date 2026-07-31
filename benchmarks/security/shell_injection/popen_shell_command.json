@@ -1,0 +1,12 @@
+{
+  "name": "Shell Injection via subprocess Popen",
+  "code_path": "popen_shell_command.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "rule": "shell_injection",
+      "explanation": "A user-controlled service name is inserted into a shell command executed by subprocess.Popen."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Duplicated calculation logic",
+  "code_path": "duplicate_logic.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "maintainability",
+      "rule": "duplicate_code",
+      "explanation": "The same calculation logic appears in multiple functions and should be extracted into a shared helper."
+    }
+  ]
+}

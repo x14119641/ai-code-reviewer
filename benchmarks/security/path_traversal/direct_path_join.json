@@ -1,0 +1,12 @@
+{
+  "name": "Path Traversal via direct path join",
+  "code_path": "direct_path_join.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "category": "security",
+      "rule": "path_traversal",
+      "explanation": "A user-controlled filename is joined to a trusted directory without verifying that the resulting path remains inside it."
+    }
+  ]
+}

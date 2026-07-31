@@ -1,6 +1,5 @@
 from typing import Literal
 
-
 Severity = Literal[
     "low",
     "medium",
@@ -20,6 +19,10 @@ IssueRule = Literal[
     "shell_injection",
     "path_traversal",
     "mutable_default_argument",
+    "long_function",
+    "duplicate_code",
+    "list_membership_in_loop",
+    "string_concatenation_in_loop",
 ]
 
 
@@ -42,4 +45,8 @@ VALID_RULES: set[str] = {
     "shell_injection",
     "path_traversal",
     "mutable_default_argument",
+    "long_function",
+    "duplicate_code",
+    "list_membership_in_loop",
+    "string_concatenation_in_loop",
 }

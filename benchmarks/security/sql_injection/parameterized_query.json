@@ -1,0 +1,5 @@
+{
+  "name": "Parameterized SQL Query",
+  "code_path": "parameterized_query.py",
+  "expected_issues": []
+}

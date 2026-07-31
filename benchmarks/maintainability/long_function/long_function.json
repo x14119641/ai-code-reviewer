@@ -1,0 +1,12 @@
+{
+  "name": "Long function",
+  "code_path": "long_function.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "category": "maintainability",
+      "rule": "long_function",
+      "explanation": "The function performs multiple responsibilities and could be split into smaller helper functions."
+    }
+  ]
+}

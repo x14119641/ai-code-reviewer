@@ -1,0 +1,12 @@
+{
+  "name": "Repeated string concatenation",
+  "code_path": "string_concat.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "category": "performance",
+      "rule": "string_concatenation_in_loop",
+      "explanation": "Repeated string concatenation in a loop creates unnecessary intermediate strings. Consider using ''.join()."
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Safe template filename allowlist",
+  "code_path": "filename_allowlist_safe.py",
+  "expected_issues": []
+}

@@ -1,0 +1,5 @@
+{
+  "name": "CSV built with join",
+  "code_path": "csv_join_safe.py",
+  "expected_issues": []
+}

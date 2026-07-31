@@ -1,0 +1,12 @@
+{
+  "name": "Mutable dictionary default argument",
+  "code_path": "dict_default.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "mutable_default_argument",
+      "explanation": "A mutable dictionary is used as a default argument, causing values to be shared across calls."
+    }
+  ]
+}

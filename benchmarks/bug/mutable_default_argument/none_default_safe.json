@@ -1,0 +1,5 @@
+{
+  "name": "Safe None default argument",
+  "code_path": "none_default_safe.py",
+  "expected_issues": []
+}

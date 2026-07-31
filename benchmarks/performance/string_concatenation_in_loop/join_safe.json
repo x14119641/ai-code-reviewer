@@ -1,0 +1,5 @@
+{
+  "name": "Join strings efficiently",
+  "code_path": "join_safe.py",
+  "expected_issues": []
+}

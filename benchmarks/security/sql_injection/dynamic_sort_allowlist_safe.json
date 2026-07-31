@@ -1,0 +1,5 @@
+{
+  "name": "Safe dynamic SQL sort with allowlist",
+  "code_path": "dynamic_sort_allowlist_safe.py",
+  "expected_issues": []
+}

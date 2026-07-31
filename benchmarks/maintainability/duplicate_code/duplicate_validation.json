@@ -1,0 +1,12 @@
+{
+  "name": "Duplicated validation logic",
+  "code_path": "duplicate_validation.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "maintainability",
+      "rule": "duplicate_code",
+      "explanation": "Nearly identical validation logic is duplicated and could be extracted into a reusable function."
+    }
+  ]
+}
