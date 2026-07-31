@@ -14,7 +14,8 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - ✅ Review multiple files
 - ✅ Structured JSON output
 - ✅ Benchmark runner
-- ✅ Benchmark framework
+- ✅ Benchmark evaluation
+- ✅ Benchmark result export
 
 ### Planned
 
@@ -27,11 +28,12 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 ## Current Features
 
 - Review individual Python files
-- Review entire Python projects
+- Review entire Python projects recursively
 - Structured JSON responses from the LLM
-- Response validation
-- Benchmark runner
-- Benchmark evaluation
+- Response validation and parsing
+- Benchmark execution
+- Automatic benchmark evaluation
+- JSON export of benchmark results
 - Local execution with Ollama
 
 ## Architecture
@@ -50,21 +52,40 @@ JSON Validation
 Structured Review
       ↓
 Benchmark Evaluation
+      ↓
+JSON Benchmark Report
 ```
 
 ## Benchmarks
 
-The project includes a growing benchmark suite containing curated Python examples and their expected findings.
+The project includes a growing benchmark suite used to evaluate the quality of local LLM code reviews.
 
-Current benchmark cases include:
+Each benchmark contains:
 
-- SQL Injection
-- Shell Injection
-- Path Traversal
-- Mutable Default Arguments
-- False Positive Detection
+- A Python source file
+- The expected findings (rule, category, severity)
+- Automatic evaluation against the model response
+- False-positive and false-negative detection
 
-The benchmark suite is used to evaluate prompts and compare local LLMs.
+Current benchmark categories include:
+
+| Category        | Rules                                                   |
+| --------------- | ------------------------------------------------------- |
+| Bug             | Mutable default arguments                               |
+| Security        | SQL injection, Shell injection, Path traversal          |
+| Performance     | List membership in loops, String concatenation in loops |
+| Maintainability | Duplicate code, Long functions                          |
+| False Positives | Safe implementations that should not trigger findings   |
+
+Benchmark runs can be exported as JSON for later comparison between models and prompts.
+
+Results include:
+
+- Accuracy
+- False positives
+- False negatives
+- Response failures
+- Execution time
 
 ## Models
 
@@ -112,4 +133,13 @@ uv run python main.py benchmark benchmarks/
 
 # Select a different model
 uv run python main.py benchmark benchmarks/ --model qwen2.5-coder:14b
+
+# Save benchmark results
+uv run python main.py benchmark benchmarks/ \
+    --output qwen2.5-coder-7b.json
+
+# Save results using a different model
+uv run python main.py benchmark benchmarks/ \
+    --model qwen2.5-coder:14b \
+    --output qwen2.5-coder-14b.json
 ```
