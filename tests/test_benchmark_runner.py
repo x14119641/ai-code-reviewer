@@ -7,6 +7,8 @@ from reviewer.benchmark_runner import (
 )
 from reviewer.models import CodeReview, Issue
 
+TEST_MODEL = "test-model"
+
 
 def create_benchmark(
     directory: Path,
@@ -58,9 +60,7 @@ def test_find_benchmark_files_recursively(
 
     paths = find_benchmark_files(tmp_path)
 
-    assert paths == tuple(
-        sorted((first_path, second_path))
-    )
+    assert paths == tuple(sorted((first_path, second_path)))
 
 
 def test_run_benchmarks_returns_summary(
@@ -105,16 +105,17 @@ def test_run_benchmarks_returns_summary(
     run = run_benchmarks(
         benchmark_paths=(clean_path, unsafe_path),
         review_function=fake_review,
+        model=TEST_MODEL,
     )
 
-    assert run.total == 2
+    assert run.benchmark_count == 2
     assert run.passed == 2
     assert run.failed == 0
     assert run.false_positives == 0
     assert run.false_negatives == 0
     assert run.accuracy == 1.0
-    
-    
+
+
 def test_run_counts_false_positive(
     tmp_path: Path,
 ) -> None:
@@ -139,11 +140,10 @@ def test_run_counts_false_positive(
         )
 
     run = run_benchmarks(
-        benchmark_paths=(code_path,),
-        review_function=fake_review,
+        benchmark_paths=(code_path,), review_function=fake_review, model=TEST_MODEL
     )
 
-    assert run.total == 1
+    assert run.benchmark_count == 1
     assert run.passed == 0
     assert run.failed == 1
     assert run.false_positives == 1
@@ -171,27 +171,25 @@ def test_run_counts_false_negative(
         return CodeReview(issues=[])
 
     run = run_benchmarks(
-        benchmark_paths=(code_path,),
-        review_function=fake_review,
+        benchmark_paths=(code_path,), review_function=fake_review, model=TEST_MODEL
     )
 
-    assert run.total == 1
+    assert run.benchmark_count == 1
     assert run.passed == 0
     assert run.failed == 1
     assert run.false_positives == 0
     assert run.false_negatives == 1
-    
+
 
 def test_empty_benchmark_run_has_zero_accuracy() -> None:
     def fake_review(_: Path) -> CodeReview:
         return CodeReview(issues=[])
 
     run = run_benchmarks(
-        benchmark_paths=(),
-        review_function=fake_review,
+        benchmark_paths=(), review_function=fake_review, model=TEST_MODEL
     )
 
-    assert run.total == 0
+    assert run.benchmark_count == 0
     assert run.passed == 0
     assert run.failed == 0
     assert run.accuracy == 0.0

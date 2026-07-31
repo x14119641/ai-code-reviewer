@@ -66,3 +66,5 @@ def test_empty_benchmark_run_has_zero_accuracy() -> None:
     assert run.passed == 0
     assert run.failed == 0
     assert run.accuracy == 0.0
+    assert run.model == "test-model"
+    assert run.duration_seconds >= 0.0

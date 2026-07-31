@@ -1,4 +1,4 @@
-from reviewer.models import Benchmark, BenchmarkEvaluation,CodeReview
+from reviewer.models import Benchmark, BenchmarkEvaluation, CodeReview
 
 
 def _find_matching_issue(

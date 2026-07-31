@@ -91,7 +91,7 @@ def benchmark_command(
             return review_file(source_path, model)
 
         run = run_benchmarks(
-            benchmark_paths=benchmark_paths, review_function=review_with_model
+            benchmark_paths=benchmark_paths, review_function=review_with_model, model=model
         )
         console.print()
         console.rule("[bold]Individual results[/bold]")
@@ -141,12 +141,13 @@ def benchmark_command(
         console.rule("[bold green]Benchmark results[/bold green]")
 
         console.print(f"[bold]Model:[/bold] {model}")
-        console.print(f"[bold]Benchmarks:[/bold] {run.total}")
+        console.print(f"[bold]Benchmarks:[/bold] {run.benchmark_count}")
         console.print(f"[green]Passed:[/green] {run.passed}")
         console.print(f"[red]Failed:[/red] {run.failed}")
         console.print(f"[yellow]False positives:[/yellow] {run.false_positives}")
         console.print(f"[yellow]False negatives:[/yellow] {run.false_negatives}")
         console.print(f"[bold cyan]Accuracy:[/bold cyan] {run.accuracy:.2%}")
+        console.print(f"[bold cyan]Duration:[/bold cyan] {run.duration_seconds:.2f} s")
 
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         console.print(f"[red]Benchmark Failed:[/red] {exc}")
