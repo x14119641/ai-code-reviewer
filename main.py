@@ -137,6 +137,19 @@ def benchmark_command(
             elif not evaluation.rule_matched:
                 console.print("  Result: [red]Wrong rule[/red]")
 
+        if run.failures:
+            console.print()
+            console.rule("[bold red]Execution faiulures[/bold red]")
+            for failure in run.failures:
+                        console.print(
+                            f"[bold red]ERROR[/bold red] "
+                            f"{failure.benchmark.name} "
+                            f"[dim]({failure.benchmark.code_path.name})[/dim]"
+                        )
+                        console.print(f"  Type:    {failure.error_type}")
+                        console.print(f"  Message: {failure.message}")
+                        console.print()
+    
         console.print()
         console.rule("[bold green]Benchmark results[/bold green]")
 
@@ -144,6 +157,7 @@ def benchmark_command(
         console.print(f"[bold]Benchmarks:[/bold] {run.benchmark_count}")
         console.print(f"[green]Passed:[/green] {run.passed}")
         console.print(f"[red]Failed:[/red] {run.failed}")
+        console.print(f"[bold red]Response errors:[/bold red] {run.failure_count}")
         console.print(f"[yellow]False positives:[/yellow] {run.false_positives}")
         console.print(f"[yellow]False negatives:[/yellow] {run.false_negatives}")
         console.print(f"[bold cyan]Accuracy:[/bold cyan] {run.accuracy:.2%}")

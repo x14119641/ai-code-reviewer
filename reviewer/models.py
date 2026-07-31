@@ -54,32 +54,47 @@ class BenchmarkEvaluation:
 
 
 @dataclass(frozen=True)
+class BenchmarkFailure:
+    benchmark: Benchmark
+    error_type: str
+    message: str
+
+
+@dataclass(frozen=True)
 class BenchmarkRun:
     model: str
-    evaluations: tuple[BenchmarkEvaluation,...]
-    duration_seconds:float
-    invalid_responses:int=0
-    
+    evaluations: tuple[BenchmarkEvaluation, ...]
+    duration_seconds: float
+    failures: tuple[BenchmarkFailure, ...] = ()
+
     @property
-    def benchmark_count(self) ->int:
-        return len(self.evaluations)
-    
+    def benchmark_count(self) -> int:
+        return len(self.evaluations) + len(self.failures)
+
     @property
-    def passed(self)->int:
+    def passed(self) -> int:
         return sum(evaluation.passed for evaluation in self.evaluations)
-    
+
     @property
-    def failed(self)->int:
+    def completed_count(self) -> int:
+        return len(self.evaluations)
+
+    @property
+    def failure_count(self) -> int:
+        return len(self.failures)
+
+    @property
+    def failed(self) -> int:
         return self.benchmark_count - self.passed
-    
+
     @property
     def false_positives(self) -> int:
         return sum(evaluation.false_positive for evaluation in self.evaluations)
 
     @property
     def false_negatives(self) -> int:
-            return sum(evaluation.false_negative for evaluation in self.evaluations)
-        
+        return sum(evaluation.false_negative for evaluation in self.evaluations)
+
     @property
     def accuracy(self) -> float:
         if self.benchmark_count == 0:

@@ -114,6 +114,9 @@ def test_run_benchmarks_returns_summary(
     assert run.false_positives == 0
     assert run.false_negatives == 0
     assert run.accuracy == 1.0
+    assert run.failure_count == 0
+    assert run.model == TEST_MODEL
+    assert run.duration_seconds >= 0.0
 
 
 def test_run_counts_false_positive(
@@ -193,3 +196,66 @@ def test_empty_benchmark_run_has_zero_accuracy() -> None:
     assert run.passed == 0
     assert run.failed == 0
     assert run.accuracy == 0.0
+
+
+
+def test_run_records_failure_and_continues(
+    tmp_path: Path,
+) -> None:
+    first_path = create_benchmark(
+        tmp_path,
+        name="first_example",
+        expected_issues=[],
+    )
+
+    broken_path = create_benchmark(
+        tmp_path,
+        name="broken_example",
+        expected_issues=[],
+    )
+
+    third_path = create_benchmark(
+        tmp_path,
+        name="third_example",
+        expected_issues=[],
+    )
+
+    reviewed_paths: list[Path] = []
+
+    def fake_review(code_path: Path) -> CodeReview:
+        reviewed_paths.append(code_path)
+
+        if code_path.name == "broken_example.py":
+            raise RuntimeError("The model returned invalid JSON")
+
+        return CodeReview(issues=[])
+
+    run = run_benchmarks(
+        benchmark_paths=(
+            first_path,
+            broken_path,
+            third_path,
+        ),
+        review_function=fake_review,
+        model=TEST_MODEL,
+    )
+
+    assert reviewed_paths == [
+        first_path,
+        broken_path,
+        third_path,
+    ]
+
+    assert run.benchmark_count == 3
+    assert len(run.evaluations) == 2
+    assert run.failure_count == 1
+
+    assert run.passed == 2
+    assert run.failed == 1
+    assert run.accuracy == 2 / 3
+
+    failure = run.failures[0]
+
+    assert failure.benchmark.code_path == broken_path.resolve()
+    assert failure.error_type == "RuntimeError"
+    assert failure.message == "The model returned invalid JSON"

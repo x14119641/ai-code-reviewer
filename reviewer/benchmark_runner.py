@@ -4,7 +4,12 @@ from time import perf_counter
 
 from reviewer.benchmarks import load_benchmark
 from reviewer.evaluator import evaluate_benchmark
-from reviewer.models import BenchmarkRun, CodeReview, BenchmarkEvaluation
+from reviewer.models import (
+    BenchmarkRun,
+    CodeReview,
+    BenchmarkEvaluation,
+    BenchmarkFailure,
+)
 
 ReviewFunction = Callable[[Path], CodeReview]
 
@@ -30,11 +35,17 @@ def run_benchmarks(
 ) -> BenchmarkRun:
     start_time = perf_counter()
     evaluations: list[BenchmarkEvaluation] = []
+    failures: list[BenchmarkFailure] = []
 
     for code_path in benchmark_paths:
         benchmark = load_benchmark(code_path)
-        review = review_function(benchmark.code_path)
-
+        try:
+            review = review_function(benchmark.code_path)
+        except RuntimeError as exc:
+            failures.append(
+                BenchmarkFailure(benchmark=benchmark, error_type=type(exc).__name__, message=str(exc))
+            )
+            continue
         evaluation = evaluate_benchmark(
             benchmark,
             review,
@@ -43,5 +54,5 @@ def run_benchmarks(
         evaluations.append(evaluation)
     duration_seconds = perf_counter() - start_time
     return BenchmarkRun(
-        model=model, evaluations=tuple(evaluations), duration_seconds=duration_seconds
+        model=model, evaluations=tuple(evaluations), duration_seconds=duration_seconds, failures=tuple(failures)
     )

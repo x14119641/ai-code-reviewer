@@ -145,6 +145,7 @@ def review_file(
         code = path.read_text(encoding="utf-8")
     except OSError as exc:
         raise
+    
 
     prompt = build_review_prompt(code)
 

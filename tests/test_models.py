@@ -52,7 +52,7 @@ def test_benchmark_run_calculates_summary() -> None:
     assert run.false_negatives == 1
     assert run.accuracy == 1 / 3
     assert run.duration_seconds == 12.5
-    assert run.invalid_responses == 0
+
 
 
 def test_empty_benchmark_run_has_zero_accuracy() -> None:
