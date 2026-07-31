@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.engine import review_file, review_files, find_python_files
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.models import CodeReview
@@ -73,6 +74,7 @@ def review_folder_command(
 def benchmark_command(
     path: Path,
     model: str = typer.Option("qwen3.5:9b", help="Ollama model used for the benchmark"),
+    output: Path | None = typer.Option(None, help="Output filename or path."),
 ) -> None:
     """Evaluate the AI reviewer using benchmark cases."""
     try:
@@ -93,6 +95,16 @@ def benchmark_command(
         run = run_benchmarks(
             benchmark_paths=benchmark_paths, review_function=review_with_model, model=model
         )
+        
+        if output is not None:
+            if output.parent == Path("."):
+                output = Path("results") / output
+
+            save_benchmark_run(run, output)
+            console.print()
+            console.print(f"[green]✓ Results saved to:[/green] {output}")
+    
+    
         console.print()
         console.rule("[bold]Individual results[/bold]")
 

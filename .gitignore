@@ -21,5 +21,6 @@ __pycache__/
 # Operating system files
 .DS_Store
 
-# Generated reports 
+# Generated reports and results
 reports/
+results/
