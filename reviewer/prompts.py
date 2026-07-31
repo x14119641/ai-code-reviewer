@@ -2,28 +2,207 @@ def build_review_prompt(source_code: str) -> str:
     return f"""
 You are an expert Python code reviewer.
 
-Review the Python code and report only meaningful issues.
+Review only the provided Python code and report only meaningful issues that are directly visible in the code.
 
-Each issue must use one of these categories:
+Do not assume how callers use the function.
+Do not invent external context.
+Do not report style preferences or formatting issues.
+Do not report hypothetical problems that are not supported by the provided code.
+
+Use only these exact rule and category combinations:
+
+- rule: sql_injection
+  category: security
+
+- rule: shell_injection
+  category: security
+
+- rule: path_traversal
+  category: security
+
+- rule: mutable_default_argument
+  category: bug
+
+- rule: duplicate_code
+  category: maintainability
+
+- rule: long_function
+  category: maintainability
+
+- rule: list_membership_in_loop
+  category: performance
+
+- rule: string_concatenation_in_loop
+  category: performance
+
+The category must always match the selected rule exactly.
+
+Never use a rule name as a category.
+
+Valid category values are only:
 
 - security
 - bug
 - performance
 - maintainability
 
-Each issue must use one of these rules:
+Valid rule values are only:
 
 - sql_injection
 - shell_injection
 - path_traversal
 - mutable_default_argument
+- duplicate_code
+- long_function
+- list_membership_in_loop
+- string_concatenation_in_loop
 
-Valid severity values:
+Valid severity values are only:
 
 - low
 - medium
 - high
 - critical
+
+Rule definitions:
+
+sql_injection:
+
+Report when a value is inserted directly into an SQL query using:
+
+- f-strings
+- string concatenation
+- percent formatting
+- str.format()
+
+Do not report parameterized queries.
+
+Dynamic SQL identifiers selected exclusively from a fixed allowlist are safe and must not be reported.
+
+shell_injection:
+
+Report when a value is inserted into a shell command executed using:
+
+- os.system()
+- subprocess.run(..., shell=True)
+- subprocess.Popen(..., shell=True)
+- similar shell-based execution
+
+Do not report subprocess commands passed as an argument list without shell=True.
+
+Commands selected exclusively from a fixed allowlist are safe.
+
+path_traversal:
+
+Report when a path value can access a location outside an intended base directory.
+
+This includes:
+
+- parent-directory traversal such as ../
+- unsafe path joins
+- absolute paths that override the intended base directory
+- paths used without resolving and checking containment
+
+In pathlib, joining a base Path with an absolute path discards the base path.
+
+For example:
+
+Path("/safe/config") / "/etc/passwd"
+
+produces:
+
+/etc/passwd
+
+Do not report path traversal when:
+
+- the path is resolved and verified to remain inside the intended base directory
+- the filename is selected from a strict allowlist
+
+The correct category for path_traversal is always security.
+
+mutable_default_argument:
+
+Report when a mutable object is used directly as a function default argument.
+
+Examples include:
+
+- list
+- dict
+- set
+
+The following pattern is safe and must not be reported:
+
+def function(values=None):
+    if values is None:
+        values = []
+
+Immutable default values such as tuples are also safe.
+
+duplicate_code:
+
+Report when substantially identical multi-step logic appears in multiple functions and should reasonably be extracted into a shared helper.
+
+Do not report:
+
+- trivial repeated assignments
+- a few similar lines
+- common control flow
+- small similarities that do not justify extraction
+
+long_function:
+
+Report when a function contains multiple distinct responsibilities and enough logic that splitting it into focused helper functions would significantly improve readability and maintainability.
+
+Do not report a function only because it contains several lines.
+
+list_membership_in_loop:
+
+Report when membership checks using in or not in are repeatedly performed against a list inside a loop.
+
+This can create quadratic behavior when both collections grow.
+
+Example:
+
+for username in usernames:
+    if username in existing_users:
+        ...
+
+Recommend converting the lookup collection to a set.
+
+Do not report:
+
+- set membership checks
+- dictionary membership checks
+- membership checks outside loops
+
+string_concatenation_in_loop:
+
+Report when a string is repeatedly extended inside a loop using += or equivalent string concatenation.
+
+Example:
+
+result = ""
+
+for value in values:
+    result += value
+
+Recommend collecting fragments and using str.join().
+
+Do not report a single string concatenation outside a loop.
+
+Severity guidance:
+
+- critical:
+  A severe security vulnerability with immediate and serious risk to systems or sensitive data.
+
+- high:
+  A serious security or correctness issue.
+
+- medium:
+  A meaningful bug or performance issue likely to matter in practice.
+
+- low:
+  A maintainability issue or minor performance issue.
 
 Return only valid JSON using exactly this structure:
 
@@ -35,20 +214,42 @@ Return only valid JSON using exactly this structure:
       "rule": "mutable_default_argument",
       "title": "Mutable default argument",
       "explanation": "A mutable default value is shared between function calls.",
-      "recommendation": "Use None as the default and create the object inside the function."
+      "recommendation": "Use None as the default and create a new object inside the function."
     }}
   ]
 }}
 
-If there are no meaningful issues, return:
+Correct path traversal example:
+
+{{
+  "issues": [
+    {{
+      "severity": "high",
+      "category": "security",
+      "rule": "path_traversal",
+      "title": "Path traversal vulnerability",
+      "explanation": "A user-controlled absolute path can override the intended base directory.",
+      "recommendation": "Resolve the final path and verify that it remains inside the allowed base directory."
+    }}
+  ]
+}}
+
+If there are no meaningful issues, return exactly:
 
 {{
   "issues": []
 }}
 
-Do not return Markdown.
-Do not use code fences.
-Do not include any text before or after the JSON.
+Important output rules:
+
+- Return only valid JSON.
+- Do not return Markdown.
+- Do not use code fences.
+- Do not include text before or after the JSON.
+- Do not use categories, rules, or severity values that are not listed above.
+- Every issue must contain severity, category, rule, title, explanation, and recommendation.
+- The category must correspond to the selected rule.
+- If no supported rule clearly applies, return an empty issues list.
 
 Python code:
 
