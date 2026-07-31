@@ -2,10 +2,16 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.engine import review_file, review_files, find_python_files
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
+from reviewer.result_comparison import (
+    BenchmarkResultSummary,
+    ResultComparisonError,
+    load_result_summaries,
+)
 from reviewer.models import CodeReview
 
 app = typer.Typer()
@@ -93,9 +99,11 @@ def benchmark_command(
             return review_file(source_path, model)
 
         run = run_benchmarks(
-            benchmark_paths=benchmark_paths, review_function=review_with_model, model=model
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
         )
-        
+
         if output is not None:
             if output.parent == Path("."):
                 output = Path("results") / output
@@ -103,8 +111,7 @@ def benchmark_command(
             save_benchmark_run(run, output)
             console.print()
             console.print(f"[green]✓ Results saved to:[/green] {output}")
-    
-    
+
         console.print()
         console.rule("[bold]Individual results[/bold]")
 
@@ -153,15 +160,15 @@ def benchmark_command(
             console.print()
             console.rule("[bold red]Execution faiulures[/bold red]")
             for failure in run.failures:
-                        console.print(
-                            f"[bold red]ERROR[/bold red] "
-                            f"{failure.benchmark.name} "
-                            f"[dim]({failure.benchmark.code_path.name})[/dim]"
-                        )
-                        console.print(f"  Type:    {failure.error_type}")
-                        console.print(f"  Message: {failure.message}")
-                        console.print()
-    
+                console.print(
+                    f"[bold red]ERROR[/bold red] "
+                    f"{failure.benchmark.name} "
+                    f"[dim]({failure.benchmark.code_path.name})[/dim]"
+                )
+                console.print(f"  Type:    {failure.error_type}")
+                console.print(f"  Message: {failure.message}")
+                console.print()
+
         console.print()
         console.rule("[bold green]Benchmark results[/bold green]")
 
@@ -178,6 +185,56 @@ def benchmark_command(
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         console.print(f"[red]Benchmark Failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+
+
+def build_comparison_table(
+    summaries: list[BenchmarkResultSummary],
+) -> Table:
+    """Build a Rich table for benchmark result comparison."""
+
+    table = Table(title="Model Comparison")
+
+    table.add_column("Model")
+    table.add_column("Accuracy", justify="right")
+    table.add_column("Passed", justify="right")
+    table.add_column("FP", justify="right")
+    table.add_column("FN", justify="right")
+    table.add_column("Errors", justify="right")
+    table.add_column("Time", justify="right")
+
+    for summary in summaries:
+        table.add_row(
+            summary.model,
+            f"{summary.accuracy:.1%}",
+            str(summary.passed),
+            str(summary.false_positives),
+            str(summary.false_negatives),
+            str(summary.errors),
+            f"{summary.duration_seconds:.1f}s",
+        )
+
+    return table
+
+
+@app.command("compare-results")
+def compare_results(
+    directory: Path,
+) -> None:
+    """Compare previously exported benchmark result files."""
+
+    try:
+        summaries = load_result_summaries(directory)
+    except ResultComparisonError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    summaries.sort(
+        key=lambda summary: summary.accuracy,
+        reverse=True,
+    )
+
+    table = build_comparison_table(summaries)
+    console.print(table)
 
 
 if __name__ == "__main__":

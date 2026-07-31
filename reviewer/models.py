@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -62,6 +63,7 @@ class BenchmarkFailure:
 
 @dataclass(frozen=True)
 class BenchmarkRun:
+    created_at: datetime
     model: str
     evaluations: tuple[BenchmarkEvaluation, ...]
     duration_seconds: float
@@ -100,3 +102,19 @@ class BenchmarkRun:
         if self.benchmark_count == 0:
             return 0.0
         return self.passed / self.benchmark_count
+
+
+@dataclass(frozen=True)
+class BenchmarkResultSummary:
+    """Summary of one exported benchmark run."""
+
+    source: Path
+    model: str
+    benchmark_count: int
+    passed: int
+    failed: int
+    false_positives: int
+    false_negatives: int
+    errors: int
+    accuracy: float
+    duration_seconds: float

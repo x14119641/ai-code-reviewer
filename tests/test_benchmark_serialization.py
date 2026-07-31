@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 
@@ -8,7 +9,15 @@ from reviewer.benchmark_serialization import (
     serialize_path,
     to_json_compatible,
 )
-from reviewer.models import Benchmark, BenchmarkEvaluation, BenchmarkFailure, BenchmarkRun, CodeReview, ExpectedIssue, Issue
+from reviewer.models import (
+    Benchmark,
+    BenchmarkEvaluation,
+    BenchmarkFailure,
+    BenchmarkRun,
+    CodeReview,
+    ExpectedIssue,
+    Issue,
+)
 
 
 def test_to_json_compatible_converts_paths_and_tuples() -> None:
@@ -42,7 +51,7 @@ def test_serialize_path_keeps_external_path() -> None:
     result = serialize_path(path)
 
     assert result == "/tmp/example.py"
-    
+
 
 def test_benchmark_run_to_dict_includes_results_and_summary() -> None:
     benchmark = Benchmark(
@@ -90,6 +99,8 @@ def test_benchmark_run_to_dict_includes_results_and_summary() -> None:
         evaluations=[evaluation],
         duration_seconds=1.234,
         failures=[],
+        created_at=datetime.now(UTC),
+        
     )
 
     result = benchmark_run_to_dict(run)
@@ -111,13 +122,13 @@ def test_benchmark_run_to_dict_includes_results_and_summary() -> None:
     json.dumps(result)
 
 
-
 def test_save_benchmark_run_writes_json_file(tmp_path: Path) -> None:
     run = BenchmarkRun(
         model="test-model",
         evaluations=[],
         duration_seconds=2.5,
         failures=[],
+        created_at=datetime.now(UTC),
     )
 
     output_path = tmp_path / "results" / "benchmark.json"
@@ -135,7 +146,7 @@ def test_save_benchmark_run_writes_json_file(tmp_path: Path) -> None:
     assert data["failed"] == 0
     assert data["evaluations"] == []
     assert data["failures"] == []
-    
+
 
 def test_benchmark_run_to_dict_serializes_failures() -> None:
     benchmark = Benchmark(
@@ -156,6 +167,7 @@ def test_benchmark_run_to_dict_serializes_failures() -> None:
         evaluations=[],
         duration_seconds=1.0,
         failures=[failure],
+        created_at=datetime.now(UTC),
     )
 
     result = benchmark_run_to_dict(run)
@@ -167,6 +179,12 @@ def test_benchmark_run_to_dict_serializes_failures() -> None:
 
     assert result["failures"][0]["error_type"] == "RuntimeError"
     assert result["failures"][0]["message"] == "Invalid model response"
-    assert result["failures"][0]["benchmark"]["code_path"] == (
-        "benchmarks/broken.py"
-    )
+    assert result["failures"][0]["benchmark"]["code_path"] == ("benchmarks/broken.py")
+
+
+def test_to_json_compatible_serializes_datetime() -> None:
+    created_at = datetime(2026, 7, 31, 16, 0, tzinfo=UTC)
+
+    result = to_json_compatible(created_at)
+
+    assert result == "2026-07-31T16:00:00+00:00"

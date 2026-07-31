@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 from reviewer.models import Benchmark, BenchmarkEvaluation, BenchmarkRun, CodeReview
@@ -42,6 +43,7 @@ def test_benchmark_run_calculates_summary() -> None:
             ),
         ),
         duration_seconds=12.5,
+        created_at=datetime.now(UTC),
     )
 
     assert run.model == "test-model"
@@ -60,6 +62,7 @@ def test_empty_benchmark_run_has_zero_accuracy() -> None:
         model="test-model",
         evaluations=(),
         duration_seconds=0.0,
+        created_at=datetime.now(UTC),
     )
 
     assert run.benchmark_count == 0

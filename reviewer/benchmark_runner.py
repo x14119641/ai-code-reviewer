@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterable
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
@@ -54,5 +55,5 @@ def run_benchmarks(
         evaluations.append(evaluation)
     duration_seconds = perf_counter() - start_time
     return BenchmarkRun(
-        model=model, evaluations=tuple(evaluations), duration_seconds=duration_seconds, failures=tuple(failures)
+        model=model, evaluations=tuple(evaluations), duration_seconds=duration_seconds, failures=tuple(failures), created_at=datetime.now(UTC),
     )
