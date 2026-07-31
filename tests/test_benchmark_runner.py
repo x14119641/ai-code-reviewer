@@ -78,6 +78,7 @@ def test_run_benchmarks_returns_summary(
         expected_issues=[
             {
                 "category": "security",
+                "rule": "sql_injection",
                 "severity": "high",
                 "explanation": "Unsafe input handling.",
             }
@@ -91,6 +92,7 @@ def test_run_benchmarks_returns_summary(
                     Issue(
                         title="Unsafe input",
                         severity="high",
+                        rule="sql_injection",
                         category="security",
                         explanation="Unsafe input handling.",
                         recommendation="Validate the input.",
@@ -129,6 +131,7 @@ def test_run_counts_false_positive(
                     title="Invented problem",
                     severity="low",
                     category="bug",
+                    rule="duplicate_code",
                     explanation="This issue does not exist.",
                     recommendation="No change needed.",
                 )
@@ -157,6 +160,7 @@ def test_run_counts_false_negative(
         expected_issues=[
             {
                 "category": "security",
+                "rule": "sql_injection",
                 "severity": "high",
                 "explanation": "Unsafe input handling.",
             }

@@ -11,6 +11,7 @@ def test_parse_valid_review() -> None:
           "severity": "high",
           "category": "security",
           "title": "Unsafe query",
+          "rule": "sql_injection",
           "explanation": "User input is inserted directly into the query.",
           "recommendation": "Use a parameterized query."
         }
@@ -46,6 +47,7 @@ def test_reject_invalid_severity() -> None:
       "issues": [
         {
           "severity": "extreme",
+          "rule": "sql_injection",
           "category": "security",
           "title": "Unsafe query",
           "explanation": "Problem explanation.",

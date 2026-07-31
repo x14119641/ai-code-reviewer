@@ -28,8 +28,9 @@ def test_load_benchmark_with_expected_issue(tmp_path:Path) ->None:
             "expected_issues": [
                 {
                     "category": "security",
+                    "rule": "sql_injection",
                     "severity": "high",
-                    "description": "User input is not validated.",
+                    "explanation": "User input is not validated.",
                 }
             ],
         },
@@ -46,7 +47,7 @@ def test_load_benchmark_with_expected_issue(tmp_path:Path) ->None:
 
     assert expected_issue.category == "security"
     assert expected_issue.severity == "high"
-    assert expected_issue.description == (
+    assert expected_issue.explanation == (
         "User input is not validated."
     )
     
@@ -107,8 +108,9 @@ def test_load_benchmark_rejects_invalid_severity(
             "expected_issues": [
                 {
                     "category": "bug",
+                    "rule": "sql_injection",
                     "severity": "extreme",
-                    "description": "Example issue.",
+                    "explanation": "Example issue.",
                 }
             ],
         },
@@ -116,7 +118,7 @@ def test_load_benchmark_rejects_invalid_severity(
 
     with pytest.raises(
         BenchmarkLoadError,
-        match="Invalid expected severity",
+        match="invalid severity",
     ):
         load_benchmark(code_path)
 

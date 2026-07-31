@@ -43,6 +43,7 @@ def test_review_file_returns_parsed_code_review(
             {
               "severity": "high",
               "category": "security",
+              "rule": "sql_injection",
               "title": "Fake issue",
               "explanation": "Fake explanation.",
               "recommendation": "Fake recommendation."
@@ -63,6 +64,7 @@ def test_review_file_returns_parsed_code_review(
             Issue(
                 severity="high",
                 category="security",
+                rule="sql_injection",
                 title="Fake issue",
                 explanation="Fake explanation.",
                 recommendation="Fake recommendation.",
@@ -194,6 +196,7 @@ def test_review_folder_reviews_all_python_files(
             Issue(
                 severity="medium",
                 category="test",
+                rule="sql_injection",
                 title="Test issue",
                 explanation="Test explanation.",
                 recommendation="Test recommendation.",
