@@ -16,13 +16,15 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - ✅ Benchmark runner
 - ✅ Benchmark evaluation
 - ✅ Benchmark result export
+- ✅ Benchmark result comparison
 
 ### Planned
 
 - Review Git diffs
 - Review pull requests
-- Compare local models
 - Prompt benchmarking
+- Compare benchmark suites
+- HTML reports
 - Agent mode
 
 ## Current Features
@@ -34,11 +36,12 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - Benchmark execution
 - Automatic benchmark evaluation
 - JSON export of benchmark results
+- Compare benchmark result files
 - Local execution with Ollama
 
 ## Architecture
 
-The reviewer follows a simple pipeline:
+The reviewer follows a modular pipeline:
 
 ```text
 Python File
@@ -77,7 +80,7 @@ Current benchmark categories include:
 | Maintainability | Duplicate code, Long functions                          |
 | False Positives | Safe implementations that should not trigger findings   |
 
-Benchmark runs can be exported as JSON for later comparison between models and prompts.
+Benchmark runs can be exported as JSON and compared later across different models, prompts, and benchmark suites.
 
 Results include:
 
@@ -134,12 +137,15 @@ uv run python main.py benchmark benchmarks/
 # Select a different model
 uv run python main.py benchmark benchmarks/ --model qwen2.5-coder:14b
 
-# Save benchmark results
+# Export benchmark results
 uv run python main.py benchmark benchmarks/ \
-    --output qwen2.5-coder-7b.json
+    --output results/qwen2.5-coder-7b.json
 
-# Save results using a different model
+# Export results using another model
 uv run python main.py benchmark benchmarks/ \
     --model qwen2.5-coder:14b \
-    --output qwen2.5-coder-14b.json
+    --output results/qwen2.5-coder-14b.json
+
+# Compare exported benchmark results
+uv run python main.py compare-results results/
 ```
