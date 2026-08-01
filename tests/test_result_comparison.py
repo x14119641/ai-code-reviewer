@@ -1,18 +1,27 @@
 import json
 from pathlib import Path
+from typing import Any
+from typer.testing import CliRunner
+
 
 import pytest
+
+from main import app
 
 from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
 from reviewer.result_comparison import (
     ResultComparisonError,
+    extract_category_from_evaluation,
     extract_rule_from_evaluation,
     find_result_files,
     load_result,
     load_result_summaries,
     load_result_summary,
+    summarize_categories,
     summarize_rules,
 )
+
+runner = CliRunner()
 
 
 def write_result(
@@ -24,11 +33,12 @@ def write_result(
     severity_evaluated_count: int = 4,
     severity_accuracy: float = 0.75,
     failures: list[dict[str, str]] | None = None,
+    evaluations: list[dict[str, Any]] | None = None,
 ) -> None:
     data = {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
         "model": model,
-        "evaluations": [],
+        "evaluations": evaluations or [],
         "failures": failures or [],
         "benchmark_count": 5,
         "passed": 4,
@@ -175,6 +185,7 @@ def test_load_result_summary_rejects_missing_field(
     result_file.write_text(
         json.dumps(
             {
+                "schema_version": BENCHMARK_SCHEMA_VERSION,
                 "model": "qwen3.5:9b",
                 "failures": [],
                 "evaluations": [],
@@ -190,7 +201,6 @@ def test_load_result_summary_rejects_missing_field(
         load_result_summary(result_file)
 
 
-
 def test_extract_rule_uses_expected_issue() -> None:
     evaluation = {
         "benchmark": {
@@ -204,36 +214,31 @@ def test_extract_rule_uses_expected_issue() -> None:
     }
 
     assert extract_rule_from_evaluation(evaluation) == "sql_injection"
-    
+
 
 def test_extract_rule_uses_directory_for_safe_benchmark() -> None:
     evaluation = {
         "benchmark": {
             "code_path": (
-                "benchmarks/security/sql_injection/"
-                "parameterized_query.py"
+                "benchmarks/security/sql_injection/" "parameterized_query.py"
             ),
             "expected_issues": [],
         }
     }
 
     assert extract_rule_from_evaluation(evaluation) == "sql_injection"
-    
 
 
 def test_extract_rule_ignores_legacy_directories() -> None:
     evaluation = {
         "benchmark": {
-            "code_path": (
-                "benchmarks/false_positives/"
-                "clean_user_lookup.py"
-            ),
+            "code_path": ("benchmarks/false_positives/" "clean_user_lookup.py"),
             "expected_issues": [],
         }
     }
 
     assert extract_rule_from_evaluation(evaluation) is None
-    
+
 
 def test_extract_rule_ignores_python_directory() -> None:
     evaluation = {
@@ -250,10 +255,7 @@ def test_summarize_rules_aggregates_results() -> None:
     evaluations = [
         {
             "benchmark": {
-                "code_path": (
-                    "benchmarks/security/sql_injection/"
-                    "unsafe.py"
-                ),
+                "code_path": ("benchmarks/security/sql_injection/" "unsafe.py"),
                 "expected_issues": [
                     {
                         "rule": "sql_injection",
@@ -266,10 +268,7 @@ def test_summarize_rules_aggregates_results() -> None:
         },
         {
             "benchmark": {
-                "code_path": (
-                    "benchmarks/security/sql_injection/"
-                    "safe.py"
-                ),
+                "code_path": ("benchmarks/security/sql_injection/" "safe.py"),
                 "expected_issues": [],
             },
             "passed": False,
@@ -291,22 +290,27 @@ def test_summarize_rules_aggregates_results() -> None:
     assert summary.false_positives == 1
     assert summary.false_negatives == 0
     assert summary.accuracy == 0.5
-    
-       
+
+
 def test_load_result_summary_rejects_invalid_failures(
     tmp_path: Path,
 ) -> None:
     result_file = tmp_path / "result.json"
 
     data = {
+        "schema_version": BENCHMARK_SCHEMA_VERSION,
         "model": "qwen3.5:9b",
+        "evaluations": [],
         "failures": 2,
         "benchmark_count": 5,
         "passed": 3,
         "failed": 2,
         "false_positives": 1,
         "false_negatives": 1,
-        "accuracy": 60.0,
+        "accuracy": 0.6,
+        "severity_matches": 2,
+        "severity_evaluated_count": 3,
+        "severity_accuracy": 2 / 3,
         "duration_seconds": 20.0,
     }
 
@@ -357,3 +361,97 @@ def test_load_result_includes_evaluations(
 
     assert result.summary.model == "qwen3.5:9b"
     assert result.evaluations == [{"passed": True}]
+
+
+def test_compare_results_by_rule_displays_rule_table(
+    tmp_path: Path,
+) -> None:
+    write_result(
+        tmp_path / "result.json",
+        model="qwen3.5:9b",
+        evaluations=[
+            {
+                "benchmark": {
+                    "code_path": ("benchmarks/security/sql_injection/" "unsafe.py"),
+                    "expected_issues": [
+                        {
+                            "rule": "sql_injection",
+                        }
+                    ],
+                },
+                "passed": True,
+                "false_positive": False,
+                "false_negative": False,
+            }
+        ],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "compare-results",
+            str(tmp_path),
+            "--by-rule",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Rule Comparison" in result.stdout
+    assert "sql_injection" in result.stdout
+    assert "100.0%" in result.stdout
+
+
+def test_extract_category_uses_expected_issue() -> None:
+    evaluation = {
+        "benchmark": {
+            "code_path": ("benchmarks/security/sql_injection/example.py"),
+            "expected_issues": [
+                {
+                    "category": "security",
+                }
+            ],
+        }
+    }
+
+    assert extract_category_from_evaluation(evaluation) == "security"
+
+
+def test_summarize_categories_aggregates_results() -> None:
+    evaluations = [
+        {
+            "benchmark": {
+                "code_path": ("benchmarks/security/sql_injection/" "unsafe.py"),
+                "expected_issues": [
+                    {
+                        "category": "security",
+                    }
+                ],
+            },
+            "passed": True,
+            "false_positive": False,
+            "false_negative": False,
+        },
+        {
+            "benchmark": {
+                "code_path": ("benchmarks/security/sql_injection/" "safe.py"),
+                "expected_issues": [],
+            },
+            "passed": False,
+            "false_positive": True,
+            "false_negative": False,
+        },
+    ]
+
+    summaries = summarize_categories(evaluations)
+
+    assert len(summaries) == 1
+
+    summary = summaries[0]
+
+    assert summary.category == "security"
+    assert summary.benchmark_count == 2
+    assert summary.passed == 1
+    assert summary.failed == 1
+    assert summary.false_positives == 1
+    assert summary.false_negatives == 0
+    assert summary.accuracy == 0.5

@@ -172,3 +172,20 @@ class RuleComparisonSummary:
             return 0.0
 
         return self.passed / self.benchmark_count
+
+
+@dataclass(frozen=True)
+class CategoryComparisonSummary:
+    category: str
+    benchmark_count: int
+    passed: int
+    failed: int
+    false_positives: int
+    false_negatives: int
+
+    @property
+    def accuracy(self) -> float:
+        if self.benchmark_count == 0:
+            return 0.0
+
+        return self.passed / self.benchmark_count

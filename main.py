@@ -11,8 +11,11 @@ from reviewer.result_comparison import (
     BenchmarkResultSummary,
     ResultComparisonError,
     load_result_summaries,
+    load_results,
+    summarize_categories,
+    summarize_rules,
 )
-from reviewer.models import CodeReview
+from reviewer.models import BenchmarkResult, CodeReview
 
 app = typer.Typer()
 console = Console()
@@ -180,9 +183,15 @@ def benchmark_command(
         console.print(f"[yellow]False positives:[/yellow] {run.false_positives}")
         console.print(f"[yellow]False negatives:[/yellow] {run.false_negatives}")
         console.print(f"[bold cyan]Accuracy:[/bold cyan] {run.accuracy:.2%}")
-        console.print(f"[bold purple4]Severity Count:[/bold purple4] {run.severity_evaluated_count}")
-        console.print(f"[bold purple4]Severity Matches:[/bold purple4] {run.severity_matches}")
-        console.print(f"[bold purple4]Severity Accuracy:[/bold purple4] {run.severity_accuracy:.2%}")
+        console.print(
+            f"[bold purple4]Severity Count:[/bold purple4] {run.severity_evaluated_count}"
+        )
+        console.print(
+            f"[bold purple4]Severity Matches:[/bold purple4] {run.severity_matches}"
+        )
+        console.print(
+            f"[bold purple4]Severity Accuracy:[/bold purple4] {run.severity_accuracy:.2%}"
+        )
 
         console.print(f"[bold cyan]Duration:[/bold cyan] {run.duration_seconds:.2f} s")
 
@@ -222,24 +231,147 @@ def build_comparison_table(
     return table
 
 
+def build_rule_comparison_table(results: list[BenchmarkResult]) -> Table:
+    table = Table(title="Rule Comparison")
+
+    table.add_column("Rule")
+
+    for result in results:
+        table.add_column(result.summary.model, justify="right")
+
+    rules = sorted(
+        {
+            rule_summary.rule
+            for result in results
+            for rule_summary in summarize_rules(result.evaluations)
+        }
+    )
+
+    summaries_by_model = {
+        result.summary.model: {
+            summary.rule: summary for summary in summarize_rules(result.evaluations)
+        }
+        for result in results
+    }
+
+    for rule in rules:
+        row = [rule]
+
+        for result in results:
+            summary = summaries_by_model[result.summary.model].get(rule)
+
+            if summary is None:
+                row.append("-")
+            else:
+                row.append(
+                    f"{summary.accuracy:.1%} "
+                    f"({summary.passed}/{summary.benchmark_count})"
+                )
+
+        table.add_row(*row)
+
+    return table
+
+
+def build_category_comparison_table(
+    results: list[BenchmarkResult],
+) -> Table:
+    table = Table(title="Category Comparison")
+
+    table.add_column("Category")
+
+    for result in results:
+        table.add_column(
+            result.summary.model,
+            justify="right",
+        )
+
+    categories = sorted(
+        {
+            category_summary.category
+            for result in results
+            for category_summary in summarize_categories(result.evaluations)
+        }
+    )
+
+    summaries_by_model = {
+        result.summary.model: {
+            summary.category: summary
+            for summary in summarize_categories(result.evaluations)
+        }
+        for result in results
+    }
+
+    for category in categories:
+        row = [category]
+
+        for result in results:
+            summary = summaries_by_model[result.summary.model].get(category)
+
+            if summary is None:
+                row.append("-")
+            else:
+                row.append(
+                    f"{summary.accuracy:.1%} "
+                    f"({summary.passed}/"
+                    f"{summary.benchmark_count})"
+                )
+
+        table.add_row(*row)
+
+    return table
+
+
 @app.command("compare-results")
 def compare_results(
     directory: Path,
+    by_rule: bool = typer.Option(
+        False, "--by-rule", help="Compare benchmark results grouped by rule"
+    ),
+    by_category: bool = typer.Option(
+        False, "--by-category", help="Compare benchmark results grouped by category"
+    ),
 ) -> None:
-    """Compare previously exported benchmark result files."""
-
+    """Compare previously exported benchmark result files"""
+    if by_rule and by_category:
+        console.print(
+            "[red]Error:[/red] Use either --by-rule "
+            "or --by-category, not both."
+        )
+        raise typer.Exit(code=1)
     try:
-        summaries = load_result_summaries(directory)
+        if by_rule:
+            results = load_results(directory)
+
+            results.sort(
+                key=lambda result: result.summary.accuracy,
+                reverse=True,
+            )
+
+            table = build_rule_comparison_table(results)
+        elif by_category:
+            results = load_results(directory)
+
+            results.sort(
+                key=lambda result: result.summary.accuracy,
+                reverse=True,
+            )
+
+            table = build_category_comparison_table(results)
+        else:
+            summaries = load_result_summaries(directory)
+
+            summaries.sort(
+                key=lambda summary: summary.accuracy,
+                reverse=True,
+            )
+
+            table = build_comparison_table(summaries)
+
     except ResultComparisonError as error:
         console.print(f"[red]Error:[/red] {error}")
         raise typer.Exit(code=1) from error
 
-    summaries.sort(
-        key=lambda summary: summary.accuracy,
-        reverse=True,
-    )
-
-    table = build_comparison_table(summaries)
     console.print(table)
 
 

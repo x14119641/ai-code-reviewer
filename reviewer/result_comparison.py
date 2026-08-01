@@ -4,15 +4,23 @@ from typing import Any
 
 from reviewer.models import (
     BenchmarkResultSummary,
+    CategoryComparisonSummary,
     RuleComparisonSummary,
     BenchmarkResult,
+    RuleComparisonSummary,
 )
+from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
+
 
 IGNORED_RULE_DIRECTORIES = {
     "false_positives",
     "python",
 }
 
+IGNORED_CATEGORY_DIRECTORIES = {
+    "false_positives",
+    "python",
+}
 
 class ResultComparisonError(ValueError):
     """Raised when benchmark result files cannot be compared"""
@@ -53,7 +61,21 @@ def load_result(path: Path) -> BenchmarkResult:
         ) from error
 
     if not isinstance(data, dict):
-        raise ResultComparisonError(f"Expected a JSON object in result file: {path}")
+        raise ResultComparisonError(
+            f"Expected a JSON object in result file: {path}"
+        )
+
+    schema_version = _require_integer(
+        data,
+        "schema_version",
+        path,
+    )
+
+    if schema_version != BENCHMARK_SCHEMA_VERSION:
+        raise ResultComparisonError(
+            f"Unsupported schema version {schema_version} in {path}. "
+            f"Supported version: {BENCHMARK_SCHEMA_VERSION}"
+        )
 
     failures = _require_list(data, "failures", path)
     evaluations = _require_list(data, "evaluations", path)
@@ -178,6 +200,7 @@ def _require_list(
 
 
 def extract_rule_from_evaluation(evaluation: dict[str, Any]) -> str | None:
+    """Return the benchmark rule represented by an evaluation."""
     benchmark = evaluation.get("benchmark")
 
     if not isinstance(benchmark, dict):
@@ -217,6 +240,7 @@ def extract_rule_from_evaluation(evaluation: dict[str, Any]) -> str | None:
 def summarize_rules(
     evaluations: list[dict[str, Any]],
 ) -> list[RuleComparisonSummary]:
+    """Aggregate benchmark evaluations by rule."""
     grouped: dict[str, list[dict[str, Any]]] = {}
 
     for evaluation in evaluations:
@@ -227,7 +251,7 @@ def summarize_rules(
 
         grouped.setdefault(rule, []).append(evaluation)
 
-    summaries = []
+    summaries: list[RuleComparisonSummary] = []
 
     for rule, rule_evaluations in grouped.items():
         passed = sum(
@@ -258,4 +282,95 @@ def summarize_rules(
     return sorted(
         summaries,
         key=lambda summary: summary.rule,
+    )
+
+def extract_category_from_evaluation(
+    evaluation: dict[str, Any],
+) -> str | None:
+    """Return the benchmark category represented by an evaluation."""
+
+    benchmark = evaluation.get("benchmark")
+
+    if not isinstance(benchmark, dict):
+        return None
+
+    expected_issues = benchmark.get("expected_issues")
+
+    if isinstance(expected_issues, list) and expected_issues:
+        first_issue = expected_issues[0]
+
+        if isinstance(first_issue, dict):
+            category = first_issue.get("category")
+
+            if isinstance(category, str) and category:
+                return category
+
+    code_path = benchmark.get("code_path")
+
+    if not isinstance(code_path, str):
+        return None
+
+    path = Path(code_path)
+
+    # benchmarks/security/sql_injection/example.py
+    if len(path.parts) >= 4:
+        category = path.parent.parent.name
+
+        if category in IGNORED_CATEGORY_DIRECTORIES:
+            return None
+
+        return category
+
+    return None
+
+
+def summarize_categories(
+    evaluations: list[dict[str, Any]],
+) -> list[CategoryComparisonSummary]:
+    """Aggregate benchmark evaluations by category."""
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+
+    for evaluation in evaluations:
+        category = extract_category_from_evaluation(evaluation)
+
+        if category is None:
+            continue
+
+        grouped.setdefault(category, []).append(evaluation)
+
+    summaries: list[CategoryComparisonSummary] = []
+
+    for category, category_evaluations in grouped.items():
+        passed = sum(
+            evaluation.get("passed") is True
+            for evaluation in category_evaluations
+        )
+
+        false_positives = sum(
+            evaluation.get("false_positive") is True
+            for evaluation in category_evaluations
+        )
+
+        false_negatives = sum(
+            evaluation.get("false_negative") is True
+            for evaluation in category_evaluations
+        )
+
+        benchmark_count = len(category_evaluations)
+
+        summaries.append(
+            CategoryComparisonSummary(
+                category=category,
+                benchmark_count=benchmark_count,
+                passed=passed,
+                failed=benchmark_count - passed,
+                false_positives=false_positives,
+                false_negatives=false_negatives,
+            )
+        )
+
+    return sorted(
+        summaries,
+        key=lambda summary: summary.category,
     )
