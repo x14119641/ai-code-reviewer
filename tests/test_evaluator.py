@@ -2,7 +2,7 @@ from pathlib import Path
 
 from reviewer.benchmarks import Benchmark
 from reviewer.evaluator import evaluate_benchmark
-from reviewer.models import CodeReview
+from reviewer.models import CodeReview, ExpectedIssue, Issue
 
 
 def test_clean_benchmark_passes_with_clean_review() -> None:
@@ -22,3 +22,46 @@ def test_clean_benchmark_passes_with_clean_review() -> None:
     assert evaluation.false_negative is False
     assert evaluation.expected_issue_count == 0
     assert evaluation.actual_issue_count == 0
+    
+    
+def test_category_mismatch_fails_benchmark() -> None:
+    benchmark = Benchmark(
+        name="Mutable default argument",
+        code_path=Path("mutable_default.py"),
+        source_code=(
+            "def add_item(item: str, items: list[str] = []) -> list[str]:\n"
+            "    items.append(item)\n"
+            "    return items\n"
+        ),
+        expected_issues=(
+            ExpectedIssue(
+                severity="medium",
+                rule="mutable_default_argument",
+                category="bug",
+                explanation="A mutable default argument shares state across calls.",
+            ),
+        ),
+    )
+
+    review = CodeReview(
+        issues=[
+            Issue(
+                severity="medium",
+                rule="mutable_default_argument",
+                category="maintainability",
+                title="Mutable default argument",
+                explanation="The default list is shared across calls.",
+                recommendation="Use None and create the list inside the function.",
+            ),
+        ]
+    )
+
+    evaluation = evaluate_benchmark(
+        benchmark=benchmark,
+        review=review,
+    )
+
+    assert evaluation.rule_matched is True
+    assert evaluation.category_matched is False
+    assert evaluation.severity_matched is True
+    assert evaluation.passed is False

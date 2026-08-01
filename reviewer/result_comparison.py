@@ -67,6 +67,9 @@ def load_result_summary(path: Path) -> BenchmarkResultSummary:
         errors=len(failures),
         accuracy=_require_number(data, "accuracy", path),
         duration_seconds=_require_number(data, "duration_seconds", path),
+        severity_matches=_require_integer(data, "severity_matches", path),
+        severity_evaluated_count=_require_integer(data, "severity_evaluated_count", path),
+        severity_accuracy=_require_number(data, "severity_accuracy", path),
     )
 
 

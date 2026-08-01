@@ -50,6 +50,8 @@ def benchmark_run_to_dict(run: BenchmarkRun) -> dict[str, Any]:
 
     data.update(
         {
+            "model":run.model,
+            "schema_version":run.schema_version,
             "benchmark_count": run.benchmark_count,
             "passed": run.passed,
             "failed": run.failed,
@@ -58,6 +60,9 @@ def benchmark_run_to_dict(run: BenchmarkRun) -> dict[str, Any]:
             "false_negatives": run.false_negatives,
             "accuracy": run.accuracy,
             "duration_seconds": round(run.duration_seconds, 2),
+            "severity_matches":run.severity_matches,
+            "severity_evaluated_count":run.severity_evaluated_count,
+            "severity_accuracy":run.severity_accuracy,
             "created_at": run.created_at.isoformat(),
         }
     )

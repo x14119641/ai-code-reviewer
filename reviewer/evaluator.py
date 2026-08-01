@@ -17,6 +17,14 @@ def evaluate_benchmark(
     benchmark: Benchmark,
     review: CodeReview,
 ) -> BenchmarkEvaluation:
+    """
+    A benchmark passes when the model correctly detects the
+    presence or absence of an expected issue and matches its
+    rule and category.
+
+    Severity is evaluated separately and does not determine
+    whether the benchmark passes.
+    """
     expected_issue_count = len(benchmark.expected_issues)
     actual_issue_count = len(review.issues)
 
@@ -41,10 +49,14 @@ def evaluate_benchmark(
         category_matched = expected.category == actual.category
         severity_matched = expected.severity == actual.severity
 
-    if not expects_issues:
-        passed = not detected_issues
+    if expects_issues:
+        passed = (
+            rule_matched
+            and category_matched
+            and not false_negative
+        )
     else:
-        passed = rule_matched
+        passed = not false_positive
 
     return BenchmarkEvaluation(
         benchmark=benchmark,

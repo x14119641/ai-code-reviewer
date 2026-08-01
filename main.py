@@ -180,6 +180,10 @@ def benchmark_command(
         console.print(f"[yellow]False positives:[/yellow] {run.false_positives}")
         console.print(f"[yellow]False negatives:[/yellow] {run.false_negatives}")
         console.print(f"[bold cyan]Accuracy:[/bold cyan] {run.accuracy:.2%}")
+        console.print(f"[bold purple4]Severity Count:[/bold purple4] {run.severity_evaluated_count}")
+        console.print(f"[bold purple4]Severity Matches:[/bold purple4] {run.severity_matches}")
+        console.print(f"[bold purple4]Severity Accuracy:[/bold purple4] {run.severity_accuracy:.2%}")
+
         console.print(f"[bold cyan]Duration:[/bold cyan] {run.duration_seconds:.2f} s")
 
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
@@ -196,6 +200,7 @@ def build_comparison_table(
 
     table.add_column("Model")
     table.add_column("Accuracy", justify="right")
+    table.add_column("Severity", justify="right")
     table.add_column("Passed", justify="right")
     table.add_column("FP", justify="right")
     table.add_column("FN", justify="right")
@@ -206,6 +211,7 @@ def build_comparison_table(
         table.add_row(
             summary.model,
             f"{summary.accuracy:.1%}",
+            f"{summary.severity_accuracy:.1%}",
             str(summary.passed),
             str(summary.false_positives),
             str(summary.false_negatives),

@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
 from reviewer.result_comparison import (
     ResultComparisonError,
     find_result_files,
@@ -15,10 +16,14 @@ def write_result(
     path: Path,
     *,
     model: str = "qwen3.5:9b",
-    accuracy: float = 80.0,
+    accuracy: float = 0.8,
+    severity_matches: int = 3,
+    severity_evaluated_count: int = 4,
+    severity_accuracy: float = 0.75,
     failures: list[dict[str, str]] | None = None,
 ) -> None:
     data = {
+        "schema_version": BENCHMARK_SCHEMA_VERSION,
         "model": model,
         "evaluations": [],
         "failures": failures or [],
@@ -28,6 +33,9 @@ def write_result(
         "false_positives": 1,
         "false_negatives": 0,
         "accuracy": accuracy,
+        "severity_matches": severity_matches,
+        "severity_evaluated_count": severity_evaluated_count,
+        "severity_accuracy": severity_accuracy,
         "duration_seconds": 12.5,
     }
 
@@ -95,7 +103,10 @@ def test_load_result_summary(
     write_result(
         result_file,
         model="qwen2.5-coder:7b",
-        accuracy=80.0,
+        accuracy=0.8,
+        severity_matches=3,
+        severity_evaluated_count=4,
+        severity_accuracy=0.75,
         failures=[
             {
                 "path": "benchmarks/example.py",
@@ -114,7 +125,10 @@ def test_load_result_summary(
     assert summary.false_positives == 1
     assert summary.false_negatives == 0
     assert summary.errors == 1
-    assert summary.accuracy == 80.0
+    assert summary.accuracy == 0.8
+    assert summary.severity_matches == 3
+    assert summary.severity_evaluated_count == 4
+    assert summary.severity_accuracy == 0.75
     assert summary.duration_seconds == 12.5
 
 

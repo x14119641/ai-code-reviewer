@@ -188,3 +188,4 @@ def test_to_json_compatible_serializes_datetime() -> None:
     result = to_json_compatible(created_at)
 
     assert result == "2026-07-31T16:00:00+00:00"
+

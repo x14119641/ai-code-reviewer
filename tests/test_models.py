@@ -1,16 +1,23 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
+from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
 from reviewer.models import Benchmark, BenchmarkEvaluation, BenchmarkRun, CodeReview
 
 
 def create_evaluation(
-    *, passed: bool, false_positive: bool = False, false_negative: bool = False
+    *,
+    passed: bool = True,
+    false_positive: bool = False,
+    false_negative: bool = False,
+    rule_matched: bool = False,
+    category_matched: bool = False,
+    severity_matched: bool = False,
 ) -> BenchmarkEvaluation:
     benchmark = Benchmark(
         name="Example benchmark",
         code_path=Path("example.py"),
-        source_code="value=1",
+        source_code="value = 1",
         expected_issues=(),
     )
 
@@ -21,9 +28,9 @@ def create_evaluation(
         actual_issue_count=0,
         false_positive=false_positive,
         false_negative=false_negative,
-        rule_matched=False,
-        category_matched=False,
-        severity_matched=False,
+        rule_matched=rule_matched,
+        category_matched=category_matched,
+        severity_matched=severity_matched,
         passed=passed,
     )
 
@@ -56,7 +63,6 @@ def test_benchmark_run_calculates_summary() -> None:
     assert run.duration_seconds == 12.5
 
 
-
 def test_empty_benchmark_run_has_zero_accuracy() -> None:
     run = BenchmarkRun(
         model="test-model",
@@ -71,3 +77,56 @@ def test_empty_benchmark_run_has_zero_accuracy() -> None:
     assert run.accuracy == 0.0
     assert run.model == "test-model"
     assert run.duration_seconds >= 0.0
+
+
+def test_severity_metrics_count_only_rule_and_category_matches() -> None:
+    run = BenchmarkRun(
+        schema_version=BENCHMARK_SCHEMA_VERSION,
+        created_at=datetime.now(UTC),
+        model="test-model",
+        evaluations=(
+            create_evaluation(
+                rule_matched=True,
+                category_matched=True,
+                severity_matched=True,
+            ),
+            create_evaluation(
+                rule_matched=True,
+                category_matched=True,
+                severity_matched=False,
+            ),
+            create_evaluation(
+                rule_matched=True,
+                category_matched=False,
+                severity_matched=False,
+                passed=False,
+            ),
+            create_evaluation(
+                rule_matched=False,
+                category_matched=False,
+                severity_matched=False,
+                passed=False,
+            ),
+        ),
+        failures=(),
+        duration_seconds=1.0,
+    )
+
+    assert run.severity_evaluated_count == 2
+    assert run.severity_matches == 1
+    assert run.severity_accuracy == 0.5
+
+
+def test_severity_accuracy_is_zero_when_nothing_is_evaluated() -> None:
+    run = BenchmarkRun(
+        schema_version=BENCHMARK_SCHEMA_VERSION,
+        created_at=datetime.now(UTC),
+        model="test-model",
+        evaluations=(),
+        failures=(),
+        duration_seconds=1.0,
+    )
+
+    assert run.severity_evaluated_count == 0
+    assert run.severity_matches == 0
+    assert run.severity_accuracy == 0.0
