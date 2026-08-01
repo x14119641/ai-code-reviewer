@@ -17,6 +17,8 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - ✅ Benchmark evaluation
 - ✅ Benchmark result export
 - ✅ Benchmark result comparison
+- ✅ Rule comparison
+- ✅ Category comparison
 
 ### Planned
 
@@ -37,6 +39,9 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - Automatic benchmark evaluation
 - JSON export of benchmark results
 - Compare benchmark result files
+- Compare benchmark result files
+- Compare models by rule
+- Compare models by category
 - Local execution with Ollama
 
 ## Architecture
@@ -148,4 +153,13 @@ uv run python main.py benchmark benchmarks/ \
 
 # Compare exported benchmark results
 uv run python main.py compare-results results/
+
+# Compare benchmark results
+uv run python main.py compare-results results/
+
+# Compare benchmark results by rule
+uv run python main.py compare-results results/ --by-rule
+
+# Compare benchmark results by category
+uv run python main.py compare-results results/ --by-category
 ```
