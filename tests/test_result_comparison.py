@@ -6,9 +6,12 @@ import pytest
 from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
 from reviewer.result_comparison import (
     ResultComparisonError,
+    extract_rule_from_evaluation,
     find_result_files,
+    load_result,
     load_result_summaries,
     load_result_summary,
+    summarize_rules,
 )
 
 
@@ -174,6 +177,7 @@ def test_load_result_summary_rejects_missing_field(
             {
                 "model": "qwen3.5:9b",
                 "failures": [],
+                "evaluations": [],
             }
         ),
         encoding="utf-8",
@@ -186,6 +190,109 @@ def test_load_result_summary_rejects_missing_field(
         load_result_summary(result_file)
 
 
+
+def test_extract_rule_uses_expected_issue() -> None:
+    evaluation = {
+        "benchmark": {
+            "code_path": "benchmarks/security/sql_injection/example.py",
+            "expected_issues": [
+                {
+                    "rule": "sql_injection",
+                }
+            ],
+        }
+    }
+
+    assert extract_rule_from_evaluation(evaluation) == "sql_injection"
+    
+
+def test_extract_rule_uses_directory_for_safe_benchmark() -> None:
+    evaluation = {
+        "benchmark": {
+            "code_path": (
+                "benchmarks/security/sql_injection/"
+                "parameterized_query.py"
+            ),
+            "expected_issues": [],
+        }
+    }
+
+    assert extract_rule_from_evaluation(evaluation) == "sql_injection"
+    
+
+
+def test_extract_rule_ignores_legacy_directories() -> None:
+    evaluation = {
+        "benchmark": {
+            "code_path": (
+                "benchmarks/false_positives/"
+                "clean_user_lookup.py"
+            ),
+            "expected_issues": [],
+        }
+    }
+
+    assert extract_rule_from_evaluation(evaluation) is None
+    
+
+def test_extract_rule_ignores_python_directory() -> None:
+    evaluation = {
+        "benchmark": {
+            "code_path": "benchmarks/python/mutable_default.py",
+            "expected_issues": [],
+        }
+    }
+
+    assert extract_rule_from_evaluation(evaluation) is None
+
+
+def test_summarize_rules_aggregates_results() -> None:
+    evaluations = [
+        {
+            "benchmark": {
+                "code_path": (
+                    "benchmarks/security/sql_injection/"
+                    "unsafe.py"
+                ),
+                "expected_issues": [
+                    {
+                        "rule": "sql_injection",
+                    }
+                ],
+            },
+            "passed": True,
+            "false_positive": False,
+            "false_negative": False,
+        },
+        {
+            "benchmark": {
+                "code_path": (
+                    "benchmarks/security/sql_injection/"
+                    "safe.py"
+                ),
+                "expected_issues": [],
+            },
+            "passed": False,
+            "false_positive": True,
+            "false_negative": False,
+        },
+    ]
+
+    summaries = summarize_rules(evaluations)
+
+    assert len(summaries) == 1
+
+    summary = summaries[0]
+
+    assert summary.rule == "sql_injection"
+    assert summary.benchmark_count == 2
+    assert summary.passed == 1
+    assert summary.failed == 1
+    assert summary.false_positives == 1
+    assert summary.false_negatives == 0
+    assert summary.accuracy == 0.5
+    
+       
 def test_load_result_summary_rejects_invalid_failures(
     tmp_path: Path,
 ) -> None:
@@ -213,3 +320,40 @@ def test_load_result_summary_rejects_invalid_failures(
         match="'failures' must be a list",
     ):
         load_result_summary(result_file)
+
+
+def test_load_result_includes_evaluations(
+    tmp_path: Path,
+) -> None:
+    result_file = tmp_path / "result.json"
+
+    data = {
+        "schema_version": BENCHMARK_SCHEMA_VERSION,
+        "model": "qwen3.5:9b",
+        "evaluations": [
+            {
+                "passed": True,
+            }
+        ],
+        "failures": [],
+        "benchmark_count": 1,
+        "passed": 1,
+        "failed": 0,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "accuracy": 1.0,
+        "severity_matches": 1,
+        "severity_evaluated_count": 1,
+        "severity_accuracy": 1.0,
+        "duration_seconds": 2.0,
+    }
+
+    result_file.write_text(
+        json.dumps(data),
+        encoding="utf-8",
+    )
+
+    result = load_result(result_file)
+
+    assert result.summary.model == "qwen3.5:9b"
+    assert result.evaluations == [{"passed": True}]

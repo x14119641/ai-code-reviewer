@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Any
 
 from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
 from reviewer.taxonomy import IssueCategory, IssueRule, Severity
@@ -148,3 +149,26 @@ class BenchmarkResultSummary:
     severity_matches: int
     severity_evaluated_count: int
     severity_accuracy: float
+
+
+@dataclass(frozen=True)
+class BenchmarkResult:
+    summary: BenchmarkResultSummary
+    evaluations: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class RuleComparisonSummary:
+    rule: str
+    benchmark_count: int
+    passed: int
+    failed: int
+    false_positives: int
+    false_negatives: int
+
+    @property
+    def accuracy(self) -> float:
+        if self.benchmark_count == 0:
+            return 0.0
+
+        return self.passed / self.benchmark_count
