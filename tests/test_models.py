@@ -38,6 +38,7 @@ def create_evaluation(
 def test_benchmark_run_calculates_summary() -> None:
     run = BenchmarkRun(
         model="test-model",
+        prompt_version="v1",
         evaluations=(
             create_evaluation(passed=True),
             create_evaluation(
@@ -66,6 +67,7 @@ def test_benchmark_run_calculates_summary() -> None:
 def test_empty_benchmark_run_has_zero_accuracy() -> None:
     run = BenchmarkRun(
         model="test-model",
+        prompt_version="v1",
         evaluations=(),
         duration_seconds=0.0,
         created_at=datetime.now(UTC),
@@ -82,6 +84,7 @@ def test_empty_benchmark_run_has_zero_accuracy() -> None:
 def test_severity_metrics_count_only_rule_and_category_matches() -> None:
     run = BenchmarkRun(
         schema_version=BENCHMARK_SCHEMA_VERSION,
+        prompt_version="v1",
         created_at=datetime.now(UTC),
         model="test-model",
         evaluations=(
@@ -120,6 +123,7 @@ def test_severity_metrics_count_only_rule_and_category_matches() -> None:
 def test_severity_accuracy_is_zero_when_nothing_is_evaluated() -> None:
     run = BenchmarkRun(
         schema_version=BENCHMARK_SCHEMA_VERSION,
+        prompt_version="v1",
         created_at=datetime.now(UTC),
         model="test-model",
         evaluations=(),

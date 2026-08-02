@@ -11,7 +11,7 @@ from reviewer.taxonomy import (
 )
 
 from reviewer.llm import generate_review
-from reviewer.prompts import build_review_prompt
+from reviewer.prompts import DEFAULT_PROMPT_VERSION, build_review_prompt
 from collections.abc import Iterable, Iterator
 
 from typing import Any, cast
@@ -134,7 +134,8 @@ def parse_review_response(response: str) -> CodeReview:
 def review_file(
     path: Path,
     model: str,
-) -> CodeReview:
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+) -> CodeReview:    
     """Read and review one source-code file"""
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -147,7 +148,7 @@ def review_file(
         raise
     
 
-    prompt = build_review_prompt(code)
+    prompt = build_review_prompt(code, prompt_version=prompt_version,)
 
     response = generate_review(prompt=prompt, model=model)
 
@@ -161,8 +162,8 @@ def review_folder(path: Path, model: str) -> Iterator[ReviewResult]:
     yield from review_files(files, model)
 
 
-def review_files(files: Iterable[Path], model: str) -> Iterator[ReviewResult]:
+def review_files(files: Iterable[Path], model: str, prompt_version: str = DEFAULT_PROMPT_VERSION,) -> Iterator[ReviewResult]:
     """Review an iterable of Python files one at a time."""
     for file in files:
-        review = review_file(file, model)
+        review = review_file(file, model, prompt_version=prompt_version)
         yield ReviewResult(path=file, review=review)

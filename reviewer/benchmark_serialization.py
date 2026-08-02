@@ -52,6 +52,7 @@ def benchmark_run_to_dict(run: BenchmarkRun) -> dict[str, Any]:
         {
             "model":run.model,
             "schema_version":run.schema_version,
+            "prompt_version":run.prompt_version,
             "benchmark_count": run.benchmark_count,
             "passed": run.passed,
             "failed": run.failed,
@@ -77,5 +78,5 @@ def save_benchmark_run(run: BenchmarkRun, output_path: Path) -> None:
     data = benchmark_run_to_dict(run)
 
     output_path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-"
+        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
     )

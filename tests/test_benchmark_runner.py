@@ -6,6 +6,7 @@ from reviewer.benchmark_runner import (
     run_benchmarks,
 )
 from reviewer.models import CodeReview, Issue
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 
 TEST_MODEL = "test-model"
 
@@ -106,6 +107,7 @@ def test_run_benchmarks_returns_summary(
         benchmark_paths=(clean_path, unsafe_path),
         review_function=fake_review,
         model=TEST_MODEL,
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     assert run.benchmark_count == 2
@@ -117,6 +119,7 @@ def test_run_benchmarks_returns_summary(
     assert run.failure_count == 0
     assert run.model == TEST_MODEL
     assert run.duration_seconds >= 0.0
+    assert run.prompt_version == run.prompt_version
 
 
 def test_run_counts_false_positive(
@@ -143,7 +146,10 @@ def test_run_counts_false_positive(
         )
 
     run = run_benchmarks(
-        benchmark_paths=(code_path,), review_function=fake_review, model=TEST_MODEL
+        benchmark_paths=(code_path,),
+        review_function=fake_review,
+        model=TEST_MODEL,
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     assert run.benchmark_count == 1
@@ -152,6 +158,7 @@ def test_run_counts_false_positive(
     assert run.false_positives == 1
     assert run.false_negatives == 0
     assert run.accuracy == 0.0
+    assert run.prompt_version == run.prompt_version
 
 
 def test_run_counts_false_negative(
@@ -174,7 +181,10 @@ def test_run_counts_false_negative(
         return CodeReview(issues=[])
 
     run = run_benchmarks(
-        benchmark_paths=(code_path,), review_function=fake_review, model=TEST_MODEL
+        benchmark_paths=(code_path,),
+        review_function=fake_review,
+        model=TEST_MODEL,
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     assert run.benchmark_count == 1
@@ -182,6 +192,7 @@ def test_run_counts_false_negative(
     assert run.failed == 1
     assert run.false_positives == 0
     assert run.false_negatives == 1
+    assert run.prompt_version == run.prompt_version
 
 
 def test_empty_benchmark_run_has_zero_accuracy() -> None:
@@ -189,14 +200,17 @@ def test_empty_benchmark_run_has_zero_accuracy() -> None:
         return CodeReview(issues=[])
 
     run = run_benchmarks(
-        benchmark_paths=(), review_function=fake_review, model=TEST_MODEL
+        benchmark_paths=(),
+        review_function=fake_review,
+        model=TEST_MODEL,
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     assert run.benchmark_count == 0
     assert run.passed == 0
     assert run.failed == 0
     assert run.accuracy == 0.0
-
+    assert run.prompt_version == run.prompt_version
 
 
 def test_run_records_failure_and_continues(
@@ -238,6 +252,7 @@ def test_run_records_failure_and_continues(
         ),
         review_function=fake_review,
         model=TEST_MODEL,
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     assert reviewed_paths == [
@@ -249,6 +264,7 @@ def test_run_records_failure_and_continues(
     assert run.benchmark_count == 3
     assert len(run.evaluations) == 2
     assert run.failure_count == 1
+    assert run.prompt_version == run.prompt_version
 
     assert run.passed == 2
     assert run.failed == 1

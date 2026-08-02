@@ -18,6 +18,7 @@ from reviewer.models import (
     ExpectedIssue,
     Issue,
 )
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 
 
 def test_to_json_compatible_converts_paths_and_tuples() -> None:
@@ -100,7 +101,7 @@ def test_benchmark_run_to_dict_includes_results_and_summary() -> None:
         duration_seconds=1.234,
         failures=[],
         created_at=datetime.now(UTC),
-        
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     result = benchmark_run_to_dict(run)
@@ -114,6 +115,7 @@ def test_benchmark_run_to_dict_includes_results_and_summary() -> None:
     assert result["false_positives"] == 0
     assert result["false_negatives"] == 0
     assert result["accuracy"] == 1.0
+    assert result["prompt_version"] == DEFAULT_PROMPT_VERSION
 
     assert result["evaluations"][0]["benchmark"]["code_path"] == (
         "benchmarks/example.py"
@@ -129,6 +131,7 @@ def test_save_benchmark_run_writes_json_file(tmp_path: Path) -> None:
         duration_seconds=2.5,
         failures=[],
         created_at=datetime.now(UTC),
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     output_path = tmp_path / "results" / "benchmark.json"
@@ -140,6 +143,7 @@ def test_save_benchmark_run_writes_json_file(tmp_path: Path) -> None:
     data = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert data["model"] == "test-model"
+    assert data["prompt_version"] == DEFAULT_PROMPT_VERSION
     assert data["duration_seconds"] == 2.5
     assert data["benchmark_count"] == 0
     assert data["passed"] == 0
@@ -168,6 +172,7 @@ def test_benchmark_run_to_dict_serializes_failures() -> None:
         duration_seconds=1.0,
         failures=[failure],
         created_at=datetime.now(UTC),
+        prompt_version=DEFAULT_PROMPT_VERSION,
     )
 
     result = benchmark_run_to_dict(run)
@@ -176,6 +181,7 @@ def test_benchmark_run_to_dict_serializes_failures() -> None:
     assert result["passed"] == 0
     assert result["failed"] == 1
     assert result["failure_count"] == 1
+    assert result["prompt_version"] == DEFAULT_PROMPT_VERSION
 
     assert result["failures"][0]["error_type"] == "RuntimeError"
     assert result["failures"][0]["message"] == "Invalid model response"
@@ -188,4 +194,3 @@ def test_to_json_compatible_serializes_datetime() -> None:
     result = to_json_compatible(created_at)
 
     assert result == "2026-07-31T16:00:00+00:00"
-

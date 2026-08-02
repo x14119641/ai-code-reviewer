@@ -7,7 +7,6 @@ from reviewer.models import (
     CategoryComparisonSummary,
     RuleComparisonSummary,
     BenchmarkResult,
-    RuleComparisonSummary,
 )
 from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
 
@@ -83,6 +82,7 @@ def load_result(path: Path) -> BenchmarkResult:
     summary = BenchmarkResultSummary(
         source=path,
         model=_require_string(data, "model", path),
+        prompt_version=_require_string(data, "prompt_version", path),
         benchmark_count=_require_integer(data, "benchmark_count", path),
         passed=_require_integer(data, "passed", path),
         failed=_require_integer(data, "failed", path),

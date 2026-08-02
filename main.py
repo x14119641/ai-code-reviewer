@@ -3,7 +3,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.engine import review_file, review_files, find_python_files
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
@@ -73,6 +73,11 @@ def benchmark_command(
     path: Path,
     model: str = typer.Option("qwen3.5:9b", help="Ollama model used for the benchmark"),
     output: Path | None = typer.Option(None, help="Output filename or path."),
+    prompt_version: str = typer.Option(
+        DEFAULT_PROMPT_VERSION,
+        "--prompt-version",
+        help="Prompt version used for the benchmark.",
+    ),
 ) -> None:
     """Evaluate the AI reviewer using benchmark cases."""
     try:
@@ -88,17 +93,22 @@ def benchmark_command(
             nonlocal current
             current += 1
             console.rule(f"[cyan]Benchmark {current}/{total}[/cyan] -> {source_path}")
-            return review_file(source_path, model)
+            return review_file(
+                source_path,
+                model,
+                prompt_version=prompt_version,
+            )
 
         run = run_benchmarks(
             benchmark_paths=benchmark_paths,
             review_function=review_with_model,
             model=model,
+            prompt_version=prompt_version,
         )
 
         if output is not None:
             if output.parent == Path("."):
-                output = Path("results") / output
+                output = Path("results") / prompt_version / output
 
             save_benchmark_run(run, output)
             console.print()
@@ -164,7 +174,8 @@ def benchmark_command(
         console.print()
         console.rule("[bold green]Benchmark results[/bold green]")
 
-        console.print(f"[bold]Model:[/bold] {model}")
+        console.print(f"[bold blue3]Model:[/bold blue3] {model}")
+        console.print(f"[bold blue3]Prompt Version:[/bold blue3] {run.prompt_version}")
         console.print(f"[bold]Benchmarks:[/bold] {run.benchmark_count}")
         console.print(f"[green]Passed:[/green] {run.passed}")
         console.print(f"[red]Failed:[/red] {run.failed}")

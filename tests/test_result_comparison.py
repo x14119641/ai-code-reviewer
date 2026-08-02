@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Any
 from typer.testing import CliRunner
-
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 
 import pytest
 
@@ -28,6 +28,7 @@ def write_result(
     path: Path,
     *,
     model: str = "qwen3.5:9b",
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
     accuracy: float = 0.8,
     severity_matches: int = 3,
     severity_evaluated_count: int = 4,
@@ -38,6 +39,7 @@ def write_result(
     data = {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
         "model": model,
+        "prompt_version": prompt_version,
         "evaluations": evaluations or [],
         "failures": failures or [],
         "benchmark_count": 5,
@@ -143,6 +145,7 @@ def test_load_result_summary(
     assert summary.severity_evaluated_count == 4
     assert summary.severity_accuracy == 0.75
     assert summary.duration_seconds == 12.5
+    assert summary.prompt_version == DEFAULT_PROMPT_VERSION
 
 
 def test_load_result_summaries_loads_all_files(
@@ -187,6 +190,7 @@ def test_load_result_summary_rejects_missing_field(
             {
                 "schema_version": BENCHMARK_SCHEMA_VERSION,
                 "model": "qwen3.5:9b",
+                "prompt_version": DEFAULT_PROMPT_VERSION,
                 "failures": [],
                 "evaluations": [],
             }
@@ -299,6 +303,7 @@ def test_load_result_summary_rejects_invalid_failures(
 
     data = {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
+        "prompt_version": DEFAULT_PROMPT_VERSION,
         "model": "qwen3.5:9b",
         "evaluations": [],
         "failures": 2,
@@ -333,6 +338,7 @@ def test_load_result_includes_evaluations(
 
     data = {
         "schema_version": BENCHMARK_SCHEMA_VERSION,
+        "prompt_version": DEFAULT_PROMPT_VERSION,
         "model": "qwen3.5:9b",
         "evaluations": [
             {

@@ -32,7 +32,11 @@ def find_benchmark_files(
 
 
 def run_benchmarks(
-    benchmark_paths: Iterable[Path], review_function: ReviewFunction, *, model: str
+    benchmark_paths: Iterable[Path],
+    review_function: ReviewFunction,
+    *,
+    model: str,
+    prompt_version: str,
 ) -> BenchmarkRun:
     start_time = perf_counter()
     evaluations: list[BenchmarkEvaluation] = []
@@ -44,7 +48,9 @@ def run_benchmarks(
             review = review_function(benchmark.code_path)
         except RuntimeError as exc:
             failures.append(
-                BenchmarkFailure(benchmark=benchmark, error_type=type(exc).__name__, message=str(exc))
+                BenchmarkFailure(
+                    benchmark=benchmark, error_type=type(exc).__name__, message=str(exc)
+                )
             )
             continue
         evaluation = evaluate_benchmark(
@@ -55,5 +61,10 @@ def run_benchmarks(
         evaluations.append(evaluation)
     duration_seconds = perf_counter() - start_time
     return BenchmarkRun(
-        model=model, evaluations=tuple(evaluations), duration_seconds=duration_seconds, failures=tuple(failures), created_at=datetime.now(UTC),
+        model=model,
+        evaluations=tuple(evaluations),
+        duration_seconds=duration_seconds,
+        failures=tuple(failures),
+        created_at=datetime.now(UTC),
+        prompt_version=prompt_version,
     )

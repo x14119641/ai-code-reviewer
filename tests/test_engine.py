@@ -1,4 +1,5 @@
 from pathlib import Path
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 
 import pytest
 
@@ -82,13 +83,19 @@ def test_review_file_builds_prompt_and_calls_llm(
 
     calls: dict[str, str] = {}
 
-    def fake_prompt(code: str) -> str:
-        calls["code"] = code
-        return "PROMPT"
+    def fake_prompt(
+        source_code: str,
+        prompt_version: str = DEFAULT_PROMPT_VERSION,
+    ) -> str:
+        calls["code"] = source_code
+        calls["prompt_version"] = prompt_version
+
+        return f"PROMPT:{source_code}"
 
     def fake_llm(prompt: str, model: str) -> str:
         calls["prompt"] = prompt
         calls["model"] = model
+
         return '{"issues": []}'
 
     monkeypatch.setattr(
@@ -100,12 +107,18 @@ def test_review_file_builds_prompt_and_calls_llm(
         fake_llm,
     )
 
-    result = review_file(source_file, "test-model")
+    result = review_file(
+        source_file,
+        "test-model",
+        prompt_version="v1",
+    )
 
     assert result == CodeReview(issues=[])
+
     assert calls == {
         "code": "print('hello')",
-        "prompt": "PROMPT",
+        "prompt_version": "v1",
+        "prompt": "PROMPT:print('hello')",
         "model": "test-model",
     }
 
@@ -195,7 +208,7 @@ def test_review_folder_reviews_all_python_files(
         issues=[
             Issue(
                 severity="medium",
-                category="test",
+                category="security",
                 rule="sql_injection",
                 title="Test issue",
                 explanation="Test explanation.",
@@ -204,8 +217,13 @@ def test_review_folder_reviews_all_python_files(
         ]
     )
 
-    def fake_review_file(path: Path, model: str) -> CodeReview:
+    def fake_review_file(
+        path: Path,
+        model: str,
+        prompt_version: str = DEFAULT_PROMPT_VERSION,
+    ) -> CodeReview:
         assert model == "test-model"
+        assert prompt_version == DEFAULT_PROMPT_VERSION
         return fake_review
 
     monkeypatch.setattr(

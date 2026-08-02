@@ -29,6 +29,7 @@ def build_comparison_table(
     table = Table(title="Model Comparison")
 
     table.add_column("Model")
+    table.add_column("Prompt")
     table.add_column("Accuracy", justify="right")
     table.add_column("Severity", justify="right")
     table.add_column("Passed", justify="right")
@@ -40,6 +41,7 @@ def build_comparison_table(
     for summary in summaries:
         table.add_row(
             summary.model,
+            summary.prompt_version,
             f"{summary.accuracy:.1%}",
             f"{summary.severity_accuracy:.1%}",
             str(summary.passed),

@@ -67,6 +67,7 @@ class BenchmarkFailure:
 class BenchmarkRun:
     created_at: datetime
     model: str
+    prompt_version: str
     evaluations: tuple[BenchmarkEvaluation, ...]
     duration_seconds: float
     failures: tuple[BenchmarkFailure, ...] = ()
@@ -135,8 +136,8 @@ class BenchmarkRun:
 @dataclass(frozen=True)
 class BenchmarkResultSummary:
     """Summary of one exported benchmark run."""
-
     source: Path
+    prompt_version: str
     model: str
     benchmark_count: int
     passed: int
