@@ -120,11 +120,14 @@ The project focuses on models that can run comfortably on a 12 GB GPU.
 
 Current benchmarked models:
 
-| Model              | Purpose                          |
-| ------------------ | -------------------------------- |
-| Qwen 3.5 9B        | General-purpose baseline         |
-| Qwen 2.5 Coder 7B  | Coding-specialized model         |
-| Qwen 2.5 Coder 14B | Larger coding-specialized model  |
+| Model                    | Purpose                                |
+| ------------------------ | -------------------------------------- |
+| Qwen 3.5 9B              | General-purpose baseline               |
+| Qwen 2.5 Coder 7B        | Fast coding-specialized model          |
+| Qwen 2.5 Coder 14B       | Larger coding-specialized model        |
+| DeepSeek Coder V2 16B    | Advanced coding and reasoning model    |
+| Llama 3.1 8B             | General-purpose reference model        |
+| Gemma 3 12B              | Google's open-weight general model     |
 
 Additional models and quantizations may be added as the project evolves.
 
