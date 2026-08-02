@@ -19,12 +19,13 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - ✅ Benchmark result comparison
 - ✅ Rule comparison
 - ✅ Category comparison
+- ✅ Versioned prompt templates
 
 ### Planned
 
 - Review Git diffs
 - Review pull requests
-- Prompt benchmarking
+- Prompt optimization experiments
 - Compare benchmark suites
 - HTML reports
 - Agent mode
@@ -35,13 +36,14 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - Review entire Python projects recursively
 - Structured JSON responses from the LLM
 - Response validation and parsing
+- Versioned prompt templates
 - Benchmark execution
 - Automatic benchmark evaluation
 - JSON export of benchmark results
 - Compare benchmark result files
-- Compare benchmark result files
 - Compare models by rule
 - Compare models by category
+- Compare prompt versions
 - Local execution with Ollama
 
 ## Architecture
@@ -50,6 +52,8 @@ The reviewer follows a modular pipeline:
 
 ```text
 Python File
+      ↓
+Versioned Prompt Template
       ↓
 Prompt Builder
       ↓
@@ -85,28 +89,42 @@ Current benchmark categories include:
 | Maintainability | Duplicate code, Long functions                          |
 | False Positives | Safe implementations that should not trigger findings   |
 
-Benchmark runs can be exported as JSON and compared later across different models, prompts, and benchmark suites.
+Benchmark runs can be exported as JSON and compared across different models and prompt versions.
 
 Results include:
 
-- Accuracy
+- Overall accuracy
+- Severity accuracy
 - False positives
 - False negatives
 - Response failures
+- Rule-level comparison
+- Category-level comparison
 - Execution time
+
+## Prompt Templates
+
+Prompt templates are versioned independently from the application code.
+
+```text
+prompts/
+└── v1/
+    └── prompt1.txt
+```
+
+Each benchmark run records the prompt version used, allowing direct comparison between prompt revisions without modifying the application code.
 
 ## Models
 
 The project focuses on models that can run comfortably on a 12 GB GPU.
 
-Current models to compare:
+Current benchmarked models:
 
-| Model              | Purpose                   |
-| ------------------ | ------------------------- |
-| Qwen 3.5 9B        | General-purpose baseline  |
-| Qwen 2.5 Coder 14B | Coding-specialized model  |
-| Gemma 3 12B        | Alternative general model |
-| DeepSeek R1 8B     | Reasoning-focused model   |
+| Model              | Purpose                          |
+| ------------------ | -------------------------------- |
+| Qwen 3.5 9B        | General-purpose baseline         |
+| Qwen 2.5 Coder 7B  | Coding-specialized model         |
+| Qwen 2.5 Coder 14B | Larger coding-specialized model  |
 
 Additional models and quantizations may be added as the project evolves.
 
@@ -139,27 +157,27 @@ uv run python main.py review-folder examples
 # Run the benchmark suite
 uv run python main.py benchmark benchmarks/
 
-# Select a different model
-uv run python main.py benchmark benchmarks/ --model qwen2.5-coder:14b
+# Benchmark using a different model
+uv run python main.py benchmark benchmarks/ \
+    --model qwen2.5-coder:14b
+
+# Benchmark using a specific prompt version
+uv run python main.py benchmark benchmarks/ \
+    --model qwen3.5:9b \
+    --prompt-version v1
 
 # Export benchmark results
 uv run python main.py benchmark benchmarks/ \
-    --output results/qwen2.5-coder-7b.json
-
-# Export results using another model
-uv run python main.py benchmark benchmarks/ \
-    --model qwen2.5-coder:14b \
-    --output results/qwen2.5-coder-14b.json
-
-# Compare exported benchmark results
-uv run python main.py compare-results results/
+    --model qwen3.5:9b \
+    --prompt-version v1 \
+    --output qwen3.5-9b.json
 
 # Compare benchmark results
-uv run python main.py compare-results results/
+uv run python main.py compare-results results/v1/
 
 # Compare benchmark results by rule
-uv run python main.py compare-results results/ --by-rule
+uv run python main.py compare-results results/v1/ --by-rule
 
 # Compare benchmark results by category
-uv run python main.py compare-results results/ --by-category
+uv run python main.py compare-results results/v1/ --by-category
 ```
