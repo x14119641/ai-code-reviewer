@@ -2,9 +2,9 @@
 
 A project to learn AI engineering by building a local AI-powered code reviewer from scratch.
 
-The goal isn't just to call an LLM API, but to understand how modern coding assistants work by implementing each part step by step. Everything runs locally using open-weight models and Ollama.
+The goal isn't just to call an LLM API, but to understand how modern coding assistants are designed by implementing each component step by step. Everything runs locally using open-weight models and Ollama.
 
-The project emphasizes modular design, reproducible evaluation, and local execution to better understand how AI-assisted code review tools are built.
+The project emphasizes clean architecture, reproducible evaluation, controlled prompt experimentation, and local execution to better understand how AI-assisted code review tools are built.
 
 ## Roadmap
 
@@ -20,6 +20,7 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - ✅ Rule comparison
 - ✅ Category comparison
 - ✅ Versioned prompt templates
+- ✅ Benchmark result analysis
 
 ### Planned
 
@@ -44,6 +45,7 @@ The project emphasizes modular design, reproducible evaluation, and local execut
 - Compare models by rule
 - Compare models by category
 - Compare prompt versions
+- Inspect benchmark failures and severity mismatches
 - Local execution with Ollama
 
 ## Architecture
@@ -68,6 +70,28 @@ Benchmark Evaluation
 JSON Benchmark Report
 ```
 
+## Benchmark Workflow
+
+The benchmarking workflow is designed to support iterative prompt engineering and model evaluation.
+
+```text
+Review Code
+      ↓
+Run Benchmarks
+      ↓
+Export Benchmark Results
+      ↓
+Compare Models / Prompt Versions
+      ↓
+Inspect Failures
+      ↓
+Improve Prompt
+      ↓
+Repeat
+```
+
+This makes prompt iterations measurable and reproducible rather than relying on subjective impressions.
+
 ## Benchmarks
 
 The project includes a growing benchmark suite used to evaluate the quality of local LLM code reviews.
@@ -81,13 +105,13 @@ Each benchmark contains:
 
 Current benchmark categories include:
 
-| Category        | Rules                                                   |
-| --------------- | ------------------------------------------------------- |
-| Bug             | Mutable default arguments                               |
-| Security        | SQL injection, Shell injection, Path traversal          |
-| Performance     | List membership in loops, String concatenation in loops |
-| Maintainability | Duplicate code, Long functions                          |
-| False Positives | Safe implementations that should not trigger findings   |
+| Category | Rules |
+|----------|-------|
+| Bug | Mutable default arguments |
+| Security | SQL injection, Shell injection, Path traversal |
+| Performance | List membership in loops, String concatenation in loops |
+| Maintainability | Duplicate code, Long functions |
+| False Positives | Safe implementations that should not trigger findings |
 
 Benchmark runs can be exported as JSON and compared across different models and prompt versions.
 
@@ -101,6 +125,16 @@ Results include:
 - Rule-level comparison
 - Category-level comparison
 - Execution time
+
+The project also provides detailed result inspection to help understand benchmark failures, including:
+
+- False positives
+- False negatives
+- Rule mismatches
+- Category mismatches
+- Severity mismatches
+
+This analysis is intended to support prompt iteration and model comparison.
 
 ## Prompt Templates
 
@@ -120,14 +154,14 @@ The project focuses on models that can run comfortably on a 12 GB GPU.
 
 Current benchmarked models:
 
-| Model                    | Purpose                                |
-| ------------------------ | -------------------------------------- |
-| Qwen 3.5 9B              | General-purpose baseline               |
-| Qwen 2.5 Coder 7B        | Fast coding-specialized model          |
-| Qwen 2.5 Coder 14B       | Larger coding-specialized model        |
-| DeepSeek Coder V2 16B    | Advanced coding and reasoning model    |
-| Llama 3.1 8B             | General-purpose reference model        |
-| Gemma 3 12B              | Google's open-weight general model     |
+| Model | Purpose |
+|------|---------|
+| Qwen 3.5 9B | General-purpose baseline |
+| Qwen 2.5 Coder 7B | Fast coding-specialized model |
+| Qwen 2.5 Coder 14B | Larger coding-specialized model |
+| DeepSeek Coder V2 16B | Advanced coding and reasoning model |
+| Llama 3.1 8B | General-purpose reference model |
+| Gemma 3 12B | Google's open-weight general model |
 
 Additional models and quantizations may be added as the project evolves.
 
@@ -183,4 +217,7 @@ uv run python main.py compare-results results/v1/ --by-rule
 
 # Compare benchmark results by category
 uv run python main.py compare-results results/v1/ --by-category
+
+# Inspect an exported benchmark result
+uv run python main.py analyze-result results/v1/qwen3.5-9b.json
 ```
