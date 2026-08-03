@@ -8,6 +8,8 @@ from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.engine import review_file, review_files, find_python_files
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.rendering import (
+    print_benchmark_progress,
+    print_result_analysis,
     build_category_comparison_table,
     build_comparison_table,
     build_rule_comparison_table,
@@ -15,6 +17,7 @@ from reviewer.rendering import (
 )
 from reviewer.result_comparison import (
     ResultComparisonError,
+    load_result,
     load_result_summaries,
     load_results,
 )
@@ -92,7 +95,11 @@ def benchmark_command(
         def review_with_model(source_path: Path) -> CodeReview:
             nonlocal current
             current += 1
-            console.rule(f"[cyan]Benchmark {current}/{total}[/cyan] -> {source_path}")
+            print_benchmark_progress(
+                current=current,
+                total=total,
+                path=source_path,
+            )
             return review_file(
                 source_path,
                 model,
@@ -160,7 +167,7 @@ def benchmark_command(
 
         if run.failures:
             console.print()
-            console.rule("[bold red]Execution faiulures[/bold red]")
+            console.rule("[bold red]Execution failures[/bold red]")
             for failure in run.failures:
                 console.print(
                     f"[bold red]ERROR[/bold red] "
@@ -250,6 +257,23 @@ def compare_results(
         raise typer.Exit(code=1) from error
 
     console.print(table)
+
+
+@app.command("analyze-result")
+def analyze_result_command(
+    path: Path = typer.Argument(
+        ...,
+        help="Path to an exported benchmark result JSON file.",
+    ),
+) -> None:
+    """Show detection failures and severity mismatches."""
+
+    try:
+        result = load_result(path)
+        print_result_analysis(result)
+    except ResultComparisonError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
 
 
 if __name__ == "__main__":

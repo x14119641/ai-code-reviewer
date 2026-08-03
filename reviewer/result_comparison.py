@@ -78,6 +78,12 @@ def load_result(path: Path) -> BenchmarkResult:
 
     failures = _require_list(data, "failures", path)
     evaluations = _require_list(data, "evaluations", path)
+    
+    for index, evaluation in enumerate(evaluations):
+        if not isinstance(evaluation, dict):
+            raise ResultComparisonError(
+                f"Evaluation {index} must be an object in {path}"
+        )
 
     summary = BenchmarkResultSummary(
         source=path,

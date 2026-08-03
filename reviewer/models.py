@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
@@ -190,3 +191,17 @@ class CategoryComparisonSummary:
             return 0.0
 
         return self.passed / self.benchmark_count
+
+
+class ResultProblemType(StrEnum):
+    FALSE_POSITIVE = "false_positive"
+    FALSE_NEGATIVE = "false_negative"
+    RULE_MISMATCH = "rule_mismatch"
+    CATEGORY_MISMATCH = "category_mismatch"
+    SEVERITY_MISMATCH = "severity_mismatch"
+    
+
+@dataclass(frozen=True)
+class ResultProblem:
+    problem_type: ResultProblemType
+    evaluation: dict[str, Any]
