@@ -14,7 +14,7 @@ def generate_review(
         "stream": False,
         "think": False,
         "options": {
-            "tempreature":0,
+            "temperature":0,
             "seed": 42,
         }
     }
