@@ -8,7 +8,7 @@ def test_parse_valid_review() -> None:
     {
       "issues": [
         {
-          "severity": "high",
+          "severity": "critical",
           "category": "security",
           "title": "Unsafe query",
           "rule": "sql_injection",
@@ -22,7 +22,7 @@ def test_parse_valid_review() -> None:
     review = parse_review_response(response)
 
     assert len(review.issues) == 1
-    assert review.issues[0].severity == "high"
+    assert review.issues[0].severity == "critical"
     assert review.issues[0].title == "Unsafe query"
 
 

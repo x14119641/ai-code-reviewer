@@ -63,7 +63,7 @@ def test_review_file_returns_parsed_code_review(
     assert result == CodeReview(
         issues=[
             Issue(
-                severity="high",
+                severity="critical",
                 category="security",
                 rule="sql_injection",
                 title="Fake issue",

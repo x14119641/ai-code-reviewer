@@ -50,3 +50,14 @@ VALID_RULES: set[str] = {
     "list_membership_in_loop",
     "string_concatenation_in_loop",
 }
+
+RULE_SEVERITY = {
+    "duplicate_code": "medium",
+    "list_membership_in_loop": "medium",
+    "long_function": "low",
+    "mutable_default_argument": "medium",
+    "path_traversal": "high",
+    "shell_injection": "critical",
+    "sql_injection": "critical",
+    "string_concatenation_in_loop": "low",
+}

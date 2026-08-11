@@ -8,6 +8,7 @@ from reviewer.llm import generate_review
 from reviewer.models import CodeReview, Issue
 from reviewer.prompts import DEFAULT_PROMPT_VERSION, build_review_prompt
 from reviewer.taxonomy import (
+    RULE_SEVERITY,
     VALID_CATEGORIES,
     VALID_RULES,
     VALID_SEVERITIES,
@@ -106,7 +107,7 @@ def parse_review_response(response: str) -> CodeReview:
 
         issues.append(
             Issue(
-                severity=cast(Severity, severity),
+                severity=cast(Severity, RULE_SEVERITY[rule]),
                 rule=cast(IssueRule, rule),
                 category=cast(IssueCategory, category),
                 title=item["title"],
