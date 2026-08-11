@@ -1,0 +1,12 @@
+{
+  "name": "Unreachable code after returning branches",
+  "code_path": "both_branches_return.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "unreachable_code",
+      "explanation": "Both branches return, so the statement following the conditional can never execute."
+    }
+  ]
+}

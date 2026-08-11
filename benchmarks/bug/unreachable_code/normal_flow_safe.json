@@ -1,0 +1,5 @@
+{
+  "name": "Normal reachable control flow",
+  "code_path": "normal_flow_safe.py",
+  "expected_issues": []
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Unreachable code after raise",
+  "code_path": "after_raise.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "unreachable_code",
+      "explanation": "The return statement can never execute because an exception is always raised first."
+    }
+  ]
+}

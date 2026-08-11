@@ -1,0 +1,12 @@
+{
+  "name": "Unreachable code after return",
+  "code_path": "after_return.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "unreachable_code",
+      "explanation": "The statement after the unconditional return can never execute."
+    }
+  ]
+}

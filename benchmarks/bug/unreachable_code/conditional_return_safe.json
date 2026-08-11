@@ -1,0 +1,5 @@
+{
+  "name": "Reachable code after conditional return",
+  "code_path": "conditional_return_safe.py",
+  "expected_issues": []
+}

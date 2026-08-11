@@ -23,6 +23,7 @@ IssueRule = Literal[
     "duplicate_code",
     "list_membership_in_loop",
     "string_concatenation_in_loop",
+    "unreachable_code"
 ]
 
 
@@ -49,6 +50,7 @@ VALID_RULES: set[str] = {
     "duplicate_code",
     "list_membership_in_loop",
     "string_concatenation_in_loop",
+    "unreachable_code"
 }
 
 RULE_SEVERITY = {
@@ -60,4 +62,5 @@ RULE_SEVERITY = {
     "shell_injection": "critical",
     "sql_injection": "critical",
     "string_concatenation_in_loop": "low",
+    "unreachable_code": "medium"
 }
