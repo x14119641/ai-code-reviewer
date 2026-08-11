@@ -1,7 +1,7 @@
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from dataclasses import dataclass
 from typing import Any
 
 from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION

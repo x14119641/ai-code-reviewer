@@ -1,12 +1,12 @@
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
-from reviewer.prompts import DEFAULT_PROMPT_VERSION
-from reviewer.benchmark_serialization import save_benchmark_run
-from reviewer.engine import review_file, review_files, find_python_files
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
+from reviewer.benchmark_serialization import save_benchmark_run
+from reviewer.engine import find_python_files, review_file, review_files
+from reviewer.models import CodeReview
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.rendering import (
     build_category_comparison_table,
     build_comparison_table,
@@ -15,9 +15,14 @@ from reviewer.rendering import (
     print_benchmark_failures,
     print_benchmark_progress,
     print_benchmark_summary,
+    print_error,
     print_result_analysis,
     print_result_saved,
     print_review,
+    print_review_progress,
+    print_success,
+    print_table,
+    print_warning,
 )
 from reviewer.result_comparison import (
     ResultComparisonError,
@@ -25,10 +30,8 @@ from reviewer.result_comparison import (
     load_result_summaries,
     load_results,
 )
-from reviewer.models import CodeReview
 
 app = typer.Typer()
-console = Console()
 
 
 @app.callback()
@@ -46,7 +49,7 @@ def review_command(
         result = review_file(path=path, model=model)
         print_review(review=result)
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
-        console.print(f"[red]Could not read the file:[/red] {exc}")
+        print_error("Could not read the file", str(exc))
         raise typer.Exit(code=1) from exc
 
 
@@ -60,18 +63,23 @@ def review_folder_command(
         files = find_python_files(path)
         total = len(files)
         if total == 0:
-            console.print("[yellow]No Python files found.[/yellow]")
+            print_warning("No Python files found.")
             return
 
         for i, result in enumerate(review_files(files, model), start=1):
-            console.rule(f"[cyan]Reviewing {i}/{total}[/cyan] -> {result.path}")
+            print_review_progress(
+                current=i,
+                total=total,
+                path=result.path,
+            )
+
             if result.error:
-                console.print(f"[red]{result.error}[/red]")
+                print_error("Review failed", result.error)
                 continue
             print_review(result.review)
-        console.print(f"\n[green]✓ Reviewed {total} Python files.[/green]")
+        print_success(f"Reviewed {total} Python files.")
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
-        console.print(f"[red]Review Failed:[/red] {exc}")
+        print_error("Review Failed", str(exc))
         raise typer.Exit(code=1) from exc
 
 
@@ -98,9 +106,7 @@ def benchmark_command(
         benchmark_paths = find_benchmark_files(path)
 
         if not benchmark_paths:
-            console.print(
-                "[yellow]No benchmark files found.[/yellow]"
-            )
+            print_warning("No benchmark files found.")
             return
 
         total = len(benchmark_paths)
@@ -152,9 +158,7 @@ def benchmark_command(
         ValueError,
         RuntimeError,
     ) as exc:
-        console.print(
-            f"[red]Benchmark Failed:[/red] {exc}"
-        )
+        print_error("Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
 
 
@@ -170,9 +174,7 @@ def compare_results(
 ) -> None:
     """Compare previously exported benchmark result files"""
     if by_rule and by_category:
-        console.print(
-            "[red]Error:[/red] Use either --by-rule " "or --by-category, not both."
-        )
+        print_error("Error", "Use either --by-rule " "or --by-category, not both.")
         raise typer.Exit(code=1)
     try:
         if by_rule:
@@ -204,10 +206,10 @@ def compare_results(
             table = build_comparison_table(summaries)
 
     except ResultComparisonError as error:
-        console.print(f"[red]Error:[/red] {error}")
+        print_error("Error", str(error))
         raise typer.Exit(code=1) from error
 
-    console.print(table)
+    print_table(table)
 
 
 @app.command("analyze-result")
@@ -223,7 +225,7 @@ def analyze_result_command(
         result = load_result(path)
         print_result_analysis(result)
     except ResultComparisonError as error:
-        console.print(f"[red]Error:[/red] {error}")
+        print_error("Error", str(error))
         raise typer.Exit(code=1) from error
 
 

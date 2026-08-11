@@ -1,4 +1,5 @@
 from typing import Any
+
 import requests
 
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
@@ -29,5 +30,5 @@ def generate_review(
     
     
     if not isinstance(review, str):
-        raise RuntimeError("Ollama returned unexpeted response.")
+        raise TypeError("Ollama returned unexpected response.")
     return review.strip()

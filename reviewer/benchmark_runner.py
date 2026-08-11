@@ -6,10 +6,10 @@ from time import perf_counter
 from reviewer.benchmarks import load_benchmark
 from reviewer.evaluator import evaluate_benchmark
 from reviewer.models import (
-    BenchmarkRun,
-    CodeReview,
     BenchmarkEvaluation,
     BenchmarkFailure,
+    BenchmarkRun,
+    CodeReview,
 )
 
 ReviewFunction = Callable[[Path], CodeReview]

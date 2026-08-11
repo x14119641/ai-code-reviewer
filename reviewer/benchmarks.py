@@ -3,8 +3,14 @@ from pathlib import Path
 from typing import Any, cast
 
 from reviewer.models import Benchmark, ExpectedIssue
-from reviewer.taxonomy import ( VALID_CATEGORIES, VALID_RULES, VALID_SEVERITIES, IssueCategory, IssueRule, Severity)
-
+from reviewer.taxonomy import (
+    VALID_CATEGORIES,
+    VALID_RULES,
+    VALID_SEVERITIES,
+    IssueCategory,
+    IssueRule,
+    Severity,
+)
 
 
 class BenchmarkLoadError(ValueError):

@@ -1,9 +1,10 @@
+import json
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from enum import Enum
-import json
 from pathlib import Path
 from typing import Any
+
 from reviewer.models import BenchmarkRun
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

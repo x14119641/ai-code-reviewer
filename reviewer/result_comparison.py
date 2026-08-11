@@ -2,14 +2,13 @@ import json
 from pathlib import Path
 from typing import Any
 
+from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
 from reviewer.models import (
+    BenchmarkResult,
     BenchmarkResultSummary,
     CategoryComparisonSummary,
     RuleComparisonSummary,
-    BenchmarkResult,
 )
-from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
-
 
 IGNORED_RULE_DIRECTORIES = {
     "false_positives",

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
-from reviewer.models import CodeReview, Issue
+from reviewer.models import CodeReview
 
 """
 Example showing how to execute the benchmark runner programmatically.

@@ -1,14 +1,13 @@
 import json
 from pathlib import Path
 from typing import Any
-from typer.testing import CliRunner
-from reviewer.prompts import DEFAULT_PROMPT_VERSION
 
 import pytest
+from typer.testing import CliRunner
 
 from main import app
-
 from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.result_comparison import (
     ResultComparisonError,
     extract_category_from_evaluation,

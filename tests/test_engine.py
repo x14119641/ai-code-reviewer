@@ -1,5 +1,4 @@
 from pathlib import Path
-from reviewer.prompts import DEFAULT_PROMPT_VERSION
 
 import pytest
 
@@ -10,6 +9,7 @@ from reviewer.engine import (
     review_folder,
 )
 from reviewer.models import CodeReview, Issue
+from reviewer.prompts import DEFAULT_PROMPT_VERSION
 
 
 def test_review_file_raises_when_file_does_not_exist(tmp_path: Path) -> None:

@@ -162,14 +162,49 @@ def print_benchmark_summary(run: BenchmarkRun) -> None:
     console.print(table)
 
 
-
 def print_result_saved(path: Path) -> None:
+    console.print(f"\n[bold green]SAVED[/bold green] " f"[dim]{path}[/dim]")
+
+
+def print_error(
+    message: str,
+    err: str | None = None,
+) -> None:
+    if err:
+        console.print(f"[bold red]{message}:[/bold red] {err}")
+    else:
+        console.print(f"[bold red]{message}[/bold red]")
+
+
+def print_warning(
+    message: str,
+    err: str | None = None,
+) -> None:
+    if err:
+        console.print(f"[bold yellow]{message}:[/bold yellow] {err}")
+    else:
+        console.print(f"[bold yellow]{message}[/bold yellow]")
+
+
+def print_success(message: str) -> None:
+    console.print(f"[bold green]OK[/bold green] {message}")
+
+
+def print_table(table: Table) -> None:
+    console.print(table)
+
+
+def print_review_progress(
+    current: int,
+    total: int,
+    path: Path,
+) -> None:
     console.print(
-        f"\n[bold green]SAVED[/bold green] "
+        f"[bold cyan][{current:02d}/{total:02d}] REVIEW[/bold cyan] "
         f"[dim]{path}[/dim]"
     )
-    
-    
+
+
 def build_comparison_table(
     summaries: list[BenchmarkResultSummary],
 ) -> Table:

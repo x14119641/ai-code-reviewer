@@ -1,25 +1,22 @@
-from pathlib import Path
+import json
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from reviewer.models import Issue, CodeReview
+from pathlib import Path
+from typing import Any, cast
+
+from reviewer.llm import generate_review
+from reviewer.models import CodeReview, Issue
+from reviewer.prompts import DEFAULT_PROMPT_VERSION, build_review_prompt
 from reviewer.taxonomy import (
-    IssueCategory,
-    IssueRule,
-    Severity,
     VALID_CATEGORIES,
     VALID_RULES,
     VALID_SEVERITIES,
+    IssueCategory,
+    IssueRule,
+    Severity,
 )
 
-from reviewer.llm import generate_review
-from reviewer.prompts import DEFAULT_PROMPT_VERSION, build_review_prompt
-from collections.abc import Iterable, Iterator
-
-from typing import Any, cast
-import json
-
 IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
-
-VALID_SEVERITIES = ["low", "medium", "high", "critical"]
 
 
 @dataclass
@@ -33,14 +30,15 @@ def clean_json_response(response: str) -> str:
     cleaned = response.strip()
 
     if cleaned.startswith("```json"):
-        cleaned = cleaned[len("```json"):].strip()
+        cleaned = cleaned[len("```json") :].strip()
     elif cleaned.startswith("```"):
-        cleaned = cleaned[len("```"):].strip()
+        cleaned = cleaned[len("```") :].strip()
 
     if cleaned.endswith("```"):
         cleaned = cleaned[:-3].strip()
 
     return cleaned
+
 
 def find_python_files(path: Path) -> list[Path]:
     """Find Python files recursively, excluding ignored directories."""
@@ -62,23 +60,21 @@ def parse_review_response(response: str) -> CodeReview:
     try:
         data: Any = json.loads(cleaned_response)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"The model returned invalid JSON:\n\n{response}"
-        ) from exc
+        raise RuntimeError(f"The model returned invalid JSON:\n\n{response}") from exc
 
     if not isinstance(data, dict):
-        raise RuntimeError("The model response must be a JSON object.")
+        raise TypeError("The model response must be a JSON object.")
 
     issues_data = data.get("issues")
 
     if not isinstance(issues_data, list):
-        raise RuntimeError("The model response must contain an 'issues' list.")
+        raise TypeError("The model response must contain an 'issues' list.")
 
     issues: list[Issue] = []
 
     for index, item in enumerate(issues_data):
         if not isinstance(item, dict):
-            raise RuntimeError(f"Issue {index} must be a JSON object.")
+            raise TypeError(f"Issue {index} must be a JSON object.")
 
         required_fields = {
             "severity",
@@ -93,28 +89,20 @@ def parse_review_response(response: str) -> CodeReview:
 
         if missing_fields:
             missing = ", ".join(sorted(missing_fields))
-            raise RuntimeError(
-                f"Issue {index} is missing required fields: {missing}"
-            )
+            raise RuntimeError(f"Issue {index} is missing required fields: {missing}")
 
         severity = item["severity"]
         category = item["category"]
         rule = item["rule"]
 
         if severity not in VALID_SEVERITIES:
-            raise RuntimeError(
-                f"Issue {index} has invalid severity: {severity}"
-            )
+            raise RuntimeError(f"Issue {index} has invalid severity: {severity}")
 
         if category not in VALID_CATEGORIES:
-            raise RuntimeError(
-                f"Issue {index} has invalid category: {category}"
-            )
+            raise RuntimeError(f"Issue {index} has invalid category: {category}")
 
         if rule not in VALID_RULES:
-            raise RuntimeError(
-                f"Issue {index} has invalid rule: {rule}"
-            )
+            raise RuntimeError(f"Issue {index} has invalid rule: {rule}")
 
         issues.append(
             Issue(
@@ -130,25 +118,25 @@ def parse_review_response(response: str) -> CodeReview:
     return CodeReview(issues=issues)
 
 
-
 def review_file(
     path: Path,
     model: str,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
-) -> CodeReview:    
+) -> CodeReview:
     """Read and review one source-code file"""
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
     if not path.is_file():
         raise ValueError(f"Not a file: {path}")
 
-    try:
-        code = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise
-    
 
-    prompt = build_review_prompt(code, prompt_version=prompt_version,)
+    code = path.read_text(encoding="utf-8")
+
+
+    prompt = build_review_prompt(
+        code,
+        prompt_version=prompt_version,
+    )
 
     response = generate_review(prompt=prompt, model=model)
 
@@ -162,7 +150,11 @@ def review_folder(path: Path, model: str) -> Iterator[ReviewResult]:
     yield from review_files(files, model)
 
 
-def review_files(files: Iterable[Path], model: str, prompt_version: str = DEFAULT_PROMPT_VERSION,) -> Iterator[ReviewResult]:
+def review_files(
+    files: Iterable[Path],
+    model: str,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+) -> Iterator[ReviewResult]:
     """Review an iterable of Python files one at a time."""
     for file in files:
         review = review_file(file, model, prompt_version=prompt_version)

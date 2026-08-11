@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 PROMPTS_DIRECTORY = Path("prompts")
 SOURCE_CODE_PLACEHOLDER = "{{SOURCE_CODE}}"
 DEFAULT_PROMPT_VERSION = "v1"
