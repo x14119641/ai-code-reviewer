@@ -22,7 +22,9 @@ def print_benchmark_progress(
     path: Path,
 ) -> None:
     console.print(
-        f"[bold cyan][{current:02d}/{total:02d}] SCAN[/bold cyan] " f"[dim]{path}[/dim]"
+        f"[bold cyan][{current:02d}/{total:02d}][/bold cyan] "
+        f"[cyan]SCAN[/cyan] "
+        f"[dim]{path}[/dim]"
     )
 
 
@@ -54,7 +56,7 @@ def print_benchmark_evaluations(run: BenchmarkRun) -> None:
             console.print(
                 f"[bold green]PASS[/bold green] "
                 f"{benchmark_name} "
-                f"[dim]({file_name})[/dim]"
+                f"[dim]:: {file_name}[/dim]"
             )
             continue
 
@@ -65,7 +67,7 @@ def print_benchmark_evaluations(run: BenchmarkRun) -> None:
         console.print(
             f"[bold red]FAIL[/bold red] "
             f"{benchmark_name} "
-            f"[dim]({file_name})[/dim]"
+            f"[dim]:: {file_name}[/dim]"
         )
 
         console.print(
@@ -79,13 +81,11 @@ def print_benchmark_evaluations(run: BenchmarkRun) -> None:
         )
 
         if evaluation.false_positive:
-            console.print("  [yellow]→ False positive[/yellow]")
-
+            console.print("  [yellow]↳ false positive[/yellow]")
         elif evaluation.false_negative:
-            console.print("  [yellow]→ False negative[/yellow]")
-
+            console.print("  [yellow]↳ false negative[/yellow]")
         elif not evaluation.rule_matched:
-            console.print("  [red]→ Wrong rule[/red]")
+            console.print("  [red]↳ wrong rule[/red]")
 
 
 def print_benchmark_failures(run: BenchmarkRun) -> None:
@@ -112,17 +112,26 @@ def print_benchmark_summary(run: BenchmarkRun) -> None:
     """Render benchmark run summary."""
 
     table = Table(
-        title="Benchmark Complete",
+        title="[bold cyan]Benchmark Complete[/bold cyan]",
         show_header=False,
         box=None,
     )
 
-    table.add_column("Metric", style="bold cyan")
+    table.add_column("Metric", style="dim")
     table.add_column("Value")
 
-    table.add_row("Model", run.model)
-    table.add_row("Prompt", run.prompt_version)
-    table.add_row("Benchmarks", str(run.benchmark_count))
+    table.add_row(
+        "Model",
+        f"[magenta]{run.model}[/magenta]",
+    )
+    table.add_row(
+        "Prompt",
+        f"[magenta]{run.prompt_version}[/magenta]",
+    )
+    table.add_row(
+        "Benchmarks",
+        str(run.benchmark_count),
+    )
     table.add_row(
         "Passed",
         f"[green]{run.passed}[/green]",
@@ -133,7 +142,7 @@ def print_benchmark_summary(run: BenchmarkRun) -> None:
     )
     table.add_row(
         "Errors",
-        str(run.failure_count),
+        f"[red]{run.failure_count}[/red]",
     )
     table.add_row(
         "False positives",
@@ -145,25 +154,21 @@ def print_benchmark_summary(run: BenchmarkRun) -> None:
     )
     table.add_row(
         "Accuracy",
-        f"[bold green]{run.accuracy:.2%}[/bold green]",
+        f"[bold cyan]{run.accuracy:.2%}[/bold cyan]",
     )
     table.add_row(
         "Severity",
-        f"{run.severity_matches}/"
+        f"[cyan]{run.severity_matches}/"
         f"{run.severity_evaluated_count} "
-        f"({run.severity_accuracy:.2%})",
+        f"({run.severity_accuracy:.2%})[/cyan]",
     )
     table.add_row(
         "Duration",
-        f"{run.duration_seconds:.2f}s",
+        f"[dim]{run.duration_seconds:.2f}s[/dim]",
     )
 
     console.print()
     console.print(table)
-
-
-def print_result_saved(path: Path) -> None:
-    console.print(f"\n[bold green]SAVED[/bold green] " f"[dim]{path}[/dim]")
 
 
 def print_error(
@@ -171,9 +176,9 @@ def print_error(
     err: str | None = None,
 ) -> None:
     if err:
-        console.print(f"[bold red]{message}:[/bold red] {err}")
+        console.print(f"[bold red]ERR[/bold red] " f"{message} [dim]::[/dim] {err}")
     else:
-        console.print(f"[bold red]{message}[/bold red]")
+        console.print(f"[bold red]ERR[/bold red] {message}")
 
 
 def print_warning(
@@ -181,13 +186,19 @@ def print_warning(
     err: str | None = None,
 ) -> None:
     if err:
-        console.print(f"[bold yellow]{message}:[/bold yellow] {err}")
+        console.print(
+            f"[bold yellow]WARN[/bold yellow] " f"{message} [dim]::[/dim] {err}"
+        )
     else:
-        console.print(f"[bold yellow]{message}[/bold yellow]")
+        console.print(f"[bold yellow]WARN[/bold yellow] {message}")
 
 
 def print_success(message: str) -> None:
     console.print(f"[bold green]OK[/bold green] {message}")
+
+
+def print_result_saved(path: Path) -> None:
+    console.print(f"\n[bold green]SAVED[/bold green] " f"[dim]{path}[/dim]")
 
 
 def print_table(table: Table) -> None:
@@ -200,7 +211,8 @@ def print_review_progress(
     path: Path,
 ) -> None:
     console.print(
-        f"[bold cyan][{current:02d}/{total:02d}] REVIEW[/bold cyan] "
+        f"[bold cyan][{current:02d}/{total:02d}][/bold cyan] "
+        f"[cyan]REVIEW[/cyan] "
         f"[dim]{path}[/dim]"
     )
 
@@ -342,30 +354,41 @@ def print_result_analysis(
         show_header=False,
         box=None,
     )
-    summary_table.add_column("Field", style="bold")
+    summary_table.add_column("Field", style="dim")
     summary_table.add_column("Value")
 
-    summary_table.add_row("Model", summary.model)
-    summary_table.add_row("Prompt", summary.prompt_version)
+    summary_table.add_row(
+        "Model",
+        f"[magenta]{summary.model}[/magenta]",
+    )
+    summary_table.add_row(
+        "Prompt",
+        f"[magenta]{summary.prompt_version}[/magenta]",
+    )
     summary_table.add_row(
         "Benchmarks",
         str(summary.benchmark_count),
     )
-    summary_table.add_row("Passed", str(summary.passed))
-    summary_table.add_row("Failed", str(summary.failed))
+    summary_table.add_row(
+        "Passed",
+        f"[green]{summary.passed}[/green]",
+    )
+    summary_table.add_row(
+        "Failed",
+        f"[red]{summary.failed}[/red]",
+    )
     summary_table.add_row(
         "Accuracy",
-        f"{summary.accuracy:.1%}",
+        f"[bold cyan]{summary.accuracy:.1%}[/bold cyan]",
     )
     summary_table.add_row(
         "Severity accuracy",
-        f"{summary.severity_accuracy:.1%}",
+        f"[cyan]{summary.severity_accuracy:.1%}[/cyan]",
     )
     summary_table.add_row(
         "Execution time",
-        f"{summary.duration_seconds:.1f}s",
+        f"[dim]{summary.duration_seconds:.1f}s[/dim]",
     )
-
     console.print(summary_table)
 
     if not problems:
@@ -385,49 +408,57 @@ def print_result_analysis(
         actual_issues = review.get("issues", [])
 
         lines = [
-            f"[bold]Type:[/bold] {problem.problem_type.value}",
-            f"[bold]Benchmark:[/bold] {benchmark_name}",
-            f"[bold]Path:[/bold] {code_path}",
+            f"[bold]Benchmark:[/bold] [bold]{benchmark_name}[/bold]",
+            f"[dim]Path: {code_path}[/dim]",
             "",
         ]
 
         if expected_issues:
-            lines.append("[bold]Expected:[/bold]")
+            lines.append("[bold cyan]Expected[/bold cyan]")
 
             for issue in expected_issues:
                 lines.extend(
                     [
-                        f"  Rule: {issue.get('rule', '-')}",
-                        f"  Category: {issue.get('category', '-')}",
-                        f"  Severity: {issue.get('severity', '-')}",
+                        f"  [dim]Rule:[/dim] {issue.get('rule', '-')}",
+                        f"  [dim]Category:[/dim] {issue.get('category', '-')}",
+                        f"  [dim]Severity:[/dim] {issue.get('severity', '-')}",
                     ]
                 )
         else:
-            lines.append("[bold]Expected:[/bold] No issues")
+            lines.append("[bold cyan]Expected[/bold cyan] No issues")
 
         lines.append("")
 
         if actual_issues:
-            lines.append("[bold]Predicted:[/bold]")
+            lines.append("[bold magenta]Predicted[/bold magenta]")
 
             for issue in actual_issues:
                 lines.extend(
                     [
-                        f"  Rule: {issue.get('rule', '-')}",
-                        f"  Category: {issue.get('category', '-')}",
-                        f"  Severity: {issue.get('severity', '-')}",
-                        f"  Title: {issue.get('title', '-')}",
-                        f"  Explanation: {issue.get('explanation', '-')}",
+                        f"  [dim]Rule:[/dim] {issue.get('rule', '-')}",
+                        f"  [dim]Category:[/dim] {issue.get('category', '-')}",
+                        f"  [dim]Severity:[/dim] {issue.get('severity', '-')}",
+                        f"  [dim]Title:[/dim] {issue.get('title', '-')}",
+                        f"  [dim]Explanation:[/dim] {issue.get('explanation', '-')}",
                     ]
                 )
         else:
-            lines.append("[bold]Predicted:[/bold] No issues")
+            lines.append("[bold magenta]Predicted[/bold magenta] No issues")
 
         console.print()
+        if problem.problem_type.value == "false_positive":
+            title = "[yellow]False Positive[/yellow]"
+        elif problem.problem_type.value == "false_negative":
+            title = "[yellow]False Negative[/yellow]"
+        elif problem.problem_type.value == "severity_mismatch":
+            title = "[magenta]Severity Mismatch[/magenta]"
+        else:
+            title = f"[red]{problem.problem_type.value.replace('_', ' ').title()}[/red]"
+            
         console.print(
             Panel(
                 "\n".join(lines),
-                title=problem.problem_type.value.replace("_", " ").title(),
+                title=title,
                 expand=False,
             )
         )
