@@ -205,3 +205,12 @@ class ResultProblemType(StrEnum):
 class ResultProblem:
     problem_type: ResultProblemType
     evaluation: dict[str, Any]
+    
+
+@dataclass(frozen=True)
+class BenchmarkResultComparison:
+    fixed: tuple[str, ...]
+    regressed: tuple[str, ...]
+    still_failing: tuple[str, ...]
+    added: tuple[str, ...]
+    removed: tuple[str, ...]

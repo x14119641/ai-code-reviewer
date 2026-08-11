@@ -2,6 +2,7 @@ from pathlib import Path
 
 import typer
 
+from reviewer.benchmark_comparison import compare_benchmark_results
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.engine import find_python_files, review_file, review_files
@@ -20,6 +21,7 @@ from reviewer.rendering import (
     print_result_saved,
     print_review,
     print_review_progress,
+    print_run_comparison,
     print_success,
     print_table,
     print_warning,
@@ -140,11 +142,7 @@ def benchmark_command(
 
         if output is not None:
             if output.parent == Path("."):
-                output = (
-                    Path("results")
-                    / prompt_version
-                    / output
-                )
+                output = Path("results") / prompt_version / output
 
             save_benchmark_run(run, output)
             print_result_saved(output)
@@ -224,6 +222,37 @@ def analyze_result_command(
     try:
         result = load_result(path)
         print_result_analysis(result)
+    except ResultComparisonError as error:
+        print_error("Error", str(error))
+        raise typer.Exit(code=1) from error
+
+
+@app.command("compare-runs")
+def compare_runs_command(
+    old_path: Path = typer.Argument(
+        ...,
+        help="Path to the older exported benchmark result JSON file.",
+    ),
+    new_path: Path = typer.Argument(
+        ...,
+        help="Path to the newer exported benchmark result JSON file.",
+    ),
+) -> None:
+    """Compare benchmark-level changes between two exported runs."""
+
+    try:
+        old_result = load_result(old_path)
+        new_result = load_result(new_path)
+
+
+        comparison = compare_benchmark_results(old_result, new_result)
+
+        print_run_comparison(
+            old_result.summary,
+            new_result.summary,
+            comparison,
+        )
+
     except ResultComparisonError as error:
         print_error("Error", str(error))
         raise typer.Exit(code=1) from error

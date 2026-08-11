@@ -6,6 +6,7 @@ from rich.table import Table
 
 from reviewer.models import (
     BenchmarkResult,
+    BenchmarkResultComparison,
     BenchmarkResultSummary,
     BenchmarkRun,
     CodeReview,
@@ -454,7 +455,7 @@ def print_result_analysis(
             title = "[magenta]Severity Mismatch[/magenta]"
         else:
             title = f"[red]{problem.problem_type.value.replace('_', ' ').title()}[/red]"
-            
+
         console.print(
             Panel(
                 "\n".join(lines),
@@ -462,3 +463,70 @@ def print_result_analysis(
                 expand=False,
             )
         )
+
+
+def print_run_comparison(
+    old_summary: BenchmarkResultSummary,
+    new_summary: BenchmarkResultSummary,
+    comparison: BenchmarkResultComparison,
+) -> None:
+    console.print(
+        f"\n[bold]Old:[/bold] "
+        f"{old_summary.prompt_version} / {old_summary.model} — "
+        f"{old_summary.passed}/{old_summary.benchmark_count} "
+        f"({old_summary.accuracy:.1%})"
+    )
+
+    console.print(
+        f"[bold]New:[/bold] "
+        f"{new_summary.prompt_version} / {new_summary.model} — "
+        f"{new_summary.passed}/{new_summary.benchmark_count} "
+        f"({new_summary.accuracy:.1%})"
+    )
+
+    comparable = old_summary.benchmark_count - len(comparison.removed)
+
+    console.print(
+        "\n"
+        f"[bold]Comparable:[/bold] {comparable} | "
+        f"[green]Fixed: {len(comparison.fixed)}[/green] | "
+        f"[red]Regressed: {len(comparison.regressed)}[/red] | "
+        f"[yellow]Still failing: {len(comparison.still_failing)}[/yellow] | "
+        f"Added: {len(comparison.added)} | "
+        f"Removed: {len(comparison.removed)}"
+    )
+
+    console.print("[bold green]Fixed[/bold green]")
+    if comparison.fixed:
+        for path in comparison.fixed:
+            console.print(f"  [green]✓[/green] {path}")
+    else:
+        console.print("  None")
+
+    console.print("\n[bold red]Regressed[/bold red]")
+    if comparison.regressed:
+        for path in comparison.regressed:
+            console.print(f"  [red]✗[/red] {path}")
+    else:
+        console.print("  None")
+
+    console.print("\n[bold yellow]Still failing[/bold yellow]")
+    if comparison.still_failing:
+        for path in comparison.still_failing:
+            console.print(f"  [yellow]•[/yellow] {path}")
+    else:
+        console.print("  None")
+
+    console.print("\n[bold]Added[/bold]")
+    if comparison.added:
+        for path in comparison.added:
+            console.print(f"  [green]+[/green] {path}")
+    else:
+        console.print("  None")
+
+    console.print("\n[bold]Removed[/bold]")
+    if comparison.removed:
+        for path in comparison.removed:
+            console.print(f"  + {path}")
+    else:
+        console.print("  None")
