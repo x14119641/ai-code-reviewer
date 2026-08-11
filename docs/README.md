@@ -2,9 +2,9 @@
 
 The benchmark suite currently contains **35 benchmark cases** covering security, bugs, maintainability, performance, and false-positive scenarios.
 
-### Overall Comparison
+### Model Comparison
 
-Example results using prompt version **v1**:
+The following results were produced during the initial **v1 model comparison** before deterministic generation settings and rule-based severity normalization were introduced:
 
 ```text
 ┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━┳━━━━┳━━━━━━━━┳━━━━━━━━┓
@@ -19,11 +19,32 @@ Example results using prompt version **v1**:
 └───────────────────────┴────────┴──────────┴──────────┴────────┴────┴────┴────────┴────────┘
 ```
 
-The comparison tool can also display detailed results grouped by:
+These results are useful as an early model comparison, but they should not be directly compared with newer controlled prompt experiments because the evaluation setup has since changed.
 
-- Rule
-- Category
-- Prompt version
+Benchmark generation now uses `temperature=0` and a fixed seed to reduce run-to-run variation. Severity is also derived deterministically from the detected rule rather than relying on the model's severity prediction.
+
+### Prompt Evaluation
+
+Using Qwen 3.5 9B with the same 35-case benchmark suite and controlled generation settings:
+
+| Prompt | Accuracy | Passed | False Positives | False Negatives |
+| ------ | -------- | ------ | --------------- | --------------- |
+| v1     | 85.7%    | 30/35  | 4               | 1               |
+| v2     | 88.6%    | 31/35  | 3               | 1               |
+| v3     | 88.6%    | 31/35  | 3               | 1               |
+| v4     | 91.4%    | 32/35  | 2               | 1               |
+
+The experiments showed that making rule-specific detection boundaries explicit was more effective than adding increasingly general instructions intended to suppress false positives.
+
+Prompt v4 is currently the strongest controlled result, reaching **91.4% accuracy** with **2 false positives**, **1 false negative**, and **100% severity accuracy** for correctly detected issues.
+
+### Result Analysis
+
+The comparison tool can display results grouped by:
+
+* Rule
+* Category
+* Prompt version
 
 For example:
 
@@ -33,9 +54,24 @@ uv run python main.py compare-results results/v1/ --by-rule
 uv run python main.py compare-results results/v1/ --by-category
 ```
 
-### Current observations
+Individual benchmark runs can also be inspected in detail:
 
-- Qwen 3.5 9B currently achieves the highest overall benchmark accuracy.
-- Qwen 2.5 Coder 7B provides the best speed-to-accuracy trade-off.
-- Coding-specialized models outperform general-purpose models on most benchmark categories.
-- DeepSeek Coder V2 and Llama 3.1 leave room for improvement on this benchmark suite despite their strong general coding capabilities.
+```bash
+uv run python main.py analyze-result results/v4/qwen3.5-9b-seed42.json
+```
+
+This surfaces:
+
+* False positives
+* False negatives
+* Rule mismatches
+* Category mismatches
+* Severity mismatches
+
+### Current Observations
+
+* Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
+* Qwen 2.5 Coder 7B provided a strong speed-to-accuracy trade-off in the initial model benchmark.
+* Controlled prompt iteration improved Qwen 3.5 9B from **85.7% with v1** to **91.4% with v4**.
+* Rule-specific detection boundaries reduced false positives more effectively than additional general prompt instructions.
+* The remaining v4 benchmark failures are primarily false-positive and maintainability-classification cases rather than severity calibration problems.
