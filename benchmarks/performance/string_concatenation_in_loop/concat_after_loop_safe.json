@@ -1,0 +1,5 @@
+{
+  "name": "Safe concatenation after loop",
+  "code_path": "concat_after_loop_safe.py",
+  "expected_issues": []
+}

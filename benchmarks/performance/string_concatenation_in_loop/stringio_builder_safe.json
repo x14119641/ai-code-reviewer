@@ -1,0 +1,5 @@
+{
+  "name": "Safe StringIO builder",
+  "code_path": "stringio_builder_safe.py",
+  "expected_issues": []
+}

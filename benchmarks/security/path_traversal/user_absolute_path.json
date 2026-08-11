@@ -1,0 +1,12 @@
+{
+  "name": "Path traversal via user-controlled absolute path",
+  "code_path": "user_absolute_path.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "category": "security",
+      "rule": "path_traversal",
+      "explanation": "An absolute path supplied through report_path can override the intended base directory because the resulting path is not resolved and checked for containment."
+    }
+  ]
+}

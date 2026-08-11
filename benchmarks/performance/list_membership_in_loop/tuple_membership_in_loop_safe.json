@@ -1,0 +1,5 @@
+{
+  "name": "Tuple membership inside loop",
+  "code_path": "tuple_membership_in_loop_safe.py",
+  "expected_issues": []
+}

@@ -1,0 +1,12 @@
+{
+  "name": "SQL Injection via str.format",
+  "code_path": "format_query.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "rule": "sql_injection",
+      "explanation": "A value is inserted directly into an SQL query using str.format(), allowing the query structure to be modified."
+    }
+  ]
+}

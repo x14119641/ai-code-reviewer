@@ -1,0 +1,12 @@
+{
+  "name": "Nested mutable dictionary default",
+  "code_path": "nested_dict_default.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "mutable_default_argument",
+      "explanation": "A mutable dictionary containing a mutable list is used directly as a function default argument and is shared between calls."
+    }
+  ]
+}

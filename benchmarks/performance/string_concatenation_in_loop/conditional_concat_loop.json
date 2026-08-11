@@ -1,0 +1,12 @@
+{
+  "name": "Conditional string concatenation in loop",
+  "code_path": "conditional_concat_loop.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "category": "performance",
+      "rule": "string_concatenation_in_loop",
+      "explanation": "A string is repeatedly extended inside a loop using +=, creating repeated string allocations."
+    }
+  ]
+}

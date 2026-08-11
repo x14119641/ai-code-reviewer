@@ -1,0 +1,5 @@
+{
+  "name": "Safe list append and join",
+  "code_path": "append_and_join_safe.py",
+  "expected_issues": []
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Shared validation helper avoids duplication",
+  "code_path": "shared_validation_helper_safe.py",
+  "expected_issues": []
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Shell Injection via concatenated command",
+  "code_path": "joined_shell_command.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "rule": "shell_injection",
+      "explanation": "A value is concatenated into a command string that is executed with shell=True."
+    }
+  ]
+}

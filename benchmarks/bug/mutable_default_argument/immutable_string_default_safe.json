@@ -1,0 +1,5 @@
+{
+  "name": "Safe immutable string default",
+  "code_path": "immutable_string_default_safe.py",
+  "expected_issues": []
+}

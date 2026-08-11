@@ -1,0 +1,5 @@
+{
+  "name": "Safe named SQL parameters",
+  "code_path": "named_parameters_safe.py",
+  "expected_issues": []
+}

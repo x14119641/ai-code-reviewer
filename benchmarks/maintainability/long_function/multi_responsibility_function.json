@@ -1,0 +1,12 @@
+{
+  "name": "Multiple responsibilities in invoice processing",
+  "code_path": "multi_responsibility_function.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "category": "maintainability",
+      "rule": "long_function",
+      "explanation": "The function combines validation, aggregation, business-rule decisions, and result construction and could be split into focused helpers."
+    }
+  ]
+}

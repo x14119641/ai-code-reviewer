@@ -1,0 +1,12 @@
+{
+  "name": "Mutable set with values as default",
+  "code_path": "set_with_values_default.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "mutable_default_argument",
+      "explanation": "A mutable set is used directly as a function default argument and is shared between calls."
+    }
+  ]
+}

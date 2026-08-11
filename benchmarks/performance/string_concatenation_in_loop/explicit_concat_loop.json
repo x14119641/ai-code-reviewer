@@ -1,0 +1,12 @@
+{
+  "name": "Explicit string concatenation in loop",
+  "code_path": "explicit_concat_loop.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "category": "performance",
+      "rule": "string_concatenation_in_loop",
+      "explanation": "A string is repeatedly rebuilt inside a loop using string concatenation."
+    }
+  ]
+}

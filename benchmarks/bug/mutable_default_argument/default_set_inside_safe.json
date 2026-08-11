@@ -1,0 +1,5 @@
+{
+  "name": "Safe set created inside function",
+  "code_path": "default_set_inside_safe.py",
+  "expected_issues": []
+}

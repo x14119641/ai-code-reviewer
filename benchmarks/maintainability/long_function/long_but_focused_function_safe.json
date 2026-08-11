@@ -1,0 +1,5 @@
+{
+  "name": "Long but focused summary function",
+  "code_path": "long_but_focused_function_safe.py",
+  "expected_issues": []
+}

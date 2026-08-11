@@ -1,0 +1,5 @@
+{
+  "name": "Set non-membership inside loop",
+  "code_path": "set_not_in_loop_safe.py",
+  "expected_issues": []
+}

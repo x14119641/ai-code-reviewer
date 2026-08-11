@@ -1,0 +1,5 @@
+{
+  "name": "Dictionary key membership inside loop",
+  "code_path": "dict_key_membership_safe.py",
+  "expected_issues": []
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Repeated list non-membership lookup",
+  "code_path": "list_not_in_loop.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "performance",
+      "rule": "list_membership_in_loop",
+      "explanation": "A list membership check is repeatedly performed inside a loop, which can create quadratic behavior as both collections grow."
+    }
+  ]
+}

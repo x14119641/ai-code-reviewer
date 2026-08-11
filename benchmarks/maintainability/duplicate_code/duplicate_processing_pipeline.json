@@ -1,0 +1,12 @@
+{
+  "name": "Duplicated normalization pipeline",
+  "code_path": "duplicate_processing_pipeline.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "category": "maintainability",
+      "rule": "duplicate_code",
+      "explanation": "Substantially identical multi-step normalization logic appears in multiple functions and could be extracted into a shared helper."
+    }
+  ]
+}

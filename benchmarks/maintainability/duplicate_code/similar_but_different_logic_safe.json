@@ -1,0 +1,5 @@
+{
+  "name": "Similar structure with different logic",
+  "code_path": "similar_but_different_logic_safe.py",
+  "expected_issues": []
+}

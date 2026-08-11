@@ -1,0 +1,5 @@
+{
+  "name": "List membership outside loop",
+  "code_path": "list_membership_outside_loop_safe.py",
+  "expected_issues": []
+}
