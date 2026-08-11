@@ -8,11 +8,15 @@ from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.engine import review_file, review_files, find_python_files
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.rendering import (
-    print_benchmark_progress,
-    print_result_analysis,
     build_category_comparison_table,
     build_comparison_table,
     build_rule_comparison_table,
+    print_benchmark_evaluations,
+    print_benchmark_failures,
+    print_benchmark_progress,
+    print_benchmark_summary,
+    print_result_analysis,
+    print_result_saved,
     print_review,
 )
 from reviewer.result_comparison import (
@@ -74,8 +78,14 @@ def review_folder_command(
 @app.command("benchmark")
 def benchmark_command(
     path: Path,
-    model: str = typer.Option("qwen3.5:9b", help="Ollama model used for the benchmark"),
-    output: Path | None = typer.Option(None, help="Output filename or path."),
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the benchmark",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
     prompt_version: str = typer.Option(
         DEFAULT_PROMPT_VERSION,
         "--prompt-version",
@@ -83,23 +93,32 @@ def benchmark_command(
     ),
 ) -> None:
     """Evaluate the AI reviewer using benchmark cases."""
+
     try:
         benchmark_paths = find_benchmark_files(path)
 
         if not benchmark_paths:
-            console.print("[yellow]No benchmark files found.[/yellow]")
+            console.print(
+                "[yellow]No benchmark files found.[/yellow]"
+            )
             return
+
         total = len(benchmark_paths)
         current = 0
 
-        def review_with_model(source_path: Path) -> CodeReview:
+        def review_with_model(
+            source_path: Path,
+        ) -> CodeReview:
             nonlocal current
+
             current += 1
+
             print_benchmark_progress(
                 current=current,
                 total=total,
                 path=source_path,
             )
+
             return review_file(
                 source_path,
                 model,
@@ -115,95 +134,27 @@ def benchmark_command(
 
         if output is not None:
             if output.parent == Path("."):
-                output = Path("results") / prompt_version / output
+                output = (
+                    Path("results")
+                    / prompt_version
+                    / output
+                )
 
             save_benchmark_run(run, output)
-            console.print()
-            console.print(f"[green]✓ Results saved to:[/green] {output}")
+            print_result_saved(output)
 
-        console.print()
-        console.rule("[bold]Individual results[/bold]")
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
 
-        for evaluation in run.evaluations:
-            benchmark_name = evaluation.benchmark.name
-            file_name = evaluation.benchmark.code_path.name
-
-            if evaluation.passed:
-                console.print(
-                    f"[bold green]PASS[/bold green] "
-                    f"{benchmark_name} "
-                    f"[dim]({file_name})[/dim]"
-                )
-                continue
-
-            expected_rules = [
-                issue.rule for issue in evaluation.benchmark.expected_issues
-            ]
-
-            actual_rules = [issue.rule for issue in evaluation.review.issues]
-
-            console.print(
-                f"[bold red]FAIL[/bold red] "
-                f"{benchmark_name} "
-                f"[dim]({file_name})[/dim]"
-            )
-
-            console.print(
-                "  Expected: "
-                f"{', '.join(expected_rules) if expected_rules else 'no issues'}"
-            )
-
-            console.print(
-                "  Actual:   "
-                f"{', '.join(actual_rules) if actual_rules else 'no issues'}"
-            )
-
-            if evaluation.false_positive:
-                console.print("  Result: [red]False positive[/red]")
-            elif evaluation.false_negative:
-                console.print("  Result: [red]False negative[/red]")
-            elif not evaluation.rule_matched:
-                console.print("  Result: [red]Wrong rule[/red]")
-
-        if run.failures:
-            console.print()
-            console.rule("[bold red]Execution failures[/bold red]")
-            for failure in run.failures:
-                console.print(
-                    f"[bold red]ERROR[/bold red] "
-                    f"{failure.benchmark.name} "
-                    f"[dim]({failure.benchmark.code_path.name})[/dim]"
-                )
-                console.print(f"  Type:    {failure.error_type}")
-                console.print(f"  Message: {failure.message}")
-                console.print()
-
-        console.print()
-        console.rule("[bold green]Benchmark results[/bold green]")
-
-        console.print(f"[bold blue3]Model:[/bold blue3] {model}")
-        console.print(f"[bold blue3]Prompt Version:[/bold blue3] {run.prompt_version}")
-        console.print(f"[bold]Benchmarks:[/bold] {run.benchmark_count}")
-        console.print(f"[green]Passed:[/green] {run.passed}")
-        console.print(f"[red]Failed:[/red] {run.failed}")
-        console.print(f"[bold red]Response errors:[/bold red] {run.failure_count}")
-        console.print(f"[yellow]False positives:[/yellow] {run.false_positives}")
-        console.print(f"[yellow]False negatives:[/yellow] {run.false_negatives}")
-        console.print(f"[bold cyan]Accuracy:[/bold cyan] {run.accuracy:.2%}")
+    except (
+        FileNotFoundError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
         console.print(
-            f"[bold purple4]Severity Count:[/bold purple4] {run.severity_evaluated_count}"
+            f"[red]Benchmark Failed:[/red] {exc}"
         )
-        console.print(
-            f"[bold purple4]Severity Matches:[/bold purple4] {run.severity_matches}"
-        )
-        console.print(
-            f"[bold purple4]Severity Accuracy:[/bold purple4] {run.severity_accuracy:.2%}"
-        )
-
-        console.print(f"[bold cyan]Duration:[/bold cyan] {run.duration_seconds:.2f} s")
-
-    except (FileNotFoundError, ValueError, RuntimeError) as exc:
-        console.print(f"[red]Benchmark Failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
 

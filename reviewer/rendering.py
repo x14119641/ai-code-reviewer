@@ -4,12 +4,16 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from reviewer.models import BenchmarkResult, BenchmarkResultSummary, CodeReview
+from reviewer.models import (
+    BenchmarkResult,
+    BenchmarkResultSummary,
+    BenchmarkRun,
+    CodeReview,
+)
 from reviewer.result_analysis import inspect_result
 from reviewer.result_comparison import summarize_categories, summarize_rules
 
 console = Console()
-
 
 
 def print_benchmark_progress(
@@ -18,10 +22,10 @@ def print_benchmark_progress(
     path: Path,
 ) -> None:
     console.print(
-        f"[bold cyan][{current:02d}/{total:02d}] SCAN[/bold cyan] "
-        f"[dim]{path}[/dim]"
+        f"[bold cyan][{current:02d}/{total:02d}] SCAN[/bold cyan] " f"[dim]{path}[/dim]"
     )
-    
+
+
 def print_review(review: CodeReview) -> None:
     if not review.issues:
         console.print("[green]No meaningful issues found.[/green]")
@@ -36,6 +40,136 @@ def print_review(review: CodeReview) -> None:
         console.print()
 
 
+def print_benchmark_evaluations(run: BenchmarkRun) -> None:
+    """Render individual benchmark evaluation results."""
+
+    console.print()
+    console.rule("[bold cyan]Individual Results[/bold cyan]")
+
+    for evaluation in run.evaluations:
+        benchmark_name = evaluation.benchmark.name
+        file_name = evaluation.benchmark.code_path.name
+
+        if evaluation.passed:
+            console.print(
+                f"[bold green]PASS[/bold green] "
+                f"{benchmark_name} "
+                f"[dim]({file_name})[/dim]"
+            )
+            continue
+
+        expected_rules = [issue.rule for issue in evaluation.benchmark.expected_issues]
+
+        actual_rules = [issue.rule for issue in evaluation.review.issues]
+
+        console.print(
+            f"[bold red]FAIL[/bold red] "
+            f"{benchmark_name} "
+            f"[dim]({file_name})[/dim]"
+        )
+
+        console.print(
+            "  [dim]Expected:[/dim] "
+            f"{', '.join(expected_rules) if expected_rules else 'no issues'}"
+        )
+
+        console.print(
+            "  [dim]Actual:[/dim]   "
+            f"{', '.join(actual_rules) if actual_rules else 'no issues'}"
+        )
+
+        if evaluation.false_positive:
+            console.print("  [yellow]→ False positive[/yellow]")
+
+        elif evaluation.false_negative:
+            console.print("  [yellow]→ False negative[/yellow]")
+
+        elif not evaluation.rule_matched:
+            console.print("  [red]→ Wrong rule[/red]")
+
+
+def print_benchmark_failures(run: BenchmarkRun) -> None:
+    """Render benchmark execution failures."""
+
+    if not run.failures:
+        return
+
+    console.print()
+    console.rule("[bold red]Execution Failures[/bold red]")
+
+    for failure in run.failures:
+        console.print(
+            f"[bold red]ERROR[/bold red] "
+            f"{failure.benchmark.name} "
+            f"[dim]({failure.benchmark.code_path.name})[/dim]"
+        )
+
+        console.print(f"  [dim]Type:[/dim] {failure.error_type}")
+        console.print(f"  [dim]Message:[/dim] {failure.message}")
+
+
+def print_benchmark_summary(run: BenchmarkRun) -> None:
+    """Render benchmark run summary."""
+
+    table = Table(
+        title="Benchmark Complete",
+        show_header=False,
+        box=None,
+    )
+
+    table.add_column("Metric", style="bold cyan")
+    table.add_column("Value")
+
+    table.add_row("Model", run.model)
+    table.add_row("Prompt", run.prompt_version)
+    table.add_row("Benchmarks", str(run.benchmark_count))
+    table.add_row(
+        "Passed",
+        f"[green]{run.passed}[/green]",
+    )
+    table.add_row(
+        "Failed",
+        f"[red]{run.failed}[/red]",
+    )
+    table.add_row(
+        "Errors",
+        str(run.failure_count),
+    )
+    table.add_row(
+        "False positives",
+        f"[yellow]{run.false_positives}[/yellow]",
+    )
+    table.add_row(
+        "False negatives",
+        f"[yellow]{run.false_negatives}[/yellow]",
+    )
+    table.add_row(
+        "Accuracy",
+        f"[bold green]{run.accuracy:.2%}[/bold green]",
+    )
+    table.add_row(
+        "Severity",
+        f"{run.severity_matches}/"
+        f"{run.severity_evaluated_count} "
+        f"({run.severity_accuracy:.2%})",
+    )
+    table.add_row(
+        "Duration",
+        f"{run.duration_seconds:.2f}s",
+    )
+
+    console.print()
+    console.print(table)
+
+
+
+def print_result_saved(path: Path) -> None:
+    console.print(
+        f"\n[bold green]SAVED[/bold green] "
+        f"[dim]{path}[/dim]"
+    )
+    
+    
 def build_comparison_table(
     summaries: list[BenchmarkResultSummary],
 ) -> Table:
@@ -165,7 +299,7 @@ def print_result_analysis(
 ) -> None:
     """Render an exported benchmark result analysis."""
     problems = inspect_result(result)
-    
+
     summary = result.summary
 
     summary_table = Table(
@@ -262,4 +396,3 @@ def print_result_analysis(
                 expand=False,
             )
         )
-    
