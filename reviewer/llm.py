@@ -12,7 +12,11 @@ def generate_review(
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "think": False
+        "think": False,
+        "options": {
+            "tempreature":0,
+            "seed": 42,
+        }
     }
     
     try:
