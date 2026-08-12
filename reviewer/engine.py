@@ -165,11 +165,36 @@ def review_files(
 
 
 def review_diff(
-    diff: str, model: str, prompt_version: str = DEFAULT_PROMPT_VERSION
+    diff: str,
+    current_code: str,
+    model: str,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> CodeReview:
-    """Review a Git diff."""
-    prompt = build_diff_prompt(diff, prompt_version=prompt_version)
+    """Review a Git diff with current source context."""
+    prompt = build_diff_prompt(
+        diff=diff,
+        current_code=current_code,
+        prompt_version=prompt_version,
+    )
 
-    response = generate_review(prompt=prompt, model=model)
+    response = generate_review(
+        prompt=prompt,
+        model=model,
+    )
 
-    return parse_review_response(response=response)
+    return parse_review_response(response)
+
+
+def build_changed_files_context(files: Iterable[Path]) -> str:
+    """Build source context for changed Python files."""
+    sections: list[str] = []
+
+    for path in files:
+        if not path.is_file():
+            continue
+
+        code = path.read_text(encoding="utf-8")
+
+        sections.append(f"File: {path}\n\n{code}")
+
+    return "\n\n".join(sections)

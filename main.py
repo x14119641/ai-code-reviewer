@@ -5,8 +5,14 @@ import typer
 from reviewer.benchmark_comparison import compare_benchmark_results
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.benchmark_serialization import save_benchmark_run
-from reviewer.engine import find_python_files, review_diff, review_file, review_files
-from reviewer.git_diff import GitDiffError, get_git_diff
+from reviewer.engine import (
+    build_changed_files_context,
+    find_python_files,
+    review_diff,
+    review_file,
+    review_files,
+)
+from reviewer.git_diff import GitDiffError, get_changed_python_files, get_git_diff
 from reviewer.models import CodeReview
 from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.rendering import (
@@ -277,7 +283,17 @@ def review_diff_command(
         if not diff.strip():
             print_warning("No changes to review")
             return
-        result = review_diff(diff=diff, model=model, prompt_version=prompt_version)
+
+        changed_files = get_changed_python_files()
+        current_code = build_changed_files_context(changed_files)
+
+        result = review_diff(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
         print_review(review=result)
     except GitDiffError as exc:
         print_error("Git Diff Failed", str(exc))

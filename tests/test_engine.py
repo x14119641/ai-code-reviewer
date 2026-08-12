@@ -4,7 +4,9 @@ import pytest
 
 from reviewer.engine import (
     ReviewResult,
+    build_changed_files_context,
     find_python_files,
+    review_diff,
     review_file,
     review_folder,
 )
@@ -261,3 +263,77 @@ def test_review_folder_returns_no_results_for_empty_directory(
     )
 
     assert result == []
+
+
+def test_build_changed_files_context_reads_python_files(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first.py"
+    second = tmp_path / "second.py"
+
+    first.write_text(
+        "value = 1\n",
+        encoding="utf-8",
+    )
+    second.write_text(
+        "print('hello')\n",
+        encoding="utf-8",
+    )
+
+    result = build_changed_files_context([first, second])
+
+    assert f"File: {first}" in result
+    assert "value = 1" in result
+    assert f"File: {second}" in result
+    assert "print('hello')" in result
+
+
+def test_build_changed_files_context_skips_missing_files(
+    tmp_path: Path,
+) -> None:
+    existing = tmp_path / "existing.py"
+    missing = tmp_path / "missing.py"
+
+    existing.write_text(
+        "value = 1\n",
+        encoding="utf-8",
+    )
+
+    result = build_changed_files_context([existing, missing])
+
+    assert f"File: {existing}" in result
+    assert "value = 1" in result
+    assert str(missing) not in result
+
+
+def test_review_diff_includes_diff_and_current_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    diff = "-users: dict[str, int]\n+users: list[str]"
+    current_code = """
+def find_users(users: list[str]) -> None:
+    for user in users:
+        if user in users:
+            pass
+"""
+
+    def fake_generate_review(prompt: str, model: str) -> str:
+        assert diff in prompt
+        assert current_code in prompt
+        assert model == "test-model"
+
+        return '{"issues": []}'
+
+    monkeypatch.setattr(
+        "reviewer.engine.generate_review",
+        fake_generate_review,
+    )
+
+    result = review_diff(
+        diff=diff,
+        current_code=current_code,
+        model="test-model",
+        prompt_version="v8",
+    )
+
+    assert result.issues == []

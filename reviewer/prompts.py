@@ -3,6 +3,7 @@ from pathlib import Path
 PROMPTS_DIRECTORY = Path("prompts")
 SOURCE_CODE_PLACEHOLDER = "{{SOURCE_CODE}}"
 DIFF_PLACEHOLDER = "{{DIFF}}"
+CURRENT_CODE_PLACEHOLDER = "{{CURRENT_CODE}}"
 
 DEFAULT_PROMPT_VERSION = "v6"
 
@@ -27,23 +28,25 @@ def load_prompt_template(
 
 
 def _build_prompt(
-    content: str,
     prompt_version: str,
     prompt_type: str,
-    placeholder: str,
+    replacements: dict[str, str],
 ) -> str:
     template = load_prompt_template(
         prompt_version=prompt_version,
         prompt_type=prompt_type,
     )
 
-    if placeholder not in template:
-        raise ValueError(f"Prompt template is missing: {placeholder}")
+    for placeholder, content in replacements.items():
+        if placeholder not in template:
+            raise ValueError(f"Prompt template is missing: {placeholder}")
 
-    return template.replace(
-        placeholder,
-        content,
-    )
+        template = template.replace(
+            placeholder,
+            content,
+        )
+
+    return template
 
 
 def build_review_prompt(
@@ -52,21 +55,25 @@ def build_review_prompt(
 ) -> str:
     """Build a code-review prompt from a versioned template."""
     return _build_prompt(
-        content=source_code,
         prompt_version=prompt_version,
         prompt_type=REVIEW_PROMPT_TYPE,
-        placeholder=SOURCE_CODE_PLACEHOLDER,
+        replacements={
+            SOURCE_CODE_PLACEHOLDER: source_code,
+        },
     )
 
 
 def build_diff_prompt(
     diff: str,
+    current_code: str,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> str:
     """Build a Git diff review prompt from a versioned template."""
     return _build_prompt(
-        content=diff,
         prompt_version=prompt_version,
         prompt_type=DIFF_PROMPT_TYPE,
-        placeholder=DIFF_PLACEHOLDER,
+        replacements={
+            DIFF_PLACEHOLDER: diff,
+            CURRENT_CODE_PLACEHOLDER: current_code,
+        },
     )

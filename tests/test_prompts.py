@@ -79,7 +79,7 @@ def test_build_review_prompt_requires_source_placeholder(
         )
 
 
-def test_build_diff_prompt_replaces_diff_placeholder(
+def test_build_diff_prompt_replaces_placeholders(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -88,7 +88,7 @@ def test_build_diff_prompt_replaces_diff_placeholder(
     version_dir.mkdir(parents=True)
 
     (version_dir / "diff.txt").write_text(
-        "Review this diff:\n{{DIFF}}",
+        "Diff:\n{{DIFF}}\n\nCurrent code:\n{{CURRENT_CODE}}",
         encoding="utf-8",
     )
 
@@ -99,13 +99,14 @@ def test_build_diff_prompt_replaces_diff_placeholder(
 
     result = build_diff_prompt(
         "+new_line = True",
+        "new_line = True",
         prompt_version="v1",
     )
 
-    assert result == "Review this diff:\n+new_line = True"
+    assert result == ("Diff:\n+new_line = True\n\n" "Current code:\nnew_line = True")
 
 
-def test_build_diff_prompt_raises_when_placeholder_is_missing(
+def test_build_diff_prompt_raises_when_diff_placeholder_is_missing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -114,7 +115,7 @@ def test_build_diff_prompt_raises_when_placeholder_is_missing(
     version_dir.mkdir(parents=True)
 
     (version_dir / "diff.txt").write_text(
-        "Review this diff",
+        "Current code:\n{{CURRENT_CODE}}",
         encoding="utf-8",
     )
 
@@ -129,5 +130,35 @@ def test_build_diff_prompt_raises_when_placeholder_is_missing(
     ):
         build_diff_prompt(
             "+new_line = True",
+            "new_line = True",
+            prompt_version="v1",
+        )
+
+
+def test_build_diff_prompt_raises_when_current_code_placeholder_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prompts_dir = tmp_path / "prompts"
+    version_dir = prompts_dir / "v1"
+    version_dir.mkdir(parents=True)
+
+    (version_dir / "diff.txt").write_text(
+        "Diff:\n{{DIFF}}",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "reviewer.prompts.PROMPTS_DIRECTORY",
+        prompts_dir,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"\{\{CURRENT_CODE\}\}",
+    ):
+        build_diff_prompt(
+            "+new_line = True",
+            "new_line = True",
             prompt_version="v1",
         )
