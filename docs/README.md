@@ -29,8 +29,8 @@ These results remain useful as an early model comparison, but they should not be
 
 The evaluation setup has since changed in two important ways:
 
-* Generation uses `temperature=0` and a fixed seed (`42`) to reduce run-to-run variation.
-* Severity is derived deterministically from the detected rule instead of trusting the LLM's severity prediction.
+- Generation uses `temperature=0` and a fixed seed (`42`) to reduce run-to-run variation.
+- Severity is derived deterministically from the detected rule instead of trusting the LLM's severity prediction.
 
 ### Controlled Prompt Evaluation
 
@@ -64,13 +64,13 @@ The expanded suite tests rules including:
 
 The expanded suite also includes safe cases designed specifically to measure false positives, such as:
 
-* `None` used safely instead of a mutable default
-* Tuple, set, and dictionary membership boundaries
-* Parameterized SQL queries
-* Allowlisted commands and paths
-* `join()` and `StringIO` instead of repeated string concatenation
-* Shared helper functions instead of duplicated logic
-* Valid control flow that remains reachable
+- `None` used safely instead of a mutable default
+- Tuple, set, and dictionary membership boundaries
+- Parameterized SQL queries
+- Allowlisted commands and paths
+- `join()` and `StringIO` instead of repeated string concatenation
+- Shared helper functions instead of duplicated logic
+- Valid control flow that remains reachable
 
 ### Current v5 Result
 
@@ -196,11 +196,11 @@ uv run python main.py analyze-result \
 
 This surfaces:
 
-* False positives
-* False negatives
-* Rule mismatches
-* Category mismatches
-* Severity mismatches
+- False positives
+- False negatives
+- Rule mismatches
+- Category mismatches
+- Severity mismatches
 
 #### Cross-run regression analysis
 
@@ -214,11 +214,11 @@ uv run python main.py compare-runs \
 
 This identifies:
 
-* Fixed benchmarks
-* Regressed benchmarks
-* Benchmarks that remain failing
-* Added benchmarks
-* Removed benchmarks
+- Fixed benchmarks
+- Regressed benchmarks
+- Benchmarks that remain failing
+- Added benchmarks
+- Removed benchmarks
 
 Together, these tools provide three levels of experiment analysis:
 
@@ -232,14 +232,41 @@ Individual benchmark regression analysis
 
 ### Current Observations
 
-* Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
-* Qwen 2.5 Coder 7B provided a strong speed-to-accuracy trade-off in the initial model benchmark.
-* Controlled prompt iteration improved Qwen 3.5 9B from **85.7% with v1** to **91.4% with v4** on the original 35-case suite.
-* Explicit rule-specific detection boundaries were more effective than generic false-positive suppression instructions.
-* Expanding the suite from 35 to 65 cases exposed additional generalization and boundary failures that were not visible in the smaller suite.
-* Prompt v5 reaches **92.3% accuracy on 65 benchmarks** with **100% severity accuracy**.
-* The new `unreachable_code` rule currently passes all five of its benchmark cases.
-* `long_function` remains the clearest weak rule in the current prompt.
-* Cross-run comparison shows that prompt improvements can fix multiple cases while simultaneously introducing unrelated regressions.
-* The v4 → v5 experiment fixed three existing failures but regressed `user_absolute_path.py`.
-* Aggregate accuracy should therefore not be used alone when deciding whether a prompt revision is better.
+- Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
+- Qwen 2.5 Coder 7B provided a strong speed-to-accuracy trade-off in the initial model benchmark.
+- Controlled prompt iteration improved Qwen 3.5 9B from **85.7% with v1** to **91.4% with v4** on the original 35-case suite.
+- Explicit rule-specific detection boundaries were more effective than generic false-positive suppression instructions.
+- Expanding the suite from 35 to 65 cases exposed additional generalization and boundary failures that were not visible in the smaller suite.
+- Prompt v5 reaches **92.3% accuracy on 65 benchmarks** with **100% severity accuracy**.
+- The new `unreachable_code` rule currently passes all five of its benchmark cases.
+- `long_function` remains the clearest weak rule in the current prompt.
+- Cross-run comparison shows that prompt improvements can fix multiple cases while simultaneously introducing unrelated regressions.
+- The v4 → v5 experiment fixed three existing failures but regressed `user_absolute_path.py`.
+- Aggregate accuracy should therefore not be used alone when deciding whether a prompt revision is better.
+
+### Git Diff Review
+
+The reviewer now supports reviewing local Git diffs using the current contents
+of changed Python files as additional context.
+
+This capability was developed separately from the existing file-based benchmark
+suite. The current 65-case benchmark results therefore measure full-file review
+behavior and should not be interpreted as measurements of Git-diff review
+performance.
+
+Initial manual diff-review experiments showed why additional source context is
+necessary. A raw Git diff may not contain enough information to determine the
+behavior of unchanged lines affected by a change.
+
+For example, changing a function parameter from a dictionary to a list can make
+an unchanged membership check inside a loop inefficient. Providing both the Git
+diff and the current changed-file contents allows the reviewer to reason about
+the resulting code rather than only the modified lines.
+
+The diff-review implementation was manually validated against cases including
+unreachable code introduced by a change and performance issues caused by changed
+type assumptions.
+
+These checks are exploratory rather than benchmark results. Diff-specific
+benchmarking is planned so this behavior can be evaluated systematically and
+compared across future prompt versions.

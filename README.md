@@ -10,71 +10,87 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 
 ### Completed
 
-* ✅ Review a single file
-* ✅ Review multiple files
-* ✅ Structured JSON output
-* ✅ Benchmark runner
-* ✅ Benchmark evaluation
-* ✅ Benchmark result export
-* ✅ Benchmark result comparison
-* ✅ Rule comparison
-* ✅ Category comparison
-* ✅ Versioned prompt templates
-* ✅ Benchmark result analysis
-* ✅ Deterministic benchmark generation
-* ✅ Rule-based severity normalization
-* ✅ Controlled prompt optimization experiments
-* ✅ Cross-run regression comparison
+- ✅ Review a single file
+- ✅ Review multiple files
+- ✅ Structured JSON output
+- ✅ Benchmark runner
+- ✅ Benchmark evaluation
+- ✅ Benchmark result export
+- ✅ Benchmark result comparison
+- ✅ Rule comparison
+- ✅ Category comparison
+- ✅ Versioned prompt templates
+- ✅ Benchmark result analysis
+- ✅ Deterministic benchmark generation
+- ✅ Rule-based severity normalization
+- ✅ Controlled prompt optimization experiments
+- ✅ Cross-run regression comparison
+- ✅ Review local Git diffs
+- ✅ Diff review with current source context
 
 ### Planned
 
-* Review Git diffs
-* Review pull requests
-* Continue benchmark and taxonomy expansion
-* HTML reports
-* Agent mode
+- Review pull requests
+- Continue benchmark and taxonomy expansion
+- Diff-specific benchmarking
+- HTML reports
+- Agent mode
 
 ## Current Features
 
-* Review individual Python files
-* Review entire Python projects recursively
-* Structured JSON responses from the LLM
-* Response validation and parsing
-* Versioned prompt templates
-* Benchmark execution
-* Automatic benchmark evaluation
-* JSON export of benchmark results
-* Compare aggregate benchmark results
-* Compare models by rule
-* Compare models by category
-* Compare prompt versions
-* Inspect benchmark failures and severity mismatches
-* Compare individual benchmark behavior between two runs
-* Detect fixed and regressed benchmark cases
-* Detect benchmarks that remain failing
-* Detect added and removed benchmark cases
-* Deterministic LLM generation for reproducible experiments
-* Rule-based severity normalization
-* Controlled prompt optimization and comparison
-* Local execution with Ollama
+- Review individual Python files
+- Review entire Python projects recursively
+- Review local unstaged Git changes
+- Combine Git diffs with current changed-file contents for contextual review
+- Report issues introduced by a change rather than pre-existing issues
+- Structured JSON responses from the LLM
+- Response validation and parsing
+- Versioned prompt templates
+- Benchmark execution
+- Automatic benchmark evaluation
+- JSON export of benchmark results
+- Compare aggregate benchmark results
+- Compare models by rule
+- Compare models by category
+- Compare prompt versions
+- Inspect benchmark failures and severity mismatches
+- Compare individual benchmark behavior between two runs
+- Detect fixed and regressed benchmark cases
+- Detect benchmarks that remain failing
+- Detect added and removed benchmark cases
+- Deterministic LLM generation for reproducible experiments
+- Rule-based severity normalization
+- Controlled prompt optimization and comparison
+- Local execution with Ollama
 
 ## Architecture
 
-The reviewer follows a modular pipeline:
+The reviewer supports both full-file review and Git-diff review while sharing the same parsing and structured review pipeline.
 
 ```text
-Python File
-      ↓
-Versioned Prompt Template
-      ↓
-Prompt Builder
-      ↓
-Local LLM (Ollama)
-      ↓
-JSON Parsing / Validation
-      ↓
-Rule / Severity Normalization
-      ↓
+                    ┌── Python File ────────────────┐
+                    │                               ↓
+CLI ────────────────┤                    Review Prompt Builder
+                    │                               │
+                    │                               │
+                    └── Git Diff ───────────────────┤
+                          +                         ↓
+                     Changed Python Files    Diff Prompt Builder
+                          │                         │
+                          └── Current Source ───────┘
+                                                    ↓
+                                           Local LLM (Ollama)
+                                                    ↓
+                                         JSON Parsing / Validation
+                                                    ↓
+                                        Rule / Severity Normalization
+                                                    ↓
+                                          Structured CodeReview
+```
+
+Benchmark runs continue through the evaluation pipeline:
+
+```text
 Structured CodeReview
       ↓
 Benchmark Evaluation
@@ -89,6 +105,7 @@ The main modules include:
 ```text
 reviewer/
 ├── engine.py
+├── git_diff.py
 ├── llm.py
 ├── prompts.py
 ├── models.py
@@ -102,7 +119,9 @@ reviewer/
 └── rendering.py
 ```
 
-The application keeps LLM execution, benchmark evaluation, experiment comparison, and CLI rendering separate so each part can be tested and evolved independently.
+The application keeps Git integration, LLM execution, prompt construction,
+benchmark evaluation, experiment comparison, and CLI rendering separate so
+each part can be tested and evolved independently.
 
 ## Benchmark Workflow
 
@@ -183,34 +202,30 @@ Detailed result inspection can identify:
 
 Prompt templates are versioned independently from the application code.
 
+Different review modes can use separate templates within the same prompt version:
+
 ```text
 prompts/
 ├── v1/
-│   └── prompt1.txt
-├── v2/
-│   └── prompt1.txt
-├── v3/
-│   └── prompt1.txt
-├── v4/
-│   └── prompt1.txt
-└── v5/
-    └── prompt1.txt
+│   └── review.txt
+├── ...
+├── v8/
+│   └── diff.txt
+└── v9/
+    └── diff.txt
 ```
 
-Existing prompt versions remain frozen so previous experiments can be reproduced and compared.
+Full-file review prompts use the Python source code as input.
 
-Each benchmark run records the prompt version used, allowing direct comparison between prompt revisions without modifying historical prompts.
+Diff-review prompts use both the Git diff and the current contents of changed
+Python files. The diff identifies what changed, while the current source
+provides the context needed to reason about the behavior of the new version.
 
-Benchmark generation uses controlled Ollama settings:
+Existing prompt versions remain frozen so previous experiments can be
+reproduced and compared.
 
-```python
-"options": {
-    "temperature": 0,
-    "seed": 42,
-}
-```
-
-This reduces run-to-run variance and makes model and prompt comparisons more meaningful.
+Each benchmark run records the prompt version used, allowing direct comparison
+between prompt revisions without modifying historical prompts.
 
 ## Prompt Evaluation
 
@@ -408,6 +423,21 @@ uv run python main.py compare-runs \
     results/v5/qwen3.5-9b-seed42-block5.json
 ```
 
+### Review current Git changes
+
+Review the current unstaged Git diff:
+
+```bash
+uv run python main.py review-diff --prompt-version v9
+```
+
+The diff reviewer combines the Git diff with the current contents of changed
+Python files. This allows the model to detect issues introduced indirectly by
+a change, including cases where the affected line itself was not modified.
+
+For example, changing a lookup collection from a dictionary to a list can make
+an unchanged membership check inside a loop inefficient.
+
 ## Project Goal
 
 This project is primarily an AI engineering learning environment.
@@ -423,6 +453,8 @@ The objective is not only to produce useful code reviews, but to understand the 
 * Prompt regression detection
 * Taxonomy design
 * Reproducible experimentation
+* Diff-aware code review
+* Context construction for LLM code analysis
 * Local LLM inference
 
 The reviewer is intentionally being developed incrementally so each new capability can be evaluated before adding more complexity.
