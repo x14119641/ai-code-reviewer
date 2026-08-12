@@ -6,7 +6,11 @@ from typing import Any, cast
 
 from reviewer.llm import generate_review
 from reviewer.models import CodeReview, Issue
-from reviewer.prompts import DEFAULT_PROMPT_VERSION, build_review_prompt
+from reviewer.prompts import (
+    DEFAULT_PROMPT_VERSION,
+    build_diff_prompt,
+    build_review_prompt,
+)
 from reviewer.taxonomy import (
     RULE_SEVERITY,
     VALID_CATEGORIES,
@@ -130,9 +134,7 @@ def review_file(
     if not path.is_file():
         raise ValueError(f"Not a file: {path}")
 
-
     code = path.read_text(encoding="utf-8")
-
 
     prompt = build_review_prompt(
         code,
@@ -160,3 +162,14 @@ def review_files(
     for file in files:
         review = review_file(file, model, prompt_version=prompt_version)
         yield ReviewResult(path=file, review=review)
+
+
+def review_diff(
+    diff: str, model: str, prompt_version: str = DEFAULT_PROMPT_VERSION
+) -> CodeReview:
+    """Review a Git diff."""
+    prompt = build_diff_prompt(diff, prompt_version=prompt_version)
+
+    response = generate_review(prompt=prompt, model=model)
+
+    return parse_review_response(response=response)

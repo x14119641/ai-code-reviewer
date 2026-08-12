@@ -5,7 +5,8 @@ import typer
 from reviewer.benchmark_comparison import compare_benchmark_results
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.benchmark_serialization import save_benchmark_run
-from reviewer.engine import find_python_files, review_file, review_files
+from reviewer.engine import find_python_files, review_diff, review_file, review_files
+from reviewer.git_diff import GitDiffError, get_git_diff
 from reviewer.models import CodeReview
 from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.rendering import (
@@ -244,7 +245,6 @@ def compare_runs_command(
         old_result = load_result(old_path)
         new_result = load_result(new_path)
 
-
         comparison = compare_benchmark_results(old_result, new_result)
 
         print_run_comparison(
@@ -256,6 +256,35 @@ def compare_runs_command(
     except ResultComparisonError as error:
         print_error("Error", str(error))
         raise typer.Exit(code=1) from error
+
+
+@app.command("review-diff")
+def review_diff_command(
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the review",
+    ),
+    prompt_version: str = typer.Option(
+        "v6",
+        "--prompt-version",
+        help="Prompt version used for the diff review.",
+    ),
+) -> None:
+    """Review the current unstaget Git diff."""
+    try:
+        diff = get_git_diff()
+
+        if not diff.strip():
+            print_warning("No changes to review")
+            return
+        result = review_diff(diff=diff, model=model, prompt_version=prompt_version)
+        print_review(review=result)
+    except GitDiffError as exc:
+        print_error("Git Diff Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+    except (ValueError, RuntimeError) as exc:
+        print_error("Diff Review Failed", str(exc))
+        raise typer.Exit(code=1) from exc
 
 
 if __name__ == "__main__":
