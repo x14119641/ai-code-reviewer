@@ -4,7 +4,7 @@ A project to learn AI engineering by building a local AI-powered code reviewer f
 
 The goal isn't just to call an LLM API, but to understand how modern coding assistants are designed by implementing each component step by step. Everything runs locally using open-weight models and Ollama.
 
-The project emphasizes clean architecture, reproducible evaluation, controlled prompt experimentation, structured LLM outputs, and local execution.
+The project emphasizes clean architecture, reproducible evaluation, controlled prompt experimentation, structured LLM outputs, diff-aware review, and local execution.
 
 ## Roadmap
 
@@ -27,12 +27,20 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - ✅ Cross-run regression comparison
 - ✅ Review local Git diffs
 - ✅ Diff review with current source context
+- ✅ Diff-specific benchmark format
+- ✅ Diff benchmark discovery and loading
+- ✅ Diff benchmark runner
+- ✅ Diff benchmark CLI
+- ✅ Diff benchmark result rendering
+- ✅ Diff benchmark result export
+- ✅ Initial diff attribution benchmark suite
 
 ### Planned
 
+- Improve diff attribution through prompt experiments
+- Expand the diff benchmark suite
 - Review pull requests
-- Continue benchmark and taxonomy expansion
-- Diff-specific benchmarking
+- Continue full-file benchmark and taxonomy expansion
 - HTML reports
 - Agent mode
 
@@ -42,13 +50,14 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - Review entire Python projects recursively
 - Review local unstaged Git changes
 - Combine Git diffs with current changed-file contents for contextual review
-- Report issues introduced by a change rather than pre-existing issues
+- Focus diff reviews on issues introduced or worsened by a change
 - Structured JSON responses from the LLM
 - Response validation and parsing
 - Versioned prompt templates
-- Benchmark execution
+- Full-file benchmark execution
+- Diff-specific benchmark execution
 - Automatic benchmark evaluation
-- JSON export of benchmark results
+- JSON export of full-file and diff benchmark results
 - Compare aggregate benchmark results
 - Compare models by rule
 - Compare models by category
@@ -65,7 +74,7 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 
 ## Architecture
 
-The reviewer supports both full-file review and Git-diff review while sharing the same parsing and structured review pipeline.
+The reviewer supports both full-file review and Git-diff review while sharing the same LLM, parsing, normalization, and structured review pipeline.
 
 ```text
                     ┌── Python File ────────────────┐
@@ -88,16 +97,38 @@ CLI ────────────────┤                    Revie
                                           Structured CodeReview
 ```
 
-Benchmark runs continue through the evaluation pipeline:
+Both review modes can continue through an evaluation pipeline:
 
 ```text
 Structured CodeReview
       ↓
 Benchmark Evaluation
       ↓
+Benchmark Run
+      ↓
 Benchmark Serialization
       ↓
 Result Comparison / Analysis
+```
+
+Diff benchmarks add an additional layer before evaluation:
+
+```text
+Diff Benchmark Directory
+        ↓
+before.py + after.py + benchmark.json
+        ↓
+Load DiffBenchmark
+        ↓
+Generate Unified Diff
+        +
+Current after.py Source
+        ↓
+Diff Review
+        ↓
+Benchmark Evaluation
+        ↓
+BenchmarkRun
 ```
 
 The main modules include:
@@ -106,6 +137,8 @@ The main modules include:
 reviewer/
 ├── engine.py
 ├── git_diff.py
+├── benchmark_diff.py
+├── diff_benchmark_runner.py
 ├── llm.py
 ├── prompts.py
 ├── models.py
@@ -120,8 +153,9 @@ reviewer/
 ```
 
 The application keeps Git integration, LLM execution, prompt construction,
-benchmark evaluation, experiment comparison, and CLI rendering separate so
-each part can be tested and evolved independently.
+benchmark loading, benchmark execution, evaluation, experiment comparison,
+serialization, and CLI rendering separate so each part can be tested and
+evolved independently.
 
 ## Benchmark Workflow
 
@@ -149,28 +183,28 @@ This makes prompt iterations measurable and reproducible rather than relying on 
 
 Aggregate metrics show whether a run improved overall, while cross-run comparison shows exactly which benchmark cases changed.
 
-## Benchmarks
+## Full-File Benchmarks
 
-The project currently contains a **65-case benchmark suite** designed to test both detection ability and false-positive boundaries.
+The project currently contains a **65-case full-file benchmark suite** designed to test both detection ability and false-positive boundaries.
 
 Benchmarks are deliberately built from positive, negative, and boundary cases rather than only obvious examples.
 
-Each benchmark contains:
+Each full-file benchmark contains:
 
-* A Python source file
-* The expected findings
-* Expected rule, category, and severity
-* Automatic evaluation against the model response
-* False-positive and false-negative detection
+- A Python source file
+- The expected findings
+- Expected rule, category, and severity
+- Automatic evaluation against the model response
+- False-positive and false-negative detection
 
 Current benchmark categories and rules include:
 
-| Category        | Rules                                                   |
-| --------------- | ------------------------------------------------------- |
-| Bug             | Mutable default argument, Unreachable code              |
-| Security        | SQL injection, Shell injection, Path traversal          |
-| Performance     | List membership in loops, String concatenation in loops |
-| Maintainability | Duplicate code, Long function                           |
+| Category | Rules |
+| --- | --- |
+| Bug | Mutable default argument, Unreachable code |
+| Security | SQL injection, Shell injection, Path traversal |
+| Performance | List membership in loops, String concatenation in loops |
+| Maintainability | Duplicate code, Long function |
 
 Safe and boundary cases are included throughout the rule families to measure false positives.
 
@@ -180,23 +214,155 @@ Benchmark runs can be exported as JSON and compared across different models and 
 
 Results include:
 
-* Overall accuracy
-* Severity accuracy
-* False positives
-* False negatives
-* Response failures
-* Rule-level comparison
-* Category-level comparison
-* Execution time
-* Cross-run fixes and regressions
+- Overall accuracy
+- Severity accuracy
+- False positives
+- False negatives
+- Response failures
+- Rule-level comparison
+- Category-level comparison
+- Execution time
+- Cross-run fixes and regressions
 
 Detailed result inspection can identify:
 
-* False positives
-* False negatives
-* Rule mismatches
-* Category mismatches
-* Severity mismatches
+- False positives
+- False negatives
+- Rule mismatches
+- Category mismatches
+- Severity mismatches
+
+## Diff Benchmarks
+
+Git-diff review has a separate benchmark format because evaluating a change is different from evaluating a complete source file.
+
+A diff benchmark is represented by a directory containing:
+
+```text
+benchmark_case/
+├── before.py
+├── after.py
+└── benchmark.json
+```
+
+`before.py` represents the code before the change.
+
+`after.py` represents the current source after the change.
+
+The benchmark system generates the diff between the two versions and sends both the generated diff and the current `after.py` source to the diff reviewer.
+
+`benchmark.json` defines the expected issues introduced by the change.
+
+Example:
+
+```json
+{
+  "name": "Dict to list introduces membership in loop",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "list_membership_in_loop",
+      "category": "performance",
+      "explanation": "Changing the lookup collection from a dict to a list introduces linear membership checks inside the loop."
+    }
+  ]
+}
+```
+
+Diff benchmarks test more than whether the model can recognize a problem.
+
+They also test **change attribution**:
+
+> Did the diff introduce or worsen the issue, or was the issue already present before the change?
+
+This is important because a useful pull-request reviewer should not report every problem visible in the current file. It should focus on problems caused by the proposed change.
+
+The initial diff benchmark suite contains **11 cases** across:
+
+- Mutable default arguments
+- Unreachable code
+- List membership in loops
+- SQL injection
+- Shell injection
+
+The suite contains both introduced-issue cases and safe/boundary cases.
+
+Examples include:
+
+```text
+dict → list
+→ introduces expensive membership checks
+→ report the performance issue
+
+dict → dict with local rename
+→ no performance regression
+→ report nothing
+
+pre-existing list membership issue + local rename
+→ issue existed before the diff
+→ report nothing
+
+None default → []
+→ introduces mutable default argument
+→ report the bug
+
+pre-existing mutable default + local rename
+→ issue existed before the diff
+→ report nothing
+
+parameterized SQL → interpolated SQL
+→ introduces SQL injection
+→ report the security issue
+
+pre-existing SQL injection + unrelated change
+→ issue existed before the diff
+→ report nothing
+```
+
+This makes the diff suite particularly useful for measuring false positives caused by reviewing the current source globally instead of attributing findings to the change.
+
+### Initial Diff Benchmark Baseline
+
+The first complete diff benchmark run used:
+
+```text
+Model:  qwen3.5:9b
+Prompt: v9
+Cases:  11
+```
+
+Result:
+
+```text
+Benchmarks        11
+Passed             8
+Failed             3
+Errors             0
+False positives    3
+False negatives    0
+Accuracy          72.7%
+Severity          5/5 (100.0%)
+```
+
+All five introduced-issue cases were detected with the expected rule, category, and normalized severity.
+
+The three failures were false positives involving pre-existing issues:
+
+```text
+mutable_default_argument
+shell_injection
+sql_injection
+```
+
+In each case, the issue already existed before the diff but was still reported after an unrelated change.
+
+Other pre-existing issue cases, including `list_membership_in_loop` and `unreachable_code`, were correctly ignored.
+
+This baseline exposes a specific prompt-engineering problem: the reviewer can detect newly introduced issues reliably in the initial suite, but does not yet consistently distinguish newly introduced issues from highly visible pre-existing problems.
+
+The next diff prompt experiment will target this attribution behavior while preserving detection performance on positive cases.
 
 ## Prompt Templates
 
@@ -221,6 +387,8 @@ Diff-review prompts use both the Git diff and the current contents of changed
 Python files. The diff identifies what changed, while the current source
 provides the context needed to reason about the behavior of the new version.
 
+The current diff-review experiments use prompt `v9`.
+
 Existing prompt versions remain frozen so previous experiments can be
 reproduced and compared.
 
@@ -231,18 +399,18 @@ between prompt revisions without modifying historical prompts.
 
 Prompt changes are evaluated against benchmark suites using controlled generation settings.
 
-Early Qwen 3.5 9B experiments on the original 35-case benchmark suite produced:
+Early Qwen 3.5 9B experiments on the original 35-case full-file benchmark suite produced:
 
 | Prompt | Accuracy | Passed | False Positives | False Negatives |
-| ------ | -------: | -----: | --------------: | --------------: |
-| v1     |    85.7% |  30/35 |               4 |               1 |
-| v2     |    88.6% |  31/35 |               3 |               1 |
-| v3     |    88.6% |  31/35 |               3 |               1 |
-| v4     |    91.4% |  32/35 |               2 |               1 |
+| --- | ---: | ---: | ---: | ---: |
+| v1 | 85.7% | 30/35 | 4 | 1 |
+| v2 | 88.6% | 31/35 | 3 | 1 |
+| v3 | 88.6% | 31/35 | 3 | 1 |
+| v4 | 91.4% | 32/35 | 2 | 1 |
 
 These experiments showed that explicit rule-specific detection boundaries were more effective than increasingly generic instructions such as asking the model to be more careful about false positives.
 
-The benchmark suite was subsequently expanded from 35 to 65 cases to test generalization and more difficult rule boundaries.
+The full-file benchmark suite was subsequently expanded from 35 to 65 cases to test generalization and more difficult rule boundaries.
 
 A recent Qwen 3.5 9B run using prompt v5 produced:
 
@@ -258,6 +426,8 @@ Execution time    145.7s
 Prompt v5 introduced the `unreachable_code` rule while retaining the existing taxonomy.
 
 Severity is normalized deterministically from the detected rule instead of trusting the severity generated by the LLM. This currently produces **100% severity accuracy** when the expected rule and category are correctly detected.
+
+Diff-review prompt experiments are evaluated independently using the diff benchmark suite so that improvements in change attribution can be measured without mixing full-file and diff-review results.
 
 ## Cross-Run Regression Comparison
 
@@ -275,11 +445,11 @@ uv run python main.py compare-runs \
 
 The comparison reports:
 
-* **Fixed** — failed in the old run and passes in the new run
-* **Regressed** — passed in the old run and fails in the new run
-* **Still failing** — fails in both runs
-* **Added** — exists only in the new benchmark run
-* **Removed** — exists only in the old benchmark run
+- **Fixed** — failed in the old run and passes in the new run
+- **Regressed** — passed in the old run and fails in the new run
+- **Still failing** — fails in both runs
+- **Added** — exists only in the new benchmark run
+- **Removed** — exists only in the old benchmark run
 
 Example:
 
@@ -304,8 +474,8 @@ This makes prompt regressions visible even when aggregate benchmark accuracy imp
 
 The two commands answer different questions:
 
-* `compare-results` compares aggregate performance across benchmark result files.
-* `compare-runs` compares benchmark-by-benchmark changes between two specific runs.
+- `compare-results` compares aggregate performance across benchmark result files.
+- `compare-runs` compares benchmark-by-benchmark changes between two specific runs.
 
 ## Models
 
@@ -313,32 +483,32 @@ The project focuses on models that can run locally on consumer hardware with 12 
 
 Current benchmarked models:
 
-| Model                 | Purpose                                   |
-| --------------------- | ----------------------------------------- |
-| Qwen 3.5 9B           | Main model for current prompt experiments |
-| Qwen 2.5 Coder 7B     | Fast coding-specialized model             |
-| Qwen 2.5 Coder 14B    | Larger coding-specialized model           |
-| DeepSeek Coder V2 16B | Advanced coding and reasoning model       |
-| Llama 3.1 8B          | General-purpose reference model           |
-| Gemma 3 12B           | Google's open-weight general model        |
+| Model | Purpose |
+| --- | --- |
+| Qwen 3.5 9B | Main model for current prompt experiments |
+| Qwen 2.5 Coder 7B | Fast coding-specialized model |
+| Qwen 2.5 Coder 14B | Larger coding-specialized model |
+| DeepSeek Coder V2 16B | Advanced coding and reasoning model |
+| Llama 3.1 8B | General-purpose reference model |
+| Gemma 3 12B | Google's open-weight general model |
 
 Additional models and quantizations may be added as the project evolves.
 
 ## Tech Stack
 
-* Python 3.14
-* uv
-* Typer
-* Rich
-* pytest
-* Ruff
-* Ollama
-* Local open-weight LLMs
+- Python 3.14
+- uv
+- Typer
+- Rich
+- pytest
+- Ruff
+- Ollama
+- Local open-weight LLMs
 
 ## Test Environment
 
-* AMD Radeon RX 6700 XT (12 GB VRAM)
-* Arch Linux
+- AMD Radeon RX 6700 XT (12 GB VRAM)
+- Arch Linux
 
 ## Run
 
@@ -360,7 +530,24 @@ uv run python main.py review examples/user_lookup.py
 uv run python main.py review-folder examples
 ```
 
-### Run the benchmark suite
+### Review current Git changes
+
+Review the current unstaged Git diff:
+
+```bash
+uv run python main.py review-diff \
+    --model qwen3.5:9b \
+    --prompt-version v9
+```
+
+The diff reviewer combines the Git diff with the current contents of changed
+Python files. This allows the model to detect issues introduced indirectly by
+a change, including cases where the affected line itself was not modified.
+
+For example, changing a lookup collection from a dictionary to a list can make
+an unchanged membership check inside a loop inefficient.
+
+### Run the full-file benchmark suite
 
 ```bash
 uv run python main.py benchmark benchmarks/
@@ -381,14 +568,58 @@ uv run python main.py benchmark benchmarks/ \
     --prompt-version v5
 ```
 
-### Export benchmark results
+### Export full-file benchmark results
 
 ```bash
 uv run python main.py benchmark benchmarks/ \
     --model qwen3.5:9b \
     --prompt-version v5 \
-    --output results/v5/qwen3.5-9b-seed42.json
+    --output qwen3.5-9b-seed42.json
 ```
+
+Relative output filenames are stored under the corresponding prompt-version result directory.
+
+### Run the diff benchmark suite
+
+```bash
+uv run python main.py benchmark-diff \
+    diff_benchmarks \
+    --model qwen3.5:9b \
+    --prompt-version v9
+```
+
+A specific diff rule family can also be evaluated independently:
+
+```bash
+uv run python main.py benchmark-diff \
+    diff_benchmarks/security/sql_injection \
+    --model qwen3.5:9b \
+    --prompt-version v9
+```
+
+### Export diff benchmark results
+
+```bash
+uv run python main.py benchmark-diff \
+    diff_benchmarks \
+    --model qwen3.5:9b \
+    --prompt-version v9 \
+    --output qwen3.5-9b.json
+```
+
+Relative diff result filenames are stored separately from full-file benchmark results:
+
+```text
+results/
+├── v1/
+├── v2/
+├── ...
+└── diff/
+    └── v9/
+        └── qwen3.5-9b.json
+```
+
+Keeping diff results separate prevents fundamentally different benchmark suites from being accidentally mixed.
 
 ### Compare aggregate benchmark results
 
@@ -423,38 +654,24 @@ uv run python main.py compare-runs \
     results/v5/qwen3.5-9b-seed42-block5.json
 ```
 
-### Review current Git changes
-
-Review the current unstaged Git diff:
-
-```bash
-uv run python main.py review-diff --prompt-version v9
-```
-
-The diff reviewer combines the Git diff with the current contents of changed
-Python files. This allows the model to detect issues introduced indirectly by
-a change, including cases where the affected line itself was not modified.
-
-For example, changing a lookup collection from a dictionary to a list can make
-an unchanged membership check inside a loop inefficient.
-
 ## Project Goal
 
 This project is primarily an AI engineering learning environment.
 
 The objective is not only to produce useful code reviews, but to understand the engineering behind LLM-based developer tools:
 
-* Structured LLM output
-* Prompt design and versioning
-* Deterministic generation
-* Evaluation datasets
-* False-positive and false-negative analysis
-* Model comparison
-* Prompt regression detection
-* Taxonomy design
-* Reproducible experimentation
-* Diff-aware code review
-* Context construction for LLM code analysis
-* Local LLM inference
+- Structured LLM output
+- Prompt design and versioning
+- Deterministic generation
+- Evaluation datasets
+- False-positive and false-negative analysis
+- Model comparison
+- Prompt regression detection
+- Taxonomy design
+- Reproducible experimentation
+- Diff-aware code review
+- Change attribution
+- Context construction for LLM code analysis
+- Local LLM inference
 
 The reviewer is intentionally being developed incrementally so each new capability can be evaluated before adding more complexity.
