@@ -1,7 +1,10 @@
-from reviewer.benchmark_diff import build_benchmark_diff
+from pathlib import Path
+
+from reviewer.benchmark_diff import build_benchmark_diff, build_diff_review_input
+from reviewer.benchmarks import load_diff_benchmark
 
 
-def test_build_benchmark_diff_contains_changed_lines() ->None:
+def test_build_benchmark_diff_contains_changed_lines() -> None:
     before_source = """\
 def find_users(users: dict[str, int]) -> None:
     pass
@@ -12,14 +15,12 @@ def find_users(users: list[str]) -> None:
     pass
 """
 
-    diff = build_benchmark_diff(
-        before_source, after_source, path="example.py"
-    )
-    
+    diff = build_benchmark_diff(before_source, after_source, path="example.py")
+
     assert "-def find_users(users: dict[str, int]) -> None:" in diff
     assert "+def find_users(users: list[str]) -> None:" in diff
-    
-    
+
+
 def test_build_benchmark_diff_uses_git_style_file_headers() -> None:
     before_source = "value = 1\n"
     after_source = "value = 2\n"
@@ -44,3 +45,34 @@ def test_build_benchmark_diff_returns_empty_string_when_sources_are_identical() 
     )
 
     assert diff == ""
+
+
+def test_build_diff_review_input_uses_after_source_as_current_code() -> None:
+    benchmark_path = (
+        Path("diff_benchmarks")
+        / "performance"
+        / "list_membership_in_loop"
+        / "dict_to_list"
+    )
+
+    benchmark = load_diff_benchmark(benchmark_path)
+
+    review_input = build_diff_review_input(benchmark)
+
+    assert review_input.current_code == benchmark.after_source
+
+
+def test_build_diff_review_input_builds_diff_from_before_to_after() -> None:
+    benchmark_path = (
+        Path("diff_benchmarks")
+        / "performance"
+        / "list_membership_in_loop"
+        / "dict_to_list"
+    )
+
+    benchmark = load_diff_benchmark(benchmark_path)
+
+    review_input = build_diff_review_input(benchmark)
+
+    assert "-    users: dict[str, int]," in review_input.diff
+    assert "+    users: list[str]," in review_input.diff
