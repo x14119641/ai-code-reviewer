@@ -5,6 +5,7 @@ import typer
 from reviewer.benchmark_comparison import compare_benchmark_results
 from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.benchmark_serialization import save_benchmark_run
+from reviewer.diff_benchmark_runner import find_diff_benchmarks, run_diff_benchmarks
 from reviewer.engine import (
     build_changed_files_context,
     find_python_files,
@@ -303,5 +304,58 @@ def review_diff_command(
         raise typer.Exit(code=1) from exc
 
 
+@app.command("benchmark-diff")
+def benchmark_diff_command(
+    path: Path,
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the diff benchmark",
+    ),
+    prompt_version: str = typer.Option(
+        "v9",
+        "--prompt-version",
+        help="Prompt version used for the diff benchmark.",
+    ),
+) -> None:
+    """Evaluate Git diff review using diff benchmark cases."""
+
+    def review_with_model(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        return review_diff(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            prompt_version=prompt_version,
+        )
+    try:
+        benchmark_paths = find_diff_benchmarks(path)
+
+        if not benchmark_paths:
+            print_warning("No diff benchmark cases found.")
+            return
+
+        run = run_diff_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
+
+    except (
+        FileNotFoundError,
+        NotADirectoryError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        print_error("Diff Benchmark Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+    
+    
 if __name__ == "__main__":
     app()
