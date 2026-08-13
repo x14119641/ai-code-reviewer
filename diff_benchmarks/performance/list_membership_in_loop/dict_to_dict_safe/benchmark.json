@@ -1,0 +1,6 @@
+{
+  "name": "Safe rename with dictionary membership",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}
