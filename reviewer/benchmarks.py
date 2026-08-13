@@ -91,7 +91,7 @@ def load_diff_benchmark(benchmark_path: Path) -> DiffBenchmark:
             f"{definition_path}"
         )
     before_path = benchmark_path / raw_before_path
-    
+
     raw_after_path = definition.get("after_path")
     if not isinstance(raw_after_path, str) or not raw_after_path.strip():
         raise BenchmarkLoadError(
@@ -109,13 +109,9 @@ def load_diff_benchmark(benchmark_path: Path) -> DiffBenchmark:
     before_source = before_path.read_text(encoding="utf-8")
     after_source = after_path.read_text(encoding="utf-8")
 
-    name = definition["name"]
-
-    expected_issues = tuple(
-        _build_expected_issue(
-            raw_issue, definition_path=definition_path, issue_index=index
-        )
-        for index, raw_issue in enumerate(definition["expected_issues"])
+    name, expected_issues = _build_benchmark_metadata(
+        definition=definition,
+        definition_path=definition_path,
     )
 
     return DiffBenchmark(
@@ -135,36 +131,13 @@ def _build_benchmark(
     definition: Any,
     definition_path: Path,
 ) -> Benchmark:
-    if not isinstance(definition, dict):
-        raise BenchmarkLoadError(
-            f"Benchmark definition must be a JSON object: {definition_path}"
-        )
-
-    name = definition.get("name")
-
-    if not isinstance(name, str) or not name.strip():
-        raise BenchmarkLoadError(
-            f"Benchmark field 'name' must be a non-empty string: " f"{definition_path}"
-        )
-
-    raw_expected_issues = definition.get("expected_issues")
-
-    if not isinstance(raw_expected_issues, list):
-        raise BenchmarkLoadError(
-            f"Benchmark field 'expected_issues' must be a list: " f"{definition_path}"
-        )
-
-    expected_issues = tuple(
-        _build_expected_issue(
-            raw_issue,
-            definition_path=definition_path,
-            issue_index=index,
-        )
-        for index, raw_issue in enumerate(raw_expected_issues)
+    name, expected_issues = _build_benchmark_metadata(
+        definition=definition,
+        definition_path=definition_path,
     )
 
     return Benchmark(
-        name=name.strip(),
+        name=name,
         code_path=code_path,
         source_code=source_code,
         expected_issues=expected_issues,
@@ -217,3 +190,39 @@ def _build_expected_issue(
         category=cast(IssueCategory, category),
         explanation=explanation.strip(),
     )
+
+
+def _build_benchmark_metadata(
+    *,
+    definition: Any,
+    definition_path: Path,
+) -> tuple[str, tuple[ExpectedIssue, ...]]:
+    if not isinstance(definition, dict):
+        raise BenchmarkLoadError(
+            f"Benchmark definition must be a JSON object: {definition_path}"
+        )
+
+    name = definition.get("name")
+
+    if not isinstance(name, str) or not name.strip():
+        raise BenchmarkLoadError(
+            f"Benchmark field 'name' must be a non-empty string: " f"{definition_path}"
+        )
+
+    raw_expected_issues = definition.get("expected_issues")
+
+    if not isinstance(raw_expected_issues, list):
+        raise BenchmarkLoadError(
+            f"Benchmark field 'expected_issues' must be a list: " f"{definition_path}"
+        )
+
+    expected_issues = tuple(
+        _build_expected_issue(
+            raw_issue,
+            definition_path=definition_path,
+            issue_index=index,
+        )
+        for index, raw_issue in enumerate(raw_expected_issues)
+    )
+
+    return name.strip(), expected_issues
