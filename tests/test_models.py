@@ -2,7 +2,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from reviewer.benchmark_schema import BENCHMARK_SCHEMA_VERSION
-from reviewer.models import Benchmark, BenchmarkEvaluation, BenchmarkRun, CodeReview
+from reviewer.models import (
+    Benchmark,
+    BenchmarkEvaluation,
+    BenchmarkRun,
+    CodeReview,
+    DiffBenchmark,
+)
 
 
 def create_evaluation(
@@ -134,3 +140,32 @@ def test_severity_accuracy_is_zero_when_nothing_is_evaluated() -> None:
     assert run.severity_evaluated_count == 0
     assert run.severity_matches == 0
     assert run.severity_accuracy == 0.0
+
+
+def test_benchmark_display_path_uses_code_path() -> None:
+    code_path = Path("benchmarks/example.py")
+
+    benchmark = Benchmark(
+        name="Example benchmark",
+        code_path=code_path,
+        source_code="value = 1\n",
+        expected_issues=(),
+    )
+
+    assert benchmark.display_path == code_path
+
+
+def test_diff_benchmark_display_path_uses_after_path() -> None:
+    before_path = Path("diff_benchmarks/example/before.py")
+    after_path = Path("diff_benchmarks/example/after.py")
+
+    benchmark = DiffBenchmark(
+        name="Example diff benchmark",
+        before_path=before_path,
+        after_path=after_path,
+        before_source="value = 1\n",
+        after_source="value = 2\n",
+        expected_issues=(),
+    )
+
+    assert benchmark.display_path == after_path

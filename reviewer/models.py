@@ -41,6 +41,9 @@ class Benchmark:
     @property
     def expects_issues(self) -> bool:
         return bool(self.expected_issues)
+    @property
+    def display_path(self) -> Path:
+        return self.code_path
 
 
 @dataclass(frozen=True)
@@ -55,6 +58,10 @@ class DiffBenchmark:
     @property
     def expects_issues(self) -> bool:
         return bool(self.expected_issues)
+    
+    @property
+    def display_path(self) -> Path:
+        return self.after_path
 
 
 BenchmarkCase = Benchmark | DiffBenchmark

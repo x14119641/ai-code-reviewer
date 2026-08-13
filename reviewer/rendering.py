@@ -51,7 +51,7 @@ def print_benchmark_evaluations(run: BenchmarkRun) -> None:
 
     for evaluation in run.evaluations:
         benchmark_name = evaluation.benchmark.name
-        file_name = evaluation.benchmark.code_path.name
+        file_name = evaluation.benchmark.display_path.name
 
         if evaluation.passed:
             console.print(
