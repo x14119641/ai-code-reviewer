@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from reviewer.diff_benchmark_runner import run_diff_benchmark, run_diff_benchmarks
+import pytest
+
+from reviewer.diff_benchmark_runner import (
+    find_diff_benchmarks,
+    run_diff_benchmark,
+    run_diff_benchmarks,
+)
 from reviewer.models import CodeReview, Issue
 
 
@@ -144,3 +150,55 @@ def test_run_diff_benchmarks_records_runtime_failures() -> None:
     assert len(run.failures) == 1
     assert run.failures[0].error_type == "RuntimeError"
     assert run.failures[0].message == "LLM failed"
+
+
+def test_find_diff_benchmarks_finds_benchmark_directories() -> None:
+    benchmark_directory = Path("diff_benchmarks")
+
+    benchmark_paths = find_diff_benchmarks(benchmark_directory)
+
+    expected_positive = (
+        Path("diff_benchmarks")
+        / "performance"
+        / "list_membership_in_loop"
+        / "dict_to_list"
+    ).resolve()
+
+    expected_safe = (
+        Path("diff_benchmarks")
+        / "performance"
+        / "list_membership_in_loop"
+        / "dict_to_dict_safe"
+    ).resolve()
+
+    assert expected_positive in benchmark_paths
+    assert expected_safe in benchmark_paths
+    
+
+def test_find_diff_benchmarks_raises_when_directory_does_not_exist(
+    tmp_path: Path,
+) -> None:
+    benchmark_directory = tmp_path / "missing"
+
+    with pytest.raises(
+        FileNotFoundError,
+        match="Diff benchmark directory does not exist",
+    ):
+        find_diff_benchmarks(benchmark_directory)
+        
+        
+def test_find_diff_benchmarks_raises_when_path_is_not_directory(
+    tmp_path: Path,
+) -> None:
+    benchmark_file = tmp_path / "benchmark.txt"
+
+    benchmark_file.write_text(
+        "not a directory",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        NotADirectoryError,
+        match="Diff benchmark path is not a directory",
+    ):
+        find_diff_benchmarks(benchmark_file)

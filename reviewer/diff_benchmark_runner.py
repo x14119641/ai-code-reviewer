@@ -13,6 +13,8 @@ from reviewer.models import (
     BenchmarkEvaluation,
     BenchmarkFailure,
     BenchmarkRun,
+    CodeReview,
+    Issue,
 )
 
 
@@ -76,3 +78,60 @@ def run_diff_benchmarks(
         duration_seconds=duration_seconds,
         created_at=datetime.now(UTC),
     )
+
+
+def find_diff_benchmarks(
+    benchmark_directory: Path,
+) -> tuple[Path, ...]:
+    benchmark_directory = benchmark_directory.resolve()
+    if not benchmark_directory.exists():
+        raise FileNotFoundError(
+            f"Diff benchmark directory does not exist: {benchmark_directory}"
+        )
+    if not benchmark_directory.is_dir():
+        raise NotADirectoryError(
+            f"Diff benchmark path is not a directory: {benchmark_directory}"
+        )
+    return tuple(
+        sorted(
+            definition_path.parent
+            for definition_path in benchmark_directory.rglob("benchmark.json")
+        )
+    )
+
+
+def test_discovered_diff_benchmarks_can_be_run() -> None:
+    benchmark_directory = Path("diff_benchmarks/performance/list_membership_in_loop")
+
+    benchmark_paths = find_diff_benchmarks(benchmark_directory)
+
+    def fake_review_function(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        if "users: list[str]" in current_code:
+            return CodeReview(
+                issues=[
+                    Issue(
+                        severity="medium",
+                        category="performance",
+                        rule="list_membership_in_loop",
+                        title="List membership in loop",
+                        explanation="Repeated list membership inside a loop.",
+                        recommendation="Use a set or dictionary.",
+                    )
+                ]
+            )
+
+        return CodeReview(issues=[])
+
+    run = run_diff_benchmarks(
+        benchmark_paths,
+        fake_review_function,
+        model="test-model",
+        prompt_version="v9",
+    )
+
+    assert run.benchmark_count == 2
+    assert run.passed == 2
+    assert run.failed == 0
