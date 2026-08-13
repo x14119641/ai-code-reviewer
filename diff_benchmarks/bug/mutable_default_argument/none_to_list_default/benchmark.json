@@ -1,0 +1,13 @@
+{
+  "name": "Changing None default to mutable list introduces shared state",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "mutable_default_argument",
+      "category": "bug",
+      "explanation": "The diff replaces a safe None default with a mutable list default, causing the same list instance to be reused across calls."
+    }
+  ]
+}

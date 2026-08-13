@@ -23,9 +23,14 @@ testpaths = ["tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "main.py" = ["B008"]
+
 "benchmarks/**/*.py" = [
     "B006",
     "I001",
     "SIM103",
     "UP031",
+]
+
+"diff_benchmarks/**/*.py" = [
+    "B006",
 ]

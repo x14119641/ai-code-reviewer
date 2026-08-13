@@ -1,0 +1,13 @@
+{
+  "name": "Changing argument list to shell command introduces shell injection",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "rule": "shell_injection",
+      "category": "security",
+      "explanation": "The diff replaces a safe subprocess argument list with an interpolated shell command using shell=True, allowing untrusted input to affect shell execution."
+    }
+  ]
+}
