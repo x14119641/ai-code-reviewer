@@ -272,7 +272,7 @@ def review_diff_command(
         help="Ollama model used for the review",
     ),
     prompt_version: str = typer.Option(
-        "v6",
+        "v9",
         "--prompt-version",
         help="Prompt version used for the diff review.",
     ),
@@ -311,6 +311,10 @@ def benchmark_diff_command(
         "qwen3.5:9b",
         help="Ollama model used for the diff benchmark",
     ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
     prompt_version: str = typer.Option(
         "v9",
         "--prompt-version",
@@ -329,6 +333,7 @@ def benchmark_diff_command(
             model=model,
             prompt_version=prompt_version,
         )
+
     try:
         benchmark_paths = find_diff_benchmarks(path)
 
@@ -342,6 +347,12 @@ def benchmark_diff_command(
             model=model,
             prompt_version=prompt_version,
         )
+        if output is not None:
+            if output.parent == Path("."):
+                output = Path("results") / "diff" / prompt_version / output
+
+            save_benchmark_run(run, output)
+            print_result_saved(output)
 
         print_benchmark_evaluations(run)
         print_benchmark_failures(run)
@@ -355,7 +366,7 @@ def benchmark_diff_command(
     ) as exc:
         print_error("Diff Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
-    
-    
+
+
 if __name__ == "__main__":
     app()

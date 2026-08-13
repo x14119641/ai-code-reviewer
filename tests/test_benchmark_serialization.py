@@ -15,6 +15,7 @@ from reviewer.models import (
     BenchmarkFailure,
     BenchmarkRun,
     CodeReview,
+    DiffBenchmark,
     ExpectedIssue,
     Issue,
 )
@@ -194,3 +195,51 @@ def test_to_json_compatible_serializes_datetime() -> None:
     result = to_json_compatible(created_at)
 
     assert result == "2026-07-31T16:00:00+00:00"
+
+
+def test_benchmark_run_to_dict_serializes_diff_benchmark() -> None:
+    before_path = Path("diff_benchmarks/example/before.py")
+    after_path = Path("diff_benchmarks/example/after.py")
+
+    benchmark = DiffBenchmark(
+        name="Example diff benchmark",
+        before_path=before_path,
+        after_path=after_path,
+        before_source="value = 1\n",
+        after_source="value = 2\n",
+        expected_issues=(),
+    )
+
+    review = CodeReview(issues=[])
+
+    evaluation = BenchmarkEvaluation(
+        benchmark=benchmark,
+        review=review,
+        expected_issue_count=0,
+        actual_issue_count=0,
+        false_positive=False,
+        false_negative=False,
+        rule_matched=False,
+        category_matched=False,
+        severity_matched=False,
+        passed=True,
+    )
+
+    run = BenchmarkRun(
+        created_at=datetime.now(UTC),
+        model="test-model",
+        prompt_version="v9",
+        evaluations=(evaluation,),
+        duration_seconds=1.0,
+    )
+
+    data = benchmark_run_to_dict(run)
+
+    serialized_benchmark = data["evaluations"][0]["benchmark"]
+
+    assert serialized_benchmark["before_path"].endswith(
+        "diff_benchmarks/example/before.py"
+    )
+    assert serialized_benchmark["after_path"].endswith(
+        "diff_benchmarks/example/after.py"
+    )
