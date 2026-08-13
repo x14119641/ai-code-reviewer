@@ -1,8 +1,8 @@
-from reviewer.models import Benchmark, BenchmarkEvaluation, CodeReview
+from reviewer.models import BenchmarkCase, BenchmarkEvaluation, CodeReview
 
 
 def _find_matching_issue(
-    benchmark: Benchmark,
+    benchmark: BenchmarkCase,
     review: CodeReview,
 ):
     for expected in benchmark.expected_issues:
@@ -14,7 +14,7 @@ def _find_matching_issue(
 
 
 def evaluate_benchmark(
-    benchmark: Benchmark,
+    benchmark: BenchmarkCase,
     review: CodeReview,
 ) -> BenchmarkEvaluation:
     """

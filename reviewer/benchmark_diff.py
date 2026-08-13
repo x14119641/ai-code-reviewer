@@ -1,6 +1,9 @@
 import difflib
+from collections.abc import Callable
 
-from reviewer.models import DiffBenchmark, DiffReviewInput
+from reviewer.models import CodeReview, DiffBenchmark, DiffReviewInput
+
+DiffReviewFunction = Callable[[str, str], CodeReview]
 
 
 def build_benchmark_diff(
@@ -33,4 +36,16 @@ def build_diff_review_input(
             path=benchmark.after_path.name,
         ),
         current_code=benchmark.after_source,
+    )
+
+
+def review_diff_benchmark(
+    benchmark: DiffBenchmark,
+    review_function: DiffReviewFunction,
+) -> CodeReview:
+    review_input = build_diff_review_input(benchmark)
+
+    return review_function(
+        review_input.diff,
+        review_input.current_code,
     )

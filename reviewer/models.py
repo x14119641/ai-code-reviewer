@@ -44,8 +44,25 @@ class Benchmark:
 
 
 @dataclass(frozen=True)
+class DiffBenchmark:
+    name: str
+    before_path: Path
+    after_path: Path
+    before_source: str
+    after_source: str
+    expected_issues: tuple[ExpectedIssue, ...]
+
+    @property
+    def expects_issues(self) -> bool:
+        return bool(self.expected_issues)
+
+
+BenchmarkCase = Benchmark | DiffBenchmark
+
+
+@dataclass(frozen=True)
 class BenchmarkEvaluation:
-    benchmark: Benchmark
+    benchmark: BenchmarkCase
     review: CodeReview
     expected_issue_count: int
     actual_issue_count: int
@@ -59,7 +76,7 @@ class BenchmarkEvaluation:
 
 @dataclass(frozen=True)
 class BenchmarkFailure:
-    benchmark: Benchmark
+    benchmark: BenchmarkCase
     error_type: str
     message: str
 
@@ -137,6 +154,7 @@ class BenchmarkRun:
 @dataclass(frozen=True)
 class BenchmarkResultSummary:
     """Summary of one exported benchmark run."""
+
     source: Path
     prompt_version: str
     model: str
@@ -199,13 +217,13 @@ class ResultProblemType(StrEnum):
     RULE_MISMATCH = "rule_mismatch"
     CATEGORY_MISMATCH = "category_mismatch"
     SEVERITY_MISMATCH = "severity_mismatch"
-    
+
 
 @dataclass(frozen=True)
 class ResultProblem:
     problem_type: ResultProblemType
     evaluation: dict[str, Any]
-    
+
 
 @dataclass(frozen=True)
 class BenchmarkResultComparison:
@@ -214,17 +232,9 @@ class BenchmarkResultComparison:
     still_failing: tuple[str, ...]
     added: tuple[str, ...]
     removed: tuple[str, ...]
-    
-    
+
+
 @dataclass(frozen=True)
-class DiffBenchmark:
-    name:str
-    before_path:Path
-    after_path: Path
-    before_source: str
-    after_source: str
-    expected_issues: tuple[ExpectedIssue, ...]
-    
-    @property
-    def expects_issues(self) -> bool:
-        return bool(self.expected_issues)
+class DiffReviewInput:
+    diff: str
+    current_code: str

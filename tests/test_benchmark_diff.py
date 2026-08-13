@@ -1,7 +1,12 @@
 from pathlib import Path
 
-from reviewer.benchmark_diff import build_benchmark_diff, build_diff_review_input
+from reviewer.benchmark_diff import (
+    build_benchmark_diff,
+    build_diff_review_input,
+    review_diff_benchmark,
+)
 from reviewer.benchmarks import load_diff_benchmark
+from reviewer.models import CodeReview
 
 
 def test_build_benchmark_diff_contains_changed_lines() -> None:
@@ -76,3 +81,39 @@ def test_build_diff_review_input_builds_diff_from_before_to_after() -> None:
 
     assert "-    users: dict[str, int]," in review_input.diff
     assert "+    users: list[str]," in review_input.diff
+
+
+def test_review_diff_benchmark_passes_diff_and_current_code() -> None:
+    benchmark_path = (
+        Path("diff_benchmarks")
+        / "performance"
+        / "list_membership_in_loop"
+        / "dict_to_list"
+    )
+
+    benchmark = load_diff_benchmark(benchmark_path)
+
+    received_diff = ""
+    received_current_code = ""
+
+    def fake_review_function(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        nonlocal received_diff
+        nonlocal received_current_code
+
+        received_diff = diff
+        received_current_code = current_code
+
+        return CodeReview(issues=[])
+
+    review = review_diff_benchmark(
+        benchmark,
+        fake_review_function,
+    )
+
+    assert "-    users: dict[str, int]," in received_diff
+    assert "+    users: list[str]," in received_diff
+    assert received_current_code == benchmark.after_source
+    assert review == CodeReview(issues=[])
