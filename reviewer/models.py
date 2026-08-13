@@ -214,3 +214,17 @@ class BenchmarkResultComparison:
     still_failing: tuple[str, ...]
     added: tuple[str, ...]
     removed: tuple[str, ...]
+    
+    
+@dataclass(frozen=True)
+class DiffBenchmark:
+    name:str
+    before_path:Path
+    after_path: Path
+    before_source: str
+    after_source: str
+    expected_issues: tuple[ExpectedIssue, ...]
+    
+    @property
+    def expects_issues(self) -> bool:
+        return bool(self.expected_issues)

@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from reviewer.benchmarks import BenchmarkLoadError, load_benchmark
+from reviewer.benchmarks import BenchmarkLoadError, load_benchmark, load_diff_benchmark
 
 
 def write_benchmark_files(
-    directory: Path, *, code:str, definition: object, filename:str="example"
+    directory: Path, *, code: str, definition: object, filename: str = "example"
 ) -> Path:
     code_path = directory / f"{filename}.py"
     definition_path = directory / f"{filename}.json"
@@ -20,7 +20,7 @@ def write_benchmark_files(
     return code_path
 
 
-def test_load_benchmark_with_expected_issue(tmp_path:Path) ->None:
+def test_load_benchmark_with_expected_issue(tmp_path: Path) -> None:
     code_path = write_benchmark_files(
         tmp_path,
         code="def find_user(name):\n    return name\n",
@@ -36,9 +36,9 @@ def test_load_benchmark_with_expected_issue(tmp_path:Path) ->None:
             ],
         },
     )
-    
+
     benchmark = load_benchmark(code_path=code_path)
-    
+
     assert benchmark.name == "Example security benchmark"
     assert benchmark.source_code.startswith("def find_user")
     assert benchmark.expects_issues is True
@@ -48,11 +48,9 @@ def test_load_benchmark_with_expected_issue(tmp_path:Path) ->None:
 
     assert expected_issue.category == "security"
     assert expected_issue.severity == "high"
-    assert expected_issue.explanation == (
-        "User input is not validated."
-    )
-    
-    
+    assert expected_issue.explanation == ("User input is not validated.")
+
+
 def test_load_clean_benchmark(tmp_path: Path) -> None:
     code_path = write_benchmark_files(
         tmp_path,
@@ -67,7 +65,7 @@ def test_load_clean_benchmark(tmp_path: Path) -> None:
 
     assert benchmark.expects_issues is False
     assert benchmark.expected_issues == ()
-    
+
 
 def test_load_benchmark_requires_matching_json(
     tmp_path: Path,
@@ -80,7 +78,7 @@ def test_load_benchmark_requires_matching_json(
         match="Benchmark definition does not exist",
     ):
         load_benchmark(code_path)
-        
+
 
 def test_load_benchmark_rejects_invalid_json(
     tmp_path: Path,
@@ -96,8 +94,8 @@ def test_load_benchmark_rejects_invalid_json(
         match="Invalid JSON",
     ):
         load_benchmark(code_path)
-        
-    
+
+
 def test_load_benchmark_rejects_invalid_severity(
     tmp_path: Path,
 ) -> None:
@@ -140,3 +138,160 @@ def test_load_benchmark_rejects_missing_name(
         match="'name'",
     ):
         load_benchmark(code_path)
+
+
+def test_load_diff_benchmark_reads_before_and_after_source() -> None:
+    benchmark_path = (
+        Path("diff_benchmarks")
+        / "performance"
+        / "list_membership_in_loop"
+        / "dict_to_list"
+    )
+
+    benchmark = load_diff_benchmark(benchmark_path)
+    assert "users: dict[str, int]" in benchmark.before_source
+    assert "users: list[str]" in benchmark.after_source
+
+
+def test_load_diff_benchmark_raises_when_before_file_is_missing(
+    tmp_path: Path,
+) -> None:
+    benchmark_path = tmp_path / "diff_case"
+    benchmark_path.mkdir()
+
+    after_path = benchmark_path / "after.py"
+    definition_path = benchmark_path / "benchmark.json"
+
+    after_path.write_text(
+        "value = 1\n",
+        encoding="utf-8",
+    )
+
+    definition_path.write_text(
+        """
+        {
+          "name": "Missing before file",
+          "before_path": "before.py",
+          "after_path": "after.py",
+          "expected_issues": []
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        BenchmarkLoadError,
+        match="Before benchmark file does not exist",
+    ):
+        load_diff_benchmark(benchmark_path)
+
+def test_load_diff_benchmark_raises_when_after_file_is_missing(
+    tmp_path: Path,
+) -> None:
+    benchmark_path = tmp_path / "diff_case"
+    benchmark_path.mkdir()
+
+    before_path = benchmark_path / "before.py"
+    definition_path = benchmark_path / "benchmark.json"
+
+    before_path.write_text(
+        "value = 1\n",
+        encoding="utf-8",
+    )
+
+    definition_path.write_text(
+        """
+        {
+          "name": "Missing after file",
+          "before_path": "before.py",
+          "after_path": "after.py",
+          "expected_issues": []
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        BenchmarkLoadError,
+        match="After benchmark file does not exist",
+    ):
+        load_diff_benchmark(benchmark_path)
+        
+
+def test_load_diff_benchmark_raises_when_definition_is_missing(
+    tmp_path: Path,
+) -> None:
+    benchmark_path = tmp_path / "diff_case"
+    benchmark_path.mkdir()
+
+    before_path = benchmark_path / "before.py"
+    after_path = benchmark_path / "after.py"
+
+    before_path.write_text(
+        "value = 1\n",
+        encoding="utf-8",
+    )
+
+    after_path.write_text(
+        "value = 2\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        BenchmarkLoadError,
+        match="Diff benchmark definition does not exist",
+    ):
+        load_diff_benchmark(benchmark_path)
+        
+
+
+def test_load_diff_benchmark_raises_when_before_path_is_missing(
+    tmp_path: Path,
+) -> None:
+    benchmark_path = tmp_path / "diff_case"
+    benchmark_path.mkdir()
+
+    definition_path = benchmark_path / "benchmark.json"
+
+    definition_path.write_text(
+        """
+        {
+          "name": "Missing before path",
+          "after_path": "after.py",
+          "expected_issues": []
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        BenchmarkLoadError,
+        match="Diff benchmark field 'before_path' must be a non-empty string",
+    ):
+        load_diff_benchmark(benchmark_path)
+        
+
+def test_load_diff_benchmark_raises_when_after_path_is_missing(
+    tmp_path: Path,
+) -> None:
+    benchmark_path = tmp_path / "diff_case"
+    benchmark_path.mkdir()
+
+    definition_path = benchmark_path / "benchmark.json"
+
+    definition_path.write_text(
+        """
+        {
+          "name": "Missing before path",
+          "before_path": "before.py",
+          "expected_issues": []
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        BenchmarkLoadError,
+        match="Diff benchmark field 'after_path' must be a non-empty string",
+    ):
+        load_diff_benchmark(benchmark_path)

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from reviewer.models import Benchmark, ExpectedIssue
+from reviewer.models import Benchmark, DiffBenchmark, ExpectedIssue
 from reviewer.taxonomy import (
     VALID_CATEGORIES,
     VALID_RULES,
@@ -17,27 +17,21 @@ class BenchmarkLoadError(ValueError):
     """Raised when a benchmark definition cannot be loaded or validated."""
 
 
-    
-
-def load_benchmark(code_path:Path) -> Benchmark:
+def load_benchmark(code_path: Path) -> Benchmark:
     """Load a benchmark source file and its matchin JSON definition.
-    
+
     Example:
         benchmarks/security/sql_injection.py
         benchmarks/security/sql_injection.json
     """
-    
+
     code_path = code_path.resolve()
-    
+
     if not code_path.exists():
-        raise BenchmarkLoadError(
-            f"Benchmark code file does not exist: {code_path}"
-        )
+        raise BenchmarkLoadError(f"Benchmark code file does not exist: {code_path}")
 
     if not code_path.is_file():
-        raise BenchmarkLoadError(
-            f"Benchmark code path is not a file: {code_path}"
-        )
+        raise BenchmarkLoadError(f"Benchmark code path is not a file: {code_path}")
 
     if code_path.suffix != ".py":
         raise BenchmarkLoadError(
@@ -66,8 +60,7 @@ def load_benchmark(code_path:Path) -> Benchmark:
         ) from exc
     except json.JSONDecodeError as exc:
         raise BenchmarkLoadError(
-            f"Invalid JSON in benchmark definition "
-            f"{definition_path}: {exc.msg}"
+            f"Invalid JSON in benchmark definition " f"{definition_path}: {exc.msg}"
         ) from exc
 
     return _build_benchmark(
@@ -76,7 +69,64 @@ def load_benchmark(code_path:Path) -> Benchmark:
         definition=definition,
         definition_path=definition_path,
     )
+
+
+def load_diff_benchmark(benchmark_path: Path) -> DiffBenchmark:
+    """Load a git diff benchmark"""
+    benchmark_path = benchmark_path.resolve()
+    definition_path = benchmark_path / "benchmark.json"
+
+    if not definition_path.exists():
+        raise BenchmarkLoadError(
+            f"Diff benchmark definition does not exist: {definition_path}"
+        )
+
+    raw_definition = definition_path.read_text(encoding="utf-8")
+    definition = json.loads(raw_definition)
+
+    raw_before_path = definition.get("before_path")
+    if not isinstance(raw_before_path, str) or not raw_before_path.strip():
+        raise BenchmarkLoadError(
+            f"Diff benchmark field 'before_path' must be a non-empty string: "
+            f"{definition_path}"
+        )
+    before_path = benchmark_path / raw_before_path
     
+    raw_after_path = definition.get("after_path")
+    if not isinstance(raw_after_path, str) or not raw_after_path.strip():
+        raise BenchmarkLoadError(
+            f"Diff benchmark field 'after_path' must be a non-empty string: "
+            f"{definition_path}"
+        )
+    after_path = benchmark_path / raw_after_path
+
+    if not before_path.exists():
+        raise BenchmarkLoadError(f"Before benchmark file does not exist: {before_path}")
+
+    if not after_path.exists():
+        raise BenchmarkLoadError(f"After benchmark file does not exist: {after_path}")
+
+    before_source = before_path.read_text(encoding="utf-8")
+    after_source = after_path.read_text(encoding="utf-8")
+
+    name = definition["name"]
+
+    expected_issues = tuple(
+        _build_expected_issue(
+            raw_issue, definition_path=definition_path, issue_index=index
+        )
+        for index, raw_issue in enumerate(definition["expected_issues"])
+    )
+
+    return DiffBenchmark(
+        name=name,
+        before_path=before_path,
+        after_path=after_path,
+        before_source=before_source,
+        after_source=after_source,
+        expected_issues=expected_issues,
+    )
+
 
 def _build_benchmark(
     *,
@@ -94,16 +144,14 @@ def _build_benchmark(
 
     if not isinstance(name, str) or not name.strip():
         raise BenchmarkLoadError(
-            f"Benchmark field 'name' must be a non-empty string: "
-            f"{definition_path}"
+            f"Benchmark field 'name' must be a non-empty string: " f"{definition_path}"
         )
 
     raw_expected_issues = definition.get("expected_issues")
 
     if not isinstance(raw_expected_issues, list):
         raise BenchmarkLoadError(
-            f"Benchmark field 'expected_issues' must be a list: "
-            f"{definition_path}"
+            f"Benchmark field 'expected_issues' must be a list: " f"{definition_path}"
         )
 
     expected_issues = tuple(
@@ -121,7 +169,7 @@ def _build_benchmark(
         source_code=source_code,
         expected_issues=expected_issues,
     )
-    
+
 
 def _build_expected_issue(
     data: Any,
@@ -131,8 +179,7 @@ def _build_expected_issue(
 ) -> ExpectedIssue:
     if not isinstance(data, dict):
         raise BenchmarkLoadError(
-            f"Expected issue {issue_index} must be a JSON object: "
-            f"{definition_path}"
+            f"Expected issue {issue_index} must be a JSON object: " f"{definition_path}"
         )
 
     severity = data.get("severity")
