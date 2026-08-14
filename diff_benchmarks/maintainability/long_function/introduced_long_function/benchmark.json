@@ -1,0 +1,13 @@
+{
+  "name": "Adding multiple responsibilities introduces long function",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "rule": "long_function",
+      "category": "maintainability",
+      "explanation": "The diff expands the function to handle validation, aggregation, business rules, and result construction in one place."
+    }
+  ]
+}

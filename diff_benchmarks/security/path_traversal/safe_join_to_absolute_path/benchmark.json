@@ -1,0 +1,13 @@
+{
+  "name": "Removing filename sanitization introduces path traversal",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "path_traversal",
+      "category": "security",
+      "explanation": "The diff removes filename sanitization and joins the user-controlled path directly to the base directory, allowing traversal or an absolute path to escape the intended directory."
+    }
+  ]
+}

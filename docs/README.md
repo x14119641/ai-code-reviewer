@@ -1,356 +1,34 @@
-# Results
-
-The evaluation system has grown incrementally as the reviewer, taxonomy, prompt strategy, and supported review modes have evolved.
-
-The project now maintains two distinct evaluation tracks:
-
-* **Full-file review benchmarks**, currently containing 65 cases.
-* **Git-diff review benchmarks**, currently containing an initial 11-case suite.
-
-These suites measure different behaviors and should not be compared directly.
-
-The full-file suite evaluates whether the reviewer can identify issues in complete Python source files.
-
-The diff suite evaluates whether the reviewer can identify issues introduced or worsened by a change while avoiding findings that were already present before the diff.
-
-Results from different stages should not always be compared directly because the benchmark suites, prompts, generation settings, taxonomy, and severity evaluation strategy have evolved over time.
-
----
-
-## Full-File Review Results
-
-### Initial Model Comparison
-
-The following results were produced during the initial **v1 model comparison** using the original 35-case benchmark suite.
-
-These experiments were performed before deterministic generation settings and rule-based severity normalization were introduced.
-
-```text
-┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━┳━━━━┳━━━━━━━━┳━━━━━━━━┓
-┃ Model                 ┃ Prompt ┃ Accuracy ┃ Severity ┃ Passed ┃ FP ┃ FN ┃ Errors ┃   Time ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━╇━━━━╇━━━━━━━━╇━━━━━━━━┩
-│ qwen3.5:9b            │ v1     │    91.4% │    68.4% │     32 │  2 │  1 │      0 │  90.4s │
-│ qwen2.5-coder:7b      │ v1     │    82.9% │    73.7% │     29 │  5 │  1 │      0 │  48.9s │
-│ qwen2.5-coder:14b     │ v1     │    80.0% │    56.2% │     28 │  3 │  4 │      0 │  71.8s │
-│ gemma3:12b            │ v1     │    77.1% │    64.7% │     27 │  5 │  2 │      0 │ 115.2s │
-│ deepseek-coder-v2:16b │ v1     │    65.7% │    50.0% │     23 │ 10 │  2 │      0 │ 157.7s │
-│ llama3.1:8b           │ v1     │    51.4% │    50.0% │     18 │ 11 │  0 │      0 │  73.7s │
-└───────────────────────┴────────┴──────────┴──────────┴────────┴────┴────┴────────┴────────┘
-```
-
-These results remain useful as an early model comparison, but they should not be directly compared with newer controlled prompt experiments.
-
-The evaluation setup has since changed in two important ways:
-
-* Generation uses `temperature=0` and a fixed seed (`42`) to reduce run-to-run variation.
-* Severity is derived deterministically from the detected rule instead of trusting the LLM's severity prediction.
-
-### Controlled Prompt Evaluation
-
-Prompt optimization initially used Qwen 3.5 9B against the same 35-case benchmark suite with controlled generation settings.
-
-| Prompt | Accuracy | Passed | False Positives | False Negatives |
-| ------ | -------: | -----: | --------------: | --------------: |
-| v1     |    85.7% |  30/35 |               4 |               1 |
-| v2     |    88.6% |  31/35 |               3 |               1 |
-| v3     |    88.6% |  31/35 |               3 |               1 |
-| v4     |    91.4% |  32/35 |               2 |               1 |
-
-These experiments showed that making **rule-specific detection boundaries explicit** was more effective than adding increasingly general instructions intended to suppress false positives.
-
-Prompt v4 became the stable prompt for the original taxonomy.
-
-### Benchmark Expansion
-
-After the initial prompt experiments, the full-file benchmark suite was expanded incrementally from **35 to 65 cases**.
-
-New cases were added in small groups containing positive, negative, and boundary examples rather than only straightforward detections.
-
-The expanded suite tests rules including:
-
-| Category        | Rules                                                   |
-| --------------- | ------------------------------------------------------- |
-| Bug             | Mutable default argument, Unreachable code              |
-| Security        | SQL injection, Shell injection, Path traversal          |
-| Performance     | List membership in loops, String concatenation in loops |
-| Maintainability | Duplicate code, Long function                           |
-
-The expanded suite also includes safe cases designed specifically to measure false positives, such as:
-
-* `None` used safely instead of a mutable default
-* Tuple, set, and dictionary membership boundaries
-* Parameterized SQL queries
-* Allowlisted commands and paths
-* `join()` and `StringIO` instead of repeated string concatenation
-* Shared helper functions instead of duplicated logic
-* Valid control flow that remains reachable
-
-### Current v5 Result
-
-Prompt v5 was created from v4 to introduce the new `unreachable_code` bug rule while keeping previous prompt versions frozen for reproducibility.
-
-The current Qwen 3.5 9B result on the **65-case full-file benchmark suite** is:
-
-```text
-Model              qwen3.5:9b
-Prompt             v5
-Benchmarks         65
-Passed             60
-Failed              5
-Accuracy           92.3%
-Severity accuracy 100.0%
-Execution time    145.7s
-```
-
-All five newly introduced `unreachable_code` benchmarks passed.
-
-The remaining failures are:
-
-#### False positives
-
-```text
-benchmarks/bug/mutable_default_argument/none_default_safe.py
-benchmarks/performance/list_membership_in_loop/tuple_membership_in_loop_safe.py
-```
-
-`none_default_safe.py` is incorrectly classified as `mutable_default_argument` even though the default value is `None` and the mutable object is created inside the function.
-
-`tuple_membership_in_loop_safe.py` is incorrectly classified as `list_membership_in_loop`. The project taxonomy intentionally defines this rule specifically for lists, so tuple membership is considered safe for this benchmark even though tuple membership itself is linear.
-
-#### False negatives
-
-```text
-benchmarks/maintainability/long_function/long_function.py
-benchmarks/maintainability/long_function/multi_responsibility_function.py
-benchmarks/security/path_traversal/user_absolute_path.py
-```
-
-The two `long_function` cases indicate that maintainability detection remains the clearest weak area in the current full-file prompt.
-
-`user_absolute_path.py` is particularly interesting because it passed under v4 but failed under v5, making it a prompt regression.
-
-### v4 → v5 Regression Analysis
-
-Aggregate accuracy alone does not show how individual benchmark behavior changes between prompt versions.
-
-The `compare-runs` command performs benchmark-level regression analysis:
-
-```bash
-uv run python main.py compare-runs \
-    results/v4/qwen3.5-9b-seed42-block5.json \
-    results/v5/qwen3.5-9b-seed42-block5.json
-```
-
-Current comparison:
-
-```text
-Old: v4 / qwen3.5:9b — 53/60 (88.3%)
-New: v5 / qwen3.5:9b — 60/65 (92.3%)
-
-Comparable: 60 | Fixed: 3 | Regressed: 1 | Still failing: 4 | Added: 5 | Removed: 0
-```
-
-The three fixed cases are:
-
-```text
-benchmarks/maintainability/duplicate_code/shared_helper_safe.py
-benchmarks/maintainability/duplicate_code/shared_validation_helper_safe.py
-benchmarks/performance/list_membership_in_loop/dict_key_membership_safe.py
-```
-
-The regression is:
-
-```text
-benchmarks/security/path_traversal/user_absolute_path.py
-```
-
-The cases still failing across both runs are:
-
-```text
-benchmarks/bug/mutable_default_argument/none_default_safe.py
-benchmarks/maintainability/long_function/long_function.py
-benchmarks/maintainability/long_function/multi_responsibility_function.py
-benchmarks/performance/list_membership_in_loop/tuple_membership_in_loop_safe.py
-```
-
-Five new `unreachable_code` benchmarks were added between the two runs, and all five pass under v5.
-
-This comparison demonstrates an important property of prompt engineering: **changing one part of a prompt can affect apparently unrelated rules**.
-
-Although v5 improves performance across the original 60 comparable benchmarks, it also introduces a path-traversal regression.
-
----
-
-## Git Diff Review
-
-The reviewer now supports reviewing local Git diffs using the current contents of changed Python files as additional context.
-
-A raw diff alone may not contain enough information to determine the behavior of unchanged lines affected by a change.
-
-For example, changing a function parameter from:
-
-```python
-users: dict[str, int]
-```
-
-to:
-
-```python
-users: list[str]
-```
-
-can make an unchanged membership check:
-
-```python
-if username in users:
-```
-
-significantly more expensive.
-
-The diff reviewer therefore receives two complementary inputs:
-
-```text
-Git diff
-   +
-Current changed-file source
-   ↓
-Diff-specific prompt
-   ↓
-Structured CodeReview
-```
-
-The diff identifies what changed, while the current source provides enough surrounding context to reason about the behavior of the resulting code.
-
-The intended behavior differs from full-file review in one important way:
-
-> A diff reviewer should report issues introduced or worsened by the change, not every issue visible in the current source.
-
-This change-attribution requirement motivated the creation of a dedicated diff benchmark suite.
-
----
-
-## Diff Benchmarking
-
-Diff review now has its own benchmark format, runner, CLI command, rendering, failure handling, and result export.
-
-The diff benchmark suite is independent from the 65-case full-file suite.
-
-A diff benchmark contains:
-
-```text
-benchmark_case/
-├── before.py
-├── after.py
-└── benchmark.json
-```
-
-`before.py` represents the source before the change.
-
-`after.py` represents the source after the change.
-
-The benchmark infrastructure generates the corresponding unified diff and supplies both that diff and the current `after.py` source to the reviewer.
-
-`benchmark.json` describes the expected issues introduced by the change.
-
-Example:
-
-```json
-{
-  "name": "Dict to list introduces membership in loop",
-  "before_path": "before.py",
-  "after_path": "after.py",
-  "expected_issues": [
-    {
-      "severity": "medium",
-      "rule": "list_membership_in_loop",
-      "category": "performance",
-      "explanation": "Changing the lookup collection from a dict to a list introduces linear membership checks inside the loop."
-    }
-  ]
-}
-```
-
-The same benchmark evaluator used by full-file review is reused for diff review.
-
-This allows both review modes to share evaluation semantics for:
-
-* Rule matching
-* Category matching
-* Severity matching
-* False positives
-* False negatives
-* Overall pass/fail behavior
-
-Diff benchmark runs are represented using the same `BenchmarkRun` result structure and can be serialized using the existing benchmark result pipeline.
-
-### Diff Benchmark CLI
-
-The full diff suite can be run with:
-
-```bash
-uv run python main.py benchmark-diff \
-    diff_benchmarks \
-    --model qwen3.5:9b \
-    --prompt-version v9
-```
-
-Individual rule families can also be evaluated:
-
-```bash
-uv run python main.py benchmark-diff \
-    diff_benchmarks/security/sql_injection \
-    --model qwen3.5:9b \
-    --prompt-version v9
-```
-
-Diff benchmark results can be exported:
-
-```bash
-uv run python main.py benchmark-diff \
-    diff_benchmarks \
-    --model qwen3.5:9b \
-    --prompt-version v9 \
-    --output qwen3.5-9b.json
-```
-
-Relative diff output filenames are stored separately from full-file results:
-
-```text
-results/
-├── v1/
-├── v2/
-├── ...
-└── diff/
-    ├── v9/
-    │   └── qwen3.5-9b.json
-    └── v10/
-        └── qwen3.5-9b.json
-```
-
-This prevents full-file and diff benchmark results from being accidentally mixed even though they share the same serialization and evaluation infrastructure.
-
----
-
-## Initial Diff Benchmark Suite
-
-The first systematic diff-review suite contains **11 benchmark cases**.
-
-It currently covers five rules:
-
-| Category    | Rule                     |  Cases |
-| ----------- | ------------------------ | -----: |
-| Bug         | Mutable default argument |      2 |
-| Bug         | Unreachable code         |      2 |
-| Performance | List membership in loops |      3 |
-| Security    | SQL injection            |      2 |
-| Security    | Shell injection          |      2 |
-| **Total**   |                          | **11** |
-
-The suite deliberately includes both newly introduced issues and attribution boundaries.
+## Diff Benchmark Suite
+
+The diff-review benchmark suite was initially introduced with **11 cases across five rules** and was later expanded to **19 cases covering all nine rules in the current taxonomy**.
+
+The expanded suite deliberately combines:
+
+- issues introduced by a diff
+- pre-existing issues that should not be attributed to the diff
+- safe changes
+- changes whose effects appear in unchanged code
+
+The current coverage is:
+
+| Category | Rule | Cases |
+| --- | --- | ---: |
+| Bug | Mutable default argument | 2 |
+| Bug | Unreachable code | 2 |
+| Security | SQL injection | 2 |
+| Security | Shell injection | 2 |
+| Security | Path traversal | 2 |
+| Performance | List membership in loops | 3 |
+| Performance | String concatenation in loops | 2 |
+| Maintainability | Duplicate code | 2 |
+| Maintainability | Long function | 2 |
+| **Total** | | **19** |
+
+This gives every rule in the current taxonomy at least one diff-review benchmark family.
 
 ### List Membership in Loops
 
-The initial performance cases test three distinct situations.
+The performance cases test three distinct situations.
 
 #### Introduced issue
 
@@ -442,11 +120,56 @@ The boundary case already contains the unsafe shell command before the diff and 
 
 Again, the existing vulnerability should not be reported.
 
+### Path Traversal
+
+The positive case removes filename sanitization and changes safe path construction into a direct join between an intended base directory and a user-controlled path.
+
+This allows values such as parent-directory traversal or absolute paths to escape the intended directory.
+
+The boundary case already contains the unsafe path construction before the diff and changes only an informational message.
+
+Both v9 and v10 correctly detect the introduced case and ignore the pre-existing case.
+
+### String Concatenation in Loops
+
+The positive case changes efficient `str.join()` construction into repeated `+=` concatenation inside a loop.
+
+The boundary case already contains repeated string concatenation before the diff and changes only unrelated reporting logic.
+
+Both v9 and v10 correctly distinguish the introduced issue from the pre-existing one.
+
+### Duplicate Code
+
+The positive case introduces substantially duplicated normalization and validation logic across two functions.
+
+The boundary case already contains the duplicated implementation before the diff and changes unrelated code.
+
+Both v9 and v10 correctly ignore the pre-existing duplicate implementation but fail to detect the newly introduced duplication.
+
+A diagnostic full-file review of the same resulting source also failed to report `duplicate_code`.
+
+This suggests that the observed failure is primarily an **issue-recognition weakness**, rather than a diff-attribution failure.
+
+### Long Function
+
+The positive case expands a previously focused function so that it performs several responsibilities:
+
+- input validation
+- iteration and aggregation
+- business-rule application
+- result construction
+
+The boundary case already contains this multi-responsibility implementation before the diff and changes only unrelated output logic.
+
+Both v9 and v10 correctly ignore the pre-existing case but fail to report the newly introduced `long_function`.
+
+This is consistent with the existing full-file benchmark results, where `long_function` is already one of the weakest rules.
+
 ---
 
 ## Initial Diff Review Baseline
 
-The first complete diff benchmark baseline was produced using:
+The first complete diff benchmark baseline used the original **11-case suite**:
 
 ```text
 Model   qwen3.5:9b
@@ -468,7 +191,7 @@ Severity          5/5 (100.0%)
 Duration          32.94s
 ```
 
-The five positive introduced-issue cases all passed.
+All five positive introduced-issue cases passed.
 
 The model successfully detected:
 
@@ -484,11 +207,9 @@ All five detections matched the expected normalized severity.
 
 There were no false negatives.
 
-### Diff Attribution Failures
+### Initial Attribution Failures
 
-All three failures were false positives involving **pre-existing issues**.
-
-The failing cases were:
+All three failures were false positives involving pre-existing issues:
 
 ```text
 diff_benchmarks/bug/mutable_default_argument/preexisting_mutable_default_safe
@@ -503,62 +224,7 @@ In each case:
 3. The problem remained visible in `after.py`.
 4. The model reported the existing problem anyway.
 
-For example, the SQL injection boundary contains the vulnerable query both before and after the change:
-
-```python
-query = f"SELECT * FROM users WHERE username = '{username}'"
-cursor.execute(query)
-```
-
-The actual diff only changes:
-
-```diff
-- audit_message = "User lookup completed"
-+ audit_message = f"User lookup completed for {username}"
-```
-
-The correct diff-review result is therefore:
-
-```text
-no issues
-```
-
-Prompt v9 instead reports `sql_injection`.
-
-A similar pattern occurs for the pre-existing mutable default and shell injection cases.
-
-### Successful Attribution Cases
-
-The attribution problem is not universal.
-
-Prompt v9 correctly ignored pre-existing issues in:
-
-```text
-diff_benchmarks/performance/list_membership_in_loop/preexisting_list_issue_safe
-diff_benchmarks/bug/unreachable_code/preexisting_unreachable_safe
-```
-
-This distinction is important.
-
-The baseline does not indicate that the reviewer completely ignores the diff and simply reviews the current file.
-
-Instead, it suggests that attribution becomes less reliable for some highly salient issues.
-
-Current behavior can therefore be summarized as:
-
-```text
-Introduced issues
-    5/5 detected
-
-Pre-existing boundary issues
-    list_membership_in_loop    PASS
-    unreachable_code           PASS
-    mutable_default_argument   FAIL
-    sql_injection              FAIL
-    shell_injection            FAIL
-```
-
-This established change attribution as the primary target for the next diff prompt experiment.
+The initial suite therefore identified **change attribution** as the primary weakness to investigate.
 
 ---
 
@@ -566,9 +232,9 @@ This established change attribution as the primary target for the next diff prom
 
 Prompt v10 was created to test whether stronger and more explicit before/after attribution instructions could reduce the three false positives found under v9.
 
-The benchmark suite remained frozen at the same **11 cases** so that any behavior change could be attributed to the prompt rather than changes in the evaluation dataset.
+The initial experiment kept the same 11-case suite frozen.
 
-The final v10 experiment used explicit before/after classification:
+The final v10 prompt used explicit before/after classification:
 
 ```text
 BEFORE safe   → AFTER unsafe       → report
@@ -577,32 +243,14 @@ BEFORE unsafe → AFTER same unsafe  → do not report
 BEFORE safe   → AFTER safe         → do not report
 ```
 
-The goal was to force the model to distinguish issue recognition from change attribution before producing a finding.
+On the original suite:
 
-The final Qwen 3.5 9B result was:
+| Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| v9 | 8/11 | 72.7% | 3 | 0 | 5/5 (100%) |
+| v10 | 8/11 | 72.7% | 3 | 0 | 5/5 (100%) |
 
-```text
-Model            qwen3.5:9b
-Prompt           v10
-Benchmarks       11
-Passed            8
-Failed            3
-Errors            0
-False positives   3
-False negatives   0
-Accuracy         72.73%
-Severity          5/5 (100.00%)
-Duration         36.18s
-```
-
-### v9 → v10 Comparison
-
-| Prompt | Passed | Accuracy | False Positives | False Negatives |   Severity |
-| ------ | -----: | -------: | --------------: | --------------: | ---------: |
-| v9     |   8/11 |    72.7% |               3 |               0 | 5/5 (100%) |
-| v10    |   8/11 |    72.7% |               3 |               0 | 5/5 (100%) |
-
-The stronger attribution instructions produced **no improvement in aggregate accuracy** and did not change which benchmarks failed.
+The stronger attribution instructions produced no improvement.
 
 The same three pre-existing issues remained false positives:
 
@@ -612,59 +260,190 @@ shell_injection
 sql_injection
 ```
 
-The introduced versions of those rules continued to pass, as did the introduced `unreachable_code` and `list_membership_in_loop` cases.
+Prompt v10 therefore did not replace v9 as the baseline.
 
-The final behavior therefore remained:
+Instead of continuing to optimize against those three examples, the benchmark suite was expanded to determine whether the attribution problem generalized across the rest of the taxonomy.
 
-```text
-Introduced issues
-    5/5 detected
+---
 
-Pre-existing boundary issues
-    list_membership_in_loop    PASS
-    unreachable_code           PASS
-    mutable_default_argument   FAIL
-    sql_injection              FAIL
-    shell_injection            FAIL
-```
+## Expanded Diff Review Results
 
-### Experiment Conclusion
-
-The v10 result provides evidence that the three attribution failures are not easily corrected by simply making the general change-attribution instructions stronger.
-
-The model already has enough information in these small benchmark diffs to observe that the vulnerable construct existed before the unrelated change.
-
-Despite increasingly explicit before/after instructions, Qwen 3.5 9B continued to report the same highly visible pre-existing patterns.
-
-This suggests that, for the current model and benchmark cases, issue recognition can dominate change attribution for some rules.
-
-The result also reinforces an observation already seen during full-file prompt development:
-
-> More explicit general instructions do not necessarily improve model behavior.
-
-Prompt changes should therefore continue to be evaluated empirically rather than assuming that stronger wording produces stronger compliance.
-
-Prompt v10 does **not** replace v9 as the diff-review baseline because it provides no measurable improvement.
-
-The current diff baseline remains:
+The suite was expanded from **11 to 19 cases**, adding coverage for:
 
 ```text
-Prompt v9
-8/11
-72.7% accuracy
-3 false positives
-0 false negatives
+path_traversal
+string_concatenation_in_loop
+duplicate_code
+long_function
 ```
 
-Rather than continuing to optimize the prompt against the same three cases, the next step is to expand the diff benchmark suite.
+This brings the diff suite to all **nine rules** currently supported by the reviewer.
 
-A larger suite will show whether the attribution failures are:
+Both v9 and v10 were evaluated against the complete expanded suite.
 
-* specific to a few highly salient rules,
-* systematic across other rule families,
-* or representative of a broader limitation in the current diff-review strategy.
+### v9 Expanded Result
 
-Only after broader benchmark coverage should larger prompt or context-architecture changes be considered.
+```text
+Model            qwen3.5:9b
+Prompt           v9
+Benchmarks       19
+Passed           14
+Failed            5
+Errors            0
+False positives   3
+False negatives   2
+Accuracy         73.68%
+Severity          7/7 (100.00%)
+Duration         48.52s
+```
+
+### v10 Expanded Result
+
+```text
+Model            qwen3.5:9b
+Prompt           v10
+Benchmarks       19
+Passed           14
+Failed            5
+Errors            0
+False positives   3
+False negatives   2
+Accuracy         73.68%
+Severity          7/7 (100.00%)
+Duration         47.42s
+```
+
+### v9 → v10 Expanded Comparison
+
+| Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| v9 | 14/19 | 73.68% | 3 | 2 | 7/7 (100%) |
+| v10 | 14/19 | 73.68% | 3 | 2 | 7/7 (100%) |
+
+The two prompts produce the same benchmark outcomes across all 19 cases.
+
+This provides stronger evidence that the additional attribution wording introduced in v10 does not materially change Qwen 3.5 9B's behavior on the current diff-review task.
+
+---
+
+## Expanded Failure Analysis
+
+The expanded suite reveals **two distinct failure modes**.
+
+### Change Attribution Failures
+
+Three failures remain false positives where the issue existed before the diff:
+
+```text
+mutable_default_argument
+sql_injection
+shell_injection
+```
+
+For these rules, the model recognizes the issue correctly but incorrectly attributes it to an unrelated change.
+
+However, attribution works correctly for the pre-existing cases involving:
+
+```text
+unreachable_code
+list_membership_in_loop
+path_traversal
+string_concatenation_in_loop
+duplicate_code
+long_function
+```
+
+This means the attribution problem is **not universal**.
+
+Current attribution behavior can be summarized as:
+
+```text
+Pre-existing issue attribution
+
+unreachable_code                 PASS
+list_membership_in_loop          PASS
+path_traversal                   PASS
+string_concatenation_in_loop     PASS
+duplicate_code                   PASS
+long_function                    PASS
+
+mutable_default_argument         FAIL
+sql_injection                    FAIL
+shell_injection                  FAIL
+```
+
+The expanded suite therefore suggests that attribution weakness is concentrated around specific highly recognizable issue patterns rather than reflecting a general inability to reason about before/after changes.
+
+### Issue Recognition Failures
+
+The two false negatives are:
+
+```text
+duplicate_code
+long_function
+```
+
+In both cases, the diff genuinely introduces the expected maintainability issue, but the model returns no issues.
+
+Their corresponding pre-existing boundary cases pass.
+
+This means the failure pattern is different from the three attribution false positives:
+
+```text
+duplicate_code
+    introduced issue    FAIL
+    pre-existing issue  PASS
+
+long_function
+    introduced issue    FAIL
+    pre-existing issue  PASS
+```
+
+For `duplicate_code`, a separate full-file review of the resulting `after.py` source also returned no issues.
+
+For `long_function`, the full-file benchmark suite already contains multiple false negatives for the same rule.
+
+These results suggest that maintainability detection is a broader **issue-recognition weakness**, not specifically a diff-review attribution problem.
+
+---
+
+## Current Diff Review Behavior
+
+Across the expanded 19-case suite, the current behavior can be summarized as:
+
+```text
+ATTRIBUTION WEAKNESS
+├── mutable_default_argument
+├── sql_injection
+└── shell_injection
+
+ISSUE-RECOGNITION WEAKNESS
+├── duplicate_code
+└── long_function
+
+CURRENTLY PASSING
+├── unreachable_code
+├── list_membership_in_loop
+├── string_concatenation_in_loop
+└── path_traversal
+```
+
+All seven detected positive issues have the expected normalized severity:
+
+```text
+Severity accuracy: 7/7 (100%)
+```
+
+The expanded benchmark therefore changes the interpretation of the original result.
+
+The initial 11-case suite suggested that **change attribution** was the main diff-review weakness.
+
+The 19-case suite shows that there are at least two separate problems:
+
+1. **Rule-specific attribution failures** for mutable defaults, SQL injection, and shell injection.
+2. **Issue-recognition failures** for the two maintainability rules.
+
+This distinction is important for future experiments because the two failure classes should not necessarily be addressed with the same prompt or architecture changes.
 
 ---
 
@@ -674,15 +453,15 @@ Git-diff review uses a separate prompt from full-file review.
 
 The diff prompt receives:
 
-* The Git diff
-* The current contents of changed Python files
-* The same structured output requirements used by the rest of the reviewer
+- The Git diff
+- The current contents of changed Python files
+- The same structured output requirements used by the rest of the reviewer
 
 Prompt v9 remains the current baseline.
 
 Prompt v10 tested stronger change-attribution instructions but did not improve benchmark performance.
 
-The current prompt history is:
+The current experimental history is:
 
 ```text
 v9
@@ -691,37 +470,44 @@ Initial 11-case diff baseline
     ↓
 8/11 — 72.7%
     ↓
-Three persistent pre-existing-issue false positives
+Three attribution false positives
     ↓
 v10 attribution experiment
     ↓
-Explicit before/after classification
-    ↓
 8/11 — 72.7%
     ↓
-No improvement over v9
+No improvement
+    ↓
+Expand suite across all taxonomy rules
+    ↓
+19 cases
+    ↓
+v9  = 14/19 — 73.68%
+v10 = 14/19 — 73.68%
+    ↓
+Same five failures
 ```
 
-The experiment indicates that repeatedly strengthening general attribution instructions is unlikely to be the most useful immediate direction.
+The expanded experiment indicates that repeatedly strengthening general attribution instructions is unlikely to be the most useful immediate direction.
 
-The next experimental phase is therefore:
+It also shows that not every failure is an attribution failure.
+
+The next experimental phase should therefore distinguish between:
 
 ```text
-Freeze v9 baseline
-    ↓
-Record v10 as unsuccessful attribution experiment
-    ↓
-Expand diff benchmark coverage
-    ↓
-Measure attribution behavior across more rules
-    ↓
-Identify systematic failure patterns
-    ↓
-Decide whether the next intervention should target
-prompt design, context construction, or model choice
+attribution problems
+        ↓
+mutable_default_argument
+sql_injection
+shell_injection
+
+recognition problems
+        ↓
+duplicate_code
+long_function
 ```
 
-This keeps the evaluation process evidence-driven rather than optimizing repeatedly against three individual failures.
+This keeps future experiments targeted at the actual measured behavior rather than treating all diff-review failures as the same problem.
 
 ---
 
@@ -755,11 +541,11 @@ uv run python main.py analyze-result \
 
 This surfaces:
 
-* False positives
-* False negatives
-* Rule mismatches
-* Category mismatches
-* Severity mismatches
+- False positives
+- False negatives
+- Rule mismatches
+- Category mismatches
+- Severity mismatches
 
 ### Cross-Run Regression Analysis
 
@@ -773,11 +559,11 @@ uv run python main.py compare-runs \
 
 This identifies:
 
-* Fixed benchmarks
-* Regressed benchmarks
-* Benchmarks that remain failing
-* Added benchmarks
-* Removed benchmarks
+- Fixed benchmarks
+- Regressed benchmarks
+- Benchmarks that remain failing
+- Added benchmarks
+- Removed benchmarks
 
 Together, these tools provide three levels of experiment analysis:
 
@@ -789,7 +575,7 @@ Rule / category analysis
 Individual benchmark regression analysis
 ```
 
-The same evaluation and serialization foundation is now also used by diff benchmark runs, allowing diff prompt experiments to follow the same reproducible workflow.
+The same evaluation and serialization foundation is also used by diff benchmark runs, allowing diff prompt experiments to follow the same reproducible workflow.
 
 ---
 
@@ -797,34 +583,34 @@ The same evaluation and serialization foundation is now also used by diff benchm
 
 ### Full-File Review
 
-* Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
-* Qwen 2.5 Coder 7B provided a strong speed-to-accuracy trade-off in the initial model benchmark.
-* Controlled prompt iteration improved Qwen 3.5 9B from **85.7% with v1** to **91.4% with v4** on the original 35-case suite.
-* Explicit rule-specific detection boundaries were more effective than generic false-positive suppression instructions.
-* Expanding the suite from 35 to 65 cases exposed additional generalization and boundary failures that were not visible in the smaller suite.
-* Prompt v5 reaches **92.3% accuracy on 65 benchmarks** with **100% severity accuracy**.
-* The `unreachable_code` rule currently passes all five of its full-file benchmark cases.
-* `long_function` remains the clearest weak rule in the current full-file prompt.
-* The v4 → v5 experiment fixed three existing failures but regressed `user_absolute_path.py`.
-* Aggregate accuracy should not be used alone when deciding whether a prompt revision is better.
+- Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
+- Qwen 2.5 Coder 7B provided a strong speed-to-accuracy trade-off in the initial model benchmark.
+- Controlled prompt iteration improved Qwen 3.5 9B from **85.7% with v1** to **91.4% with v4** on the original 35-case suite.
+- Explicit rule-specific detection boundaries were more effective than generic false-positive suppression instructions.
+- Expanding the suite from 35 to 65 cases exposed additional generalization and boundary failures that were not visible in the smaller suite.
+- Prompt v5 reaches **92.3% accuracy on 65 benchmarks** with **100% severity accuracy**.
+- The `unreachable_code` rule currently passes all five of its full-file benchmark cases.
+- `long_function` remains the clearest weak rule in the current full-file prompt.
+- The v4 → v5 experiment fixed three existing failures but regressed `user_absolute_path.py`.
+- Aggregate accuracy should not be used alone when deciding whether a prompt revision is better.
 
 ### Git Diff Review
 
-* Diff review now has dedicated benchmark infrastructure rather than relying on manual examples.
-* The initial diff suite contains **11 cases across five rules**.
-* Prompt v9 achieves **72.7% accuracy** on the initial suite.
-* All **5/5 introduced-issue cases** are detected.
-* Severity accuracy is **100% (5/5)** for those detections.
-* There are **no false negatives** in the v9 baseline.
-* All three failures are false positives involving issues that existed before the diff.
-* Pre-existing list-membership and unreachable-code problems are correctly ignored.
-* Pre-existing mutable-default, SQL-injection, and shell-injection problems are incorrectly reported.
-* Prompt v10 tested stronger explicit before/after attribution instructions.
-* v10 also achieved **72.7% accuracy with the same three false positives and no false negatives**.
-* The v10 experiment therefore produced no measurable improvement over v9.
-* The main measured weakness remains **change attribution**, not basic issue recognition.
-* Stronger general attribution wording alone did not resolve the measured failures.
-* The next step is to expand the diff benchmark suite before making larger prompt or context-architecture changes.
+- Diff review now has dedicated benchmark infrastructure rather than relying on manual examples.
+- The diff suite has expanded from **11 to 19 cases**.
+- All **nine rules in the current taxonomy** are now represented.
+- Prompt v9 achieves **73.68% accuracy (14/19)** on the expanded suite.
+- Prompt v10 produces exactly the same **73.68% accuracy (14/19)**.
+- Both prompts produce **3 false positives and 2 false negatives**.
+- Severity accuracy is **100% (7/7)** for detected expected issues.
+- The three false positives are rule-specific attribution failures involving `mutable_default_argument`, `sql_injection`, and `shell_injection`.
+- Attribution succeeds for the pre-existing `unreachable_code`, `list_membership_in_loop`, `path_traversal`, `string_concatenation_in_loop`, `duplicate_code`, and `long_function` cases.
+- The two false negatives are maintainability recognition failures involving `duplicate_code` and `long_function`.
+- `duplicate_code` is also missed when the same resulting source is reviewed as a complete file.
+- `long_function` was already a weak rule in the full-file benchmark suite.
+- The expanded suite therefore exposes both **change-attribution** and **issue-recognition** weaknesses.
+- Stronger general attribution wording in v10 did not improve either class of failure.
+- Prompt v9 remains the diff-review baseline.
 
 ---
 
@@ -842,13 +628,24 @@ Prompt v5 baseline
 
 
 GIT-DIFF REVIEW
-11-case initial suite
+19-case suite
+All 9 taxonomy rules represented
 Prompt v9 baseline
-72.7% accuracy
+14/19 — 73.68% accuracy
+3 FP / 2 FN
+100% severity accuracy on detected expected issues
       │
-      ├── measures issue recognition + change attribution
+      ├── attribution weaknesses
+      │   ├── mutable_default_argument
+      │   ├── sql_injection
+      │   └── shell_injection
       │
-      └── v10 attribution experiment: no improvement
+      ├── recognition weaknesses
+      │   ├── duplicate_code
+      │   └── long_function
+      │
+      └── v10 attribution experiment
+          └── identical 14/19 result
 ```
 
 These should remain separate experimental tracks.
@@ -857,6 +654,8 @@ Full-file prompt improvements should be evaluated against the full-file suite.
 
 Diff prompt improvements should be evaluated against the diff suite.
 
-The next diff-review phase is benchmark expansion rather than continued optimization against the same three attribution failures.
+The expanded diff benchmark has now established coverage across the complete current taxonomy.
 
-This separation allows future development toward pull-request review without losing the reproducibility of the existing full-file experiments.
+The next experiments can therefore focus on the specific measured weaknesses rather than continuing to expand coverage or repeatedly strengthening general attribution wording.
+
+This separation allows future development toward pull-request review without losing the reproducibility of the existing full-file and diff-review experiments.
