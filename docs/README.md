@@ -1,6 +1,6 @@
 ## Diff Benchmark Suite
 
-The diff-review benchmark suite was initially introduced with **11 cases across five rules** and was later expanded to **19 cases covering all nine rules in the current taxonomy**.
+The diff-review benchmark suite was initially introduced with **11 cases across five rules** and was later expanded to **21 cases covering all nine rules in the current taxonomy**.
 
 The expanded suite deliberately combines:
 
@@ -8,6 +8,7 @@ The expanded suite deliberately combines:
 - pre-existing issues that should not be attributed to the diff
 - safe changes
 - changes whose effects appear in unchanged code
+- stronger diagnostic cases for subjective maintainability rules
 
 The current coverage is:
 
@@ -20,11 +21,13 @@ The current coverage is:
 | Security | Path traversal | 2 |
 | Performance | List membership in loops | 3 |
 | Performance | String concatenation in loops | 2 |
-| Maintainability | Duplicate code | 2 |
-| Maintainability | Long function | 2 |
-| **Total** | | **19** |
+| Maintainability | Duplicate code | 3 |
+| Maintainability | Long function | 3 |
+| **Total** | | **21** |
 
 This gives every rule in the current taxonomy at least one diff-review benchmark family.
+
+The additional `duplicate_code` and `long_function` cases deliberately use stronger examples to distinguish failures caused by ambiguous rule boundaries from broader issue-recognition weaknesses.
 
 ### List Membership in Loops
 
@@ -100,6 +103,8 @@ The boundary case already contains the mutable default before the diff and chang
 
 The reviewer should therefore return no issues for the boundary case.
 
+This case later became important when comparing v9 and v10 because v10 successfully stopped reporting the pre-existing mutable default while v9 continued to produce a false positive.
+
 ### SQL Injection
 
 The positive case changes a parameterized query into an interpolated SQL string.
@@ -110,6 +115,8 @@ The boundary case already contains the vulnerable interpolated query before the 
 
 The existing vulnerability should not be reported because it was not introduced by the change.
 
+Both v9 and v10 continue to report the pre-existing SQL injection incorrectly.
+
 ### Shell Injection
 
 The positive case changes a safe argument-list subprocess call into an interpolated command executed with `shell=True`.
@@ -119,6 +126,8 @@ The diff therefore introduces `shell_injection`.
 The boundary case already contains the unsafe shell command before the diff and changes only an informational message.
 
 Again, the existing vulnerability should not be reported.
+
+Both v9 and v10 continue to report the pre-existing shell injection incorrectly.
 
 ### Path Traversal
 
@@ -140,30 +149,90 @@ Both v9 and v10 correctly distinguish the introduced issue from the pre-existing
 
 ### Duplicate Code
 
-The positive case introduces substantially duplicated normalization and validation logic across two functions.
+The duplicate-code family now contains three cases.
 
-The boundary case already contains the duplicated implementation before the diff and changes unrelated code.
+The original positive case introduces repeated normalization and validation logic across two functions.
 
-Both v9 and v10 correctly ignore the pre-existing duplicate implementation but fail to detect the newly introduced duplication.
+Both v9 and v10 fail to report this case.
 
-A diagnostic full-file review of the same resulting source also failed to report `duplicate_code`.
+The pre-existing boundary case already contains the duplicated implementation before the diff and changes unrelated code.
 
-This suggests that the observed failure is primarily an **issue-recognition weakness**, rather than a diff-attribution failure.
+Both prompts correctly ignore that existing duplication.
+
+A stronger diagnostic case was then added with more substantial repeated parsing and validation logic.
+
+The results differ:
+
+```text
+Original positive
+v9   FAIL
+v10  FAIL
+
+Strong positive
+v9   PASS
+v10  FAIL
+
+Pre-existing boundary
+v9   PASS
+v10  PASS
+```
+
+This changes the interpretation of the original failure.
+
+Qwen 3.5 9B is capable of recognizing sufficiently substantial duplicate code under v9, so `duplicate_code` is not simply an unsupported or universally missed rule.
+
+Instead, detection appears **threshold-sensitive**.
+
+The original normalization example sits close enough to the model's duplication threshold that it is not reported, while the stronger case is detected.
+
+Prompt v10 introduces an additional regression: it suppresses the stronger duplicate-code finding that v9 detects correctly.
 
 ### Long Function
 
-The positive case expands a previously focused function so that it performs several responsibilities:
+The long-function family also contains three cases.
+
+The original positive case expands a previously focused function so that it performs several responsibilities:
 
 - input validation
 - iteration and aggregation
 - business-rule application
 - result construction
 
-The boundary case already contains this multi-responsibility implementation before the diff and changes only unrelated output logic.
+Both v9 and v10 fail to report it.
 
-Both v9 and v10 correctly ignore the pre-existing case but fail to report the newly introduced `long_function`.
+A stronger diagnostic case was then added containing substantially more responsibility in one function, including:
 
-This is consistent with the existing full-file benchmark results, where `long_function` is already one of the weakest rules.
+- required-field validation
+- item normalization
+- per-item validation
+- aggregation
+- discount decisions
+- shipping decisions
+- final result construction
+
+Despite the stronger signal, both prompts still return no issues.
+
+The pre-existing boundary case is correctly ignored by both prompts.
+
+The results are:
+
+```text
+Original positive
+v9   FAIL
+v10  FAIL
+
+Strong positive
+v9   FAIL
+v10  FAIL
+
+Pre-existing boundary
+v9   PASS
+v10  PASS
+```
+
+This provides stronger evidence that `long_function` is a genuine **issue-recognition weakness**.
+
+This is also consistent with the existing full-file benchmark results, where `long_function` is already one of the weakest rules.
 
 ---
 
@@ -243,58 +312,53 @@ BEFORE unsafe → AFTER same unsafe  → do not report
 BEFORE safe   → AFTER safe         → do not report
 ```
 
-On the original suite:
+On the original 11-case suite:
 
 | Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | v9 | 8/11 | 72.7% | 3 | 0 | 5/5 (100%) |
 | v10 | 8/11 | 72.7% | 3 | 0 | 5/5 (100%) |
 
-The stronger attribution instructions produced no improvement.
+At this stage, the stronger attribution instructions appeared to produce no improvement.
 
-The same three pre-existing issues remained false positives:
+The benchmark suite was therefore expanded rather than continuing to optimize against only those three examples.
 
-```text
-mutable_default_argument
-shell_injection
-sql_injection
-```
-
-Prompt v10 therefore did not replace v9 as the baseline.
-
-Instead of continuing to optimize against those three examples, the benchmark suite was expanded to determine whether the attribution problem generalized across the rest of the taxonomy.
+Later diagnostic cases revealed that v10 does affect model behavior, but the effect is a trade-off rather than an overall improvement.
 
 ---
 
 ## Expanded Diff Review Results
 
-The suite was expanded from **11 to 19 cases**, adding coverage for:
+The diff suite was first expanded to **19 cases** to cover all nine taxonomy rules.
+
+Two additional diagnostic maintainability cases were then added:
 
 ```text
-path_traversal
-string_concatenation_in_loop
 duplicate_code
+    substantial duplicated parsing and validation
+
 long_function
+    substantial multi-responsibility order processing
 ```
 
-This brings the diff suite to all **nine rules** currently supported by the reviewer.
+The current expanded suite therefore contains **21 cases**.
 
-Both v9 and v10 were evaluated against the complete expanded suite.
+Both v9 and v10 were evaluated against the complete suite.
 
 ### v9 Expanded Result
 
 ```text
 Model            qwen3.5:9b
 Prompt           v9
-Benchmarks       19
-Passed           14
-Failed            5
+Benchmarks       21
+Passed           15
+Failed            6
 Errors            0
 False positives   3
-False negatives   2
-Accuracy         73.68%
-Severity          7/7 (100.00%)
-Duration         48.52s
+False negatives   3
+Accuracy         71.43%
+Severity          8/8 (100.00%)
+Duration         55.79s
 ```
 
 ### v10 Expanded Result
@@ -302,37 +366,46 @@ Duration         48.52s
 ```text
 Model            qwen3.5:9b
 Prompt           v10
-Benchmarks       19
-Passed           14
-Failed            5
+Benchmarks       21
+Passed           15
+Failed            6
 Errors            0
-False positives   3
-False negatives   2
-Accuracy         73.68%
+False positives   2
+False negatives   4
+Accuracy         71.43%
 Severity          7/7 (100.00%)
-Duration         47.42s
+Duration         43.89s
 ```
 
 ### v9 → v10 Expanded Comparison
 
 | Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| v9 | 14/19 | 73.68% | 3 | 2 | 7/7 (100%) |
-| v10 | 14/19 | 73.68% | 3 | 2 | 7/7 (100%) |
+| v9 | 15/21 | 71.43% | 3 | 3 | 8/8 (100%) |
+| v10 | 15/21 | 71.43% | 2 | 4 | 7/7 (100%) |
 
-The two prompts produce the same benchmark outcomes across all 19 cases.
+The aggregate accuracy is identical:
 
-This provides stronger evidence that the additional attribution wording introduced in v10 does not materially change Qwen 3.5 9B's behavior on the current diff-review task.
+```text
+v9  = 15/21 — 71.43%
+v10 = 15/21 — 71.43%
+```
+
+However, the prompts no longer produce identical benchmark outcomes.
+
+Prompt v10 fixes one false positive but introduces one additional false negative.
+
+This demonstrates why aggregate accuracy alone is insufficient for evaluating prompt changes.
 
 ---
 
 ## Expanded Failure Analysis
 
-The expanded suite reveals **two distinct failure modes**.
+The 21-case suite reveals several distinct behaviors.
 
-### Change Attribution Failures
+### Attribution Failures
 
-Three failures remain false positives where the issue existed before the diff:
+Under v9, the three pre-existing attribution failures are:
 
 ```text
 mutable_default_argument
@@ -340,9 +413,27 @@ sql_injection
 shell_injection
 ```
 
-For these rules, the model recognizes the issue correctly but incorrectly attributes it to an unrelated change.
+Under v10, the pre-existing mutable-default case is fixed:
 
-However, attribution works correctly for the pre-existing cases involving:
+```text
+mutable_default_argument
+v9   FAIL
+v10  PASS
+```
+
+However, the two security attribution failures remain:
+
+```text
+sql_injection
+v9   FAIL
+v10  FAIL
+
+shell_injection
+v9   FAIL
+v10  FAIL
+```
+
+Attribution succeeds under both prompts for the pre-existing cases involving:
 
 ```text
 unreachable_code
@@ -353,97 +444,170 @@ duplicate_code
 long_function
 ```
 
-This means the attribution problem is **not universal**.
+The attribution problem is therefore clearly **rule-specific rather than universal**.
 
-Current attribution behavior can be summarized as:
+### Duplicate-Code Recognition
 
-```text
-Pre-existing issue attribution
-
-unreachable_code                 PASS
-list_membership_in_loop          PASS
-path_traversal                   PASS
-string_concatenation_in_loop     PASS
-duplicate_code                   PASS
-long_function                    PASS
-
-mutable_default_argument         FAIL
-sql_injection                    FAIL
-shell_injection                  FAIL
-```
-
-The expanded suite therefore suggests that attribution weakness is concentrated around specific highly recognizable issue patterns rather than reflecting a general inability to reason about before/after changes.
-
-### Issue Recognition Failures
-
-The two false negatives are:
+The original duplicate-code positive remains a false negative under both prompts:
 
 ```text
-duplicate_code
-long_function
+v9   FAIL
+v10  FAIL
 ```
 
-In both cases, the diff genuinely introduces the expected maintainability issue, but the model returns no issues.
-
-Their corresponding pre-existing boundary cases pass.
-
-This means the failure pattern is different from the three attribution false positives:
+The stronger duplicate-code diagnostic produces a different result:
 
 ```text
-duplicate_code
-    introduced issue    FAIL
-    pre-existing issue  PASS
-
-long_function
-    introduced issue    FAIL
-    pre-existing issue  PASS
+v9   PASS
+v10  FAIL
 ```
 
-For `duplicate_code`, a separate full-file review of the resulting `after.py` source also returned no issues.
+The pre-existing duplicate-code boundary passes under both prompts.
 
-For `long_function`, the full-file benchmark suite already contains multiple false negatives for the same rule.
+This suggests that `duplicate_code` detection is threshold-sensitive under v9.
 
-These results suggest that maintainability detection is a broader **issue-recognition weakness**, not specifically a diff-review attribution problem.
+It also reveals a concrete v10 regression: stronger attribution constraints suppress a legitimate maintainability finding that v9 reports correctly.
+
+### Long-Function Recognition
+
+Both positive long-function cases fail under both prompts:
+
+```text
+Original positive
+v9   FAIL
+v10  FAIL
+
+Strong positive
+v9   FAIL
+v10  FAIL
+```
+
+The pre-existing boundary passes under both.
+
+The stronger diagnostic case makes the intended rule substantially less ambiguous, yet the model still does not report it.
+
+This provides stronger evidence that `long_function` is a genuine recognition weakness rather than merely a borderline benchmark.
+
+---
+
+## v9 → v10 Behavioral Changes
+
+The final 21-case comparison exposes a precision/recall trade-off that was not visible in the earlier aggregate results.
+
+### Fixed by v10
+
+```text
+Pre-existing mutable default argument
+v9   false positive
+v10  PASS
+```
+
+Prompt v10 therefore improves change attribution for this rule.
+
+### Regressed in v10
+
+```text
+Strong duplicate-code positive
+v9   PASS
+v10  false negative
+```
+
+Prompt v10 becomes more conservative and suppresses a legitimate maintainability finding.
+
+### Unchanged Failures
+
+Both prompts continue to fail:
+
+```text
+Original duplicate-code positive
+Original long-function positive
+Strong long-function positive
+Pre-existing shell injection
+Pre-existing SQL injection
+```
+
+The final comparison can therefore be summarized as:
+
+```text
+v9 → v10
+
+FIXED
+└── mutable_default_argument attribution
+
+REGRESSED
+└── strong duplicate_code recognition
+
+UNCHANGED
+├── duplicate_code borderline positive
+├── long_function positive
+├── long_function strong positive
+├── shell_injection attribution
+└── sql_injection attribution
+```
+
+Prompt v10 does change model behavior, but it does not improve overall benchmark accuracy.
+
+Instead, it trades one false positive for one false negative:
+
+```text
+v9
+3 FP / 3 FN
+
+v10
+2 FP / 4 FN
+```
+
+For the current reviewer, v9 therefore remains the preferred diff-review baseline.
 
 ---
 
 ## Current Diff Review Behavior
 
-Across the expanded 19-case suite, the current behavior can be summarized as:
+The 21-case suite now provides a more nuanced picture than the original attribution experiment.
 
 ```text
 ATTRIBUTION WEAKNESS
-├── mutable_default_argument
 ├── sql_injection
 └── shell_injection
 
-ISSUE-RECOGNITION WEAKNESS
-├── duplicate_code
-└── long_function
+MUTABLE DEFAULT ATTRIBUTION
+├── v9   FAIL
+└── v10  PASS
 
-CURRENTLY PASSING
+THRESHOLD-SENSITIVE RECOGNITION
+└── duplicate_code
+    ├── normal positive: v9/v10 FAIL
+    ├── strong positive: v9 PASS, v10 FAIL
+    └── pre-existing:    v9/v10 PASS
+
+CLEAR RECOGNITION WEAKNESS
+└── long_function
+    ├── normal positive: v9/v10 FAIL
+    ├── strong positive: v9/v10 FAIL
+    └── pre-existing:    v9/v10 PASS
+
+CURRENTLY ROBUST IN THIS SUITE
 ├── unreachable_code
 ├── list_membership_in_loop
 ├── string_concatenation_in_loop
 └── path_traversal
 ```
 
-All seven detected positive issues have the expected normalized severity:
+Severity normalization remains stable.
+
+Under v9:
+
+```text
+Severity accuracy: 8/8 (100%)
+```
+
+Under v10:
 
 ```text
 Severity accuracy: 7/7 (100%)
 ```
 
-The expanded benchmark therefore changes the interpretation of the original result.
-
-The initial 11-case suite suggested that **change attribution** was the main diff-review weakness.
-
-The 19-case suite shows that there are at least two separate problems:
-
-1. **Rule-specific attribution failures** for mutable defaults, SQL injection, and shell injection.
-2. **Issue-recognition failures** for the two maintainability rules.
-
-This distinction is important for future experiments because the two failure classes should not necessarily be addressed with the same prompt or architecture changes.
+The difference in denominator exists because v10 misses the strong duplicate-code finding that v9 detects.
 
 ---
 
@@ -459,9 +623,9 @@ The diff prompt receives:
 
 Prompt v9 remains the current baseline.
 
-Prompt v10 tested stronger change-attribution instructions but did not improve benchmark performance.
+Prompt v10 tested stronger before/after attribution instructions.
 
-The current experimental history is:
+The experimental history is now:
 
 ```text
 v9
@@ -469,45 +633,50 @@ v9
 Initial 11-case diff baseline
     ↓
 8/11 — 72.7%
-    ↓
-Three attribution false positives
+3 FP / 0 FN
     ↓
 v10 attribution experiment
     ↓
 8/11 — 72.7%
+3 FP / 0 FN
     ↓
-No improvement
-    ↓
-Expand suite across all taxonomy rules
+Expand across all taxonomy rules
     ↓
 19 cases
     ↓
 v9  = 14/19 — 73.68%
 v10 = 14/19 — 73.68%
     ↓
-Same five failures
+Add stronger maintainability diagnostics
+    ↓
+21 cases
+    ↓
+v9
+15/21 — 71.43%
+3 FP / 3 FN
+    ↓
+v10
+15/21 — 71.43%
+2 FP / 4 FN
 ```
 
-The expanded experiment indicates that repeatedly strengthening general attribution instructions is unlikely to be the most useful immediate direction.
+The final experiment changes the interpretation of v10.
 
-It also shows that not every failure is an attribution failure.
+It is not simply behaviorally identical to v9.
 
-The next experimental phase should therefore distinguish between:
+Instead:
 
 ```text
-attribution problems
+stronger attribution constraints
         ↓
-mutable_default_argument
-sql_injection
-shell_injection
-
-recognition problems
-        ↓
-duplicate_code
-long_function
+improve mutable-default attribution
+        +
+suppress strong duplicate-code detection
 ```
 
-This keeps future experiments targeted at the actual measured behavior rather than treating all diff-review failures as the same problem.
+This is a precision/recall trade-off with no aggregate accuracy improvement.
+
+Prompt v9 therefore remains the baseline rather than being replaced by v10.
 
 ---
 
@@ -597,19 +766,22 @@ The same evaluation and serialization foundation is also used by diff benchmark 
 ### Git Diff Review
 
 - Diff review now has dedicated benchmark infrastructure rather than relying on manual examples.
-- The diff suite has expanded from **11 to 19 cases**.
-- All **nine rules in the current taxonomy** are now represented.
-- Prompt v9 achieves **73.68% accuracy (14/19)** on the expanded suite.
-- Prompt v10 produces exactly the same **73.68% accuracy (14/19)**.
-- Both prompts produce **3 false positives and 2 false negatives**.
-- Severity accuracy is **100% (7/7)** for detected expected issues.
-- The three false positives are rule-specific attribution failures involving `mutable_default_argument`, `sql_injection`, and `shell_injection`.
-- Attribution succeeds for the pre-existing `unreachable_code`, `list_membership_in_loop`, `path_traversal`, `string_concatenation_in_loop`, `duplicate_code`, and `long_function` cases.
-- The two false negatives are maintainability recognition failures involving `duplicate_code` and `long_function`.
-- `duplicate_code` is also missed when the same resulting source is reviewed as a complete file.
-- `long_function` was already a weak rule in the full-file benchmark suite.
-- The expanded suite therefore exposes both **change-attribution** and **issue-recognition** weaknesses.
-- Stronger general attribution wording in v10 did not improve either class of failure.
+- The diff suite has expanded from **11 to 21 cases**.
+- All **nine rules in the current taxonomy** are represented.
+- Additional strong diagnostic cases were added for `duplicate_code` and `long_function`.
+- Prompt v9 achieves **71.43% accuracy (15/21)**.
+- Prompt v10 also achieves **71.43% accuracy (15/21)**.
+- The identical aggregate accuracy hides different error distributions.
+- v9 produces **3 false positives and 3 false negatives**.
+- v10 produces **2 false positives and 4 false negatives**.
+- v10 fixes the pre-existing `mutable_default_argument` attribution failure.
+- v10 regresses the strong `duplicate_code` positive that v9 detects correctly.
+- Both prompts continue to misattribute pre-existing `sql_injection` and `shell_injection`.
+- Both prompts correctly handle pre-existing `unreachable_code`, `list_membership_in_loop`, `path_traversal`, `string_concatenation_in_loop`, `duplicate_code`, and `long_function`.
+- `duplicate_code` detection is threshold-sensitive: v9 detects the stronger diagnostic but not the original smaller example.
+- `long_function` remains undetected even with a deliberately stronger multi-responsibility example.
+- Severity accuracy remains **100% for detected expected issues** under both prompts.
+- Prompt v10 changes the precision/recall balance but does not improve overall accuracy.
 - Prompt v9 remains the diff-review baseline.
 
 ---
@@ -628,24 +800,32 @@ Prompt v5 baseline
 
 
 GIT-DIFF REVIEW
-19-case suite
+21-case suite
 All 9 taxonomy rules represented
 Prompt v9 baseline
-14/19 — 73.68% accuracy
-3 FP / 2 FN
-100% severity accuracy on detected expected issues
+15/21 — 71.43%
+3 FP / 3 FN
+8/8 severity — 100%
       │
       ├── attribution weaknesses
-      │   ├── mutable_default_argument
       │   ├── sql_injection
       │   └── shell_injection
       │
-      ├── recognition weaknesses
-      │   ├── duplicate_code
+      ├── mutable-default attribution
+      │   ├── v9  FAIL
+      │   └── v10 PASS
+      │
+      ├── threshold-sensitive recognition
+      │   └── duplicate_code
+      │
+      ├── clear recognition weakness
       │   └── long_function
       │
       └── v10 attribution experiment
-          └── identical 14/19 result
+          ├── 15/21 — 71.43%
+          ├── 2 FP / 4 FN
+          ├── fixes mutable-default attribution
+          └── regresses strong duplicate-code detection
 ```
 
 These should remain separate experimental tracks.
@@ -654,8 +834,26 @@ Full-file prompt improvements should be evaluated against the full-file suite.
 
 Diff prompt improvements should be evaluated against the diff suite.
 
-The expanded diff benchmark has now established coverage across the complete current taxonomy.
+The expanded diff benchmark now covers the complete current taxonomy and contains targeted diagnostics for the two subjective maintainability rules.
 
-The next experiments can therefore focus on the specific measured weaknesses rather than continuing to expand coverage or repeatedly strengthening general attribution wording.
+The next experimental phase should therefore focus on **targeted rule improvement rather than further benchmark expansion**.
 
-This separation allows future development toward pull-request review without losing the reproducibility of the existing full-file and diff-review experiments.
+The strongest candidate is `long_function`.
+
+Both the original and deliberately stronger positive cases fail under v9 and v10, while the corresponding pre-existing boundary case passes.
+
+That provides a clean target for the next controlled prompt experiment:
+
+```text
+long_function recognition
+        ↓
+make the rule boundary more operational
+        ↓
+evaluate against full-file benchmarks
+        +
+diff benchmarks
+        ↓
+check for fixes and regressions
+```
+
+This separation preserves the reproducibility of the existing full-file and diff-review experiments while providing a clear path toward further reviewer improvements and eventual pull-request review.

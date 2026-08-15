@@ -1,0 +1,13 @@
+{
+  "name": "Introducing substantial multi-responsibility order processing",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "rule": "long_function",
+      "category": "maintainability",
+      "explanation": "The diff expands the function to perform validation, normalization, nested business-rule calculations, shipping decisions, and result construction in one function."
+    }
+  ]
+}
