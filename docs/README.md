@@ -4,26 +4,26 @@ The diff-review benchmark suite was initially introduced with **11 cases across 
 
 The expanded suite deliberately combines:
 
-- issues introduced by a diff
-- pre-existing issues that should not be attributed to the diff
-- safe changes
-- changes whose effects appear in unchanged code
-- stronger diagnostic cases for subjective maintainability rules
+* issues introduced by a diff
+* pre-existing issues that should not be attributed to the diff
+* safe changes
+* changes whose effects appear in unchanged code
+* stronger diagnostic cases for subjective maintainability rules
 
 The current coverage is:
 
-| Category | Rule | Cases |
-| --- | --- | ---: |
-| Bug | Mutable default argument | 2 |
-| Bug | Unreachable code | 2 |
-| Security | SQL injection | 2 |
-| Security | Shell injection | 2 |
-| Security | Path traversal | 2 |
-| Performance | List membership in loops | 3 |
-| Performance | String concatenation in loops | 2 |
-| Maintainability | Duplicate code | 3 |
-| Maintainability | Long function | 3 |
-| **Total** | | **21** |
+| Category        | Rule                          |  Cases |
+| --------------- | ----------------------------- | -----: |
+| Bug             | Mutable default argument      |      2 |
+| Bug             | Unreachable code              |      2 |
+| Security        | SQL injection                 |      2 |
+| Security        | Shell injection               |      2 |
+| Security        | Path traversal                |      2 |
+| Performance     | List membership in loops      |      3 |
+| Performance     | String concatenation in loops |      2 |
+| Maintainability | Duplicate code                |      3 |
+| Maintainability | Long function                 |      3 |
+| **Total**       |                               | **21** |
 
 This gives every rule in the current taxonomy at least one diff-review benchmark family.
 
@@ -193,22 +193,22 @@ The long-function family also contains three cases.
 
 The original positive case expands a previously focused function so that it performs several responsibilities:
 
-- input validation
-- iteration and aggregation
-- business-rule application
-- result construction
+* input validation
+* iteration and aggregation
+* business-rule application
+* result construction
 
 Both v9 and v10 fail to report it.
 
 A stronger diagnostic case was then added containing substantially more responsibility in one function, including:
 
-- required-field validation
-- item normalization
-- per-item validation
-- aggregation
-- discount decisions
-- shipping decisions
-- final result construction
+* required-field validation
+* item normalization
+* per-item validation
+* aggregation
+* discount decisions
+* shipping decisions
+* final result construction
 
 Despite the stronger signal, both prompts still return no issues.
 
@@ -314,10 +314,10 @@ BEFORE safe   → AFTER safe         → do not report
 
 On the original 11-case suite:
 
-| Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| v9 | 8/11 | 72.7% | 3 | 0 | 5/5 (100%) |
-| v10 | 8/11 | 72.7% | 3 | 0 | 5/5 (100%) |
+| Prompt | Passed | Accuracy | False Positives | False Negatives |   Severity |
+| ------ | -----: | -------: | --------------: | --------------: | ---------: |
+| v9     |   8/11 |    72.7% |               3 |               0 | 5/5 (100%) |
+| v10    |   8/11 |    72.7% |               3 |               0 | 5/5 (100%) |
 
 At this stage, the stronger attribution instructions appeared to produce no improvement.
 
@@ -379,10 +379,10 @@ Duration         43.89s
 
 ### v9 → v10 Expanded Comparison
 
-| Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| v9 | 15/21 | 71.43% | 3 | 3 | 8/8 (100%) |
-| v10 | 15/21 | 71.43% | 2 | 4 | 7/7 (100%) |
+| Prompt | Passed | Accuracy | False Positives | False Negatives |   Severity |
+| ------ | -----: | -------: | --------------: | --------------: | ---------: |
+| v9     |  15/21 |   71.43% |               3 |               3 | 8/8 (100%) |
+| v10    |  15/21 |   71.43% |               2 |               4 | 7/7 (100%) |
 
 The aggregate accuracy is identical:
 
@@ -488,6 +488,106 @@ The stronger diagnostic case makes the intended rule substantially less ambiguou
 
 This provides stronger evidence that `long_function` is a genuine recognition weakness rather than merely a borderline benchmark.
 
+### Targeted Long-Function Investigation
+
+After the expanded diff benchmark identified `long_function` as a consistent weakness, a targeted prompt experiment was performed before moving on to other diff-review failures.
+
+The experiment tested progressively more explicit `long_function` guidance, including:
+
+* a more operational definition of distinct responsibilities
+* explicit responsibility signals such as validation, normalization, aggregation, business-rule decisions, calculations, and result construction
+* guidance for distinguishing multiple concerns from several steps belonging to one cohesive responsibility
+* a concrete positive prototype describing a multi-responsibility function
+
+These changes did not improve detection.
+
+On the three-case diff `long_function` family, the experimental prompt continued to produce:
+
+```text
+Original positive        FAIL — false negative
+Strong positive          FAIL — false negative
+Pre-existing boundary    PASS
+```
+
+The deliberately stronger positive was also reviewed as an ordinary full-file review and still produced no issue.
+
+To determine whether this behavior was specific to the new diff benchmark, the established full-file `long_function` family was evaluated separately.
+
+Both the existing v5 baseline and the experimental wording produced:
+
+```text
+Benchmarks       4
+Passed           2
+Failed           2
+False positives  0
+False negatives  2
+Accuracy         50.00%
+```
+
+The two safe cases passed:
+
+```text
+Long but focused summary function    PASS
+Small focused function               PASS
+```
+
+The two expected positive cases remained false negatives:
+
+```text
+Long function                              FAIL
+Multiple responsibilities in invoice processing
+                                           FAIL
+```
+
+Inspection of these benchmarks showed that the existing full-file positives have a somewhat subjective maintainability boundary.
+
+Their validation, aggregation, business-rule application, and result construction can reasonably be interpreted as distinct responsibilities, but they can also be viewed as cohesive steps of a single operation.
+
+This makes them less definitive than a security or correctness benchmark.
+
+The stronger diff diagnostic was therefore useful because it deliberately combined substantially more responsibility in a single function:
+
+```text
+required-field validation
+        +
+item normalization
+        +
+per-item validation
+        +
+aggregation
+        +
+discount policy
+        +
+shipping policy
+        +
+result construction
+```
+
+The model still did not report `long_function`.
+
+The resulting behavior can therefore be summarized as:
+
+```text
+long_function
+
+safe / focused cases
+    → correctly ignored
+
+borderline multi-responsibility positives
+    → not detected
+
+strong multi-responsibility positive
+    → still not detected
+```
+
+Increasingly explicit prompt wording did not change this behavior.
+
+This suggests that Qwen 3.5 9B is conservative when applying the current `long_function` rule and that further prompt expansion would risk tuning specifically to the benchmark rather than improving general review quality.
+
+Further prompt tuning for `long_function` was therefore stopped.
+
+The experimental wording was not promoted to a new baseline.
+
 ---
 
 ## v9 → v10 Behavioral Changes
@@ -580,11 +680,12 @@ THRESHOLD-SENSITIVE RECOGNITION
     ├── strong positive: v9 PASS, v10 FAIL
     └── pre-existing:    v9/v10 PASS
 
-CLEAR RECOGNITION WEAKNESS
+CONSERVATIVE / WEAK RECOGNITION
 └── long_function
     ├── normal positive: v9/v10 FAIL
     ├── strong positive: v9/v10 FAIL
-    └── pre-existing:    v9/v10 PASS
+    ├── pre-existing:    v9/v10 PASS
+    └── targeted prompt experiment: no improvement
 
 CURRENTLY ROBUST IN THIS SUITE
 ├── unreachable_code
@@ -617,13 +718,15 @@ Git-diff review uses a separate prompt from full-file review.
 
 The diff prompt receives:
 
-- The Git diff
-- The current contents of changed Python files
-- The same structured output requirements used by the rest of the reviewer
+* The Git diff
+* The current contents of changed Python files
+* The same structured output requirements used by the rest of the reviewer
 
 Prompt v9 remains the current baseline.
 
 Prompt v10 tested stronger before/after attribution instructions.
+
+A later targeted `long_function` experiment tested more operational rule guidance but did not improve recognition and was not promoted to a new baseline.
 
 The experimental history is now:
 
@@ -658,9 +761,19 @@ v9
 v10
 15/21 — 71.43%
 2 FP / 4 FN
+    ↓
+Target long_function recognition
+    ↓
+More operational definition
+Concrete responsibility signals
+Positive prototype
+    ↓
+No detection improvement
+    ↓
+Stop long_function prompt tuning
 ```
 
-The final experiment changes the interpretation of v10.
+The final attribution experiment changes the interpretation of v10.
 
 It is not simply behaviorally identical to v9.
 
@@ -710,11 +823,11 @@ uv run python main.py analyze-result \
 
 This surfaces:
 
-- False positives
-- False negatives
-- Rule mismatches
-- Category mismatches
-- Severity mismatches
+* False positives
+* False negatives
+* Rule mismatches
+* Category mismatches
+* Severity mismatches
 
 ### Cross-Run Regression Analysis
 
@@ -728,11 +841,11 @@ uv run python main.py compare-runs \
 
 This identifies:
 
-- Fixed benchmarks
-- Regressed benchmarks
-- Benchmarks that remain failing
-- Added benchmarks
-- Removed benchmarks
+* Fixed benchmarks
+* Regressed benchmarks
+* Benchmarks that remain failing
+* Added benchmarks
+* Removed benchmarks
 
 Together, these tools provide three levels of experiment analysis:
 
@@ -752,37 +865,41 @@ The same evaluation and serialization foundation is also used by diff benchmark 
 
 ### Full-File Review
 
-- Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
-- Qwen 2.5 Coder 7B provided a strong speed-to-accuracy trade-off in the initial model benchmark.
-- Controlled prompt iteration improved Qwen 3.5 9B from **85.7% with v1** to **91.4% with v4** on the original 35-case suite.
-- Explicit rule-specific detection boundaries were more effective than generic false-positive suppression instructions.
-- Expanding the suite from 35 to 65 cases exposed additional generalization and boundary failures that were not visible in the smaller suite.
-- Prompt v5 reaches **92.3% accuracy on 65 benchmarks** with **100% severity accuracy**.
-- The `unreachable_code` rule currently passes all five of its full-file benchmark cases.
-- `long_function` remains the clearest weak rule in the current full-file prompt.
-- The v4 → v5 experiment fixed three existing failures but regressed `user_absolute_path.py`.
-- Aggregate accuracy should not be used alone when deciding whether a prompt revision is better.
+* Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
+* Qwen 2.5 Coder 7B provided a strong speed-to-accuracy trade-off in the initial model benchmark.
+* Controlled prompt iteration improved Qwen 3.5 9B from **85.7% with v1** to **91.4% with v4** on the original 35-case suite.
+* Explicit rule-specific detection boundaries were more effective than generic false-positive suppression instructions.
+* Expanding the suite from 35 to 65 cases exposed additional generalization and boundary failures that were not visible in the smaller suite.
+* Prompt v5 reaches **92.3% accuracy on 65 benchmarks** with **100% severity accuracy**.
+* The `unreachable_code` rule currently passes all five of its full-file benchmark cases.
+* `long_function` remains one of the weakest full-file rules.
+* A targeted `long_function` experiment did not improve recognition.
+* The existing full-file positive cases have a somewhat subjective boundary, but a deliberately stronger diagnostic was also missed.
+* Further prompt tuning for `long_function` has been paused to avoid benchmark-specific overfitting.
+* The v4 → v5 experiment fixed three existing failures but regressed `user_absolute_path.py`.
+* Aggregate accuracy should not be used alone when deciding whether a prompt revision is better.
 
 ### Git Diff Review
 
-- Diff review now has dedicated benchmark infrastructure rather than relying on manual examples.
-- The diff suite has expanded from **11 to 21 cases**.
-- All **nine rules in the current taxonomy** are represented.
-- Additional strong diagnostic cases were added for `duplicate_code` and `long_function`.
-- Prompt v9 achieves **71.43% accuracy (15/21)**.
-- Prompt v10 also achieves **71.43% accuracy (15/21)**.
-- The identical aggregate accuracy hides different error distributions.
-- v9 produces **3 false positives and 3 false negatives**.
-- v10 produces **2 false positives and 4 false negatives**.
-- v10 fixes the pre-existing `mutable_default_argument` attribution failure.
-- v10 regresses the strong `duplicate_code` positive that v9 detects correctly.
-- Both prompts continue to misattribute pre-existing `sql_injection` and `shell_injection`.
-- Both prompts correctly handle pre-existing `unreachable_code`, `list_membership_in_loop`, `path_traversal`, `string_concatenation_in_loop`, `duplicate_code`, and `long_function`.
-- `duplicate_code` detection is threshold-sensitive: v9 detects the stronger diagnostic but not the original smaller example.
-- `long_function` remains undetected even with a deliberately stronger multi-responsibility example.
-- Severity accuracy remains **100% for detected expected issues** under both prompts.
-- Prompt v10 changes the precision/recall balance but does not improve overall accuracy.
-- Prompt v9 remains the diff-review baseline.
+* Diff review now has dedicated benchmark infrastructure rather than relying on manual examples.
+* The diff suite has expanded from **11 to 21 cases**.
+* All **nine rules in the current taxonomy** are represented.
+* Additional strong diagnostic cases were added for `duplicate_code` and `long_function`.
+* Prompt v9 achieves **71.43% accuracy (15/21)**.
+* Prompt v10 also achieves **71.43% accuracy (15/21)**.
+* The identical aggregate accuracy hides different error distributions.
+* v9 produces **3 false positives and 3 false negatives**.
+* v10 produces **2 false positives and 4 false negatives**.
+* v10 fixes the pre-existing `mutable_default_argument` attribution failure.
+* v10 regresses the strong `duplicate_code` positive that v9 detects correctly.
+* Both prompts continue to misattribute pre-existing `sql_injection` and `shell_injection`.
+* Both prompts correctly handle pre-existing `unreachable_code`, `list_membership_in_loop`, `path_traversal`, `string_concatenation_in_loop`, `duplicate_code`, and `long_function`.
+* `duplicate_code` detection is threshold-sensitive: v9 detects the stronger diagnostic but not the original smaller example.
+* `long_function` remains undetected even with a deliberately stronger multi-responsibility example.
+* More explicit `long_function` prompt guidance did not change this behavior.
+* Severity accuracy remains **100% for detected expected issues** under both prompts.
+* Prompt v10 changes the precision/recall balance but does not improve overall accuracy.
+* Prompt v9 remains the diff-review baseline.
 
 ---
 
@@ -796,7 +913,13 @@ FULL-FILE REVIEW
 Prompt v5 baseline
 92.3% accuracy
       │
-      └── measures issue recognition and rule boundaries
+      ├── measures issue recognition and rule boundaries
+      │
+      └── long_function targeted investigation
+          ├── full-file family: 2/4
+          ├── both positive cases missed
+          ├── both safe cases correctly ignored
+          └── stronger prompt guidance produced no improvement
 
 
 GIT-DIFF REVIEW
@@ -818,7 +941,7 @@ Prompt v9 baseline
       ├── threshold-sensitive recognition
       │   └── duplicate_code
       │
-      ├── clear recognition weakness
+      ├── conservative recognition
       │   └── long_function
       │
       └── v10 attribution experiment
@@ -836,24 +959,31 @@ Diff prompt improvements should be evaluated against the diff suite.
 
 The expanded diff benchmark now covers the complete current taxonomy and contains targeted diagnostics for the two subjective maintainability rules.
 
-The next experimental phase should therefore focus on **targeted rule improvement rather than further benchmark expansion**.
+The targeted `long_function` investigation did not improve recognition despite increasingly explicit rule guidance.
 
-The strongest candidate is `long_function`.
+Further prompt tuning for this rule has therefore been paused rather than continuing to optimize against a subjective benchmark boundary.
 
-Both the original and deliberately stronger positive cases fail under v9 and v10, while the corresponding pre-existing boundary case passes.
-
-That provides a clean target for the next controlled prompt experiment:
+The next experimental phase should focus on the remaining rule-specific change-attribution failures:
 
 ```text
-long_function recognition
-        ↓
-make the rule boundary more operational
-        ↓
-evaluate against full-file benchmarks
-        +
-diff benchmarks
-        ↓
-check for fixes and regressions
+sql_injection
+shell_injection
 ```
 
-This separation preserves the reproducibility of the existing full-file and diff-review experiments while providing a clear path toward further reviewer improvements and eventual pull-request review.
+Both rules are detected correctly when introduced by a diff, but both are incorrectly reported when the vulnerability already existed before an unrelated change.
+
+Unlike `long_function`, these attribution cases have a much less subjective expected result:
+
+```text
+BEFORE vulnerable
+        +
+unrelated change
+        +
+AFTER same vulnerability
+        ↓
+do not report
+```
+
+They therefore provide a cleaner target for the next controlled diff-prompt experiment.
+
+The next step is to use the clean v11 prompt, based on the v9 baseline, to investigate whether security-specific attribution guidance can fix these false positives without reproducing the broader precision/recall regression observed with v10.
