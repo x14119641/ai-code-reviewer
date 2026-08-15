@@ -13,7 +13,13 @@ from reviewer.engine import (
     review_file,
     review_files,
 )
-from reviewer.git_diff import GitDiffError, get_changed_python_files, get_git_diff
+from reviewer.git_diff import (
+    GitDiffError,
+    get_changed_python_files,
+    get_changed_python_files_against,
+    get_git_diff,
+    get_git_diff_against,
+)
 from reviewer.models import CodeReview
 from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.rendering import (
@@ -272,12 +278,12 @@ def review_diff_command(
         help="Ollama model used for the review",
     ),
     prompt_version: str = typer.Option(
-        "v9",
+        DEFAULT_PROMPT_VERSION,
         "--prompt-version",
         help="Prompt version used for the diff review.",
     ),
 ) -> None:
-    """Review the current unstaget Git diff."""
+    """Review the current unstaged Git diff."""
     try:
         diff = get_git_diff()
 
@@ -316,7 +322,7 @@ def benchmark_diff_command(
         help="Output filename or path.",
     ),
     prompt_version: str = typer.Option(
-        "v9",
+        DEFAULT_PROMPT_VERSION,
         "--prompt-version",
         help="Prompt version used for the diff benchmark.",
     ),
@@ -368,5 +374,51 @@ def benchmark_diff_command(
         raise typer.Exit(code=1) from exc
 
 
+@app.command("review-pr")
+def review_pr_command(
+    base: str = typer.Option(
+        "main",
+        "--base",
+        help="Base branch or commit to compare against HEAD.",
+    ),
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the review.",
+    ),
+    prompt_version: str = typer.Option(
+        DEFAULT_PROMPT_VERSION,
+        "--prompt-version",
+        help="Prompt version used for the diff review.",
+    ),
+) -> None:
+    """Review changes between a base ref and HEAD."""
+    try:
+        diff = get_git_diff_against(base)
+
+        if not diff.strip():
+            print_warning(f"No changes to review against {base}")
+            return
+
+        changed_files = get_changed_python_files_against(base)
+        current_code = build_changed_files_context(changed_files)
+
+        result = review_diff(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+        print_review(review=result)
+
+    except GitDiffError as exc:
+        print_error("PR Diff Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+
+    except (ValueError, RuntimeError) as exc:
+        print_error("PR Review Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+    
+    
 if __name__ == "__main__":
     app()
