@@ -16,6 +16,34 @@ Report an issue when added, removed, or modified lines cause previously safe cod
 
 Do not require the affected line itself to be added or modified.
 
+When evaluating whether an issue was introduced by the diff, compare the actual triggering code before and after the change.
+
+If the vulnerable or problematic expression is unchanged between BEFORE and AFTER, and the diff only changes unrelated surrounding code such as logging, messages, variable names, comments, or formatting, do not report the issue.
+
+For example:
+
+BEFORE:
+
+```python
+query = f"SELECT * FROM users WHERE username = '{username}'"
+cursor.execute(query)
+
+message = f"User lookup completed for {username}"
+```
+
+AFTER:
+
+```python
+query = f"SELECT * FROM users WHERE username = '{username}'"
+cursor.execute(query)
+
+message = "User lookup completed"
+```
+
+The SQL injection already existed before the change. The vulnerable query construction and execution are unchanged, so do not report `sql_injection`.
+
+Likewise, if an unsafe shell command construction and its `shell=True` execution are unchanged between BEFORE and AFTER, and the diff modifies only unrelated surrounding code, do not report `shell_injection`.
+
 Do not assume how callers use the changed code.
 Do not invent external context.
 Do not report style preferences or formatting issues.
@@ -95,6 +123,10 @@ Do not report parameterized queries.
 
 Dynamic SQL identifiers selected exclusively from a fixed allowlist are safe and must not be reported.
 
+For diff review, report SQL injection only when the change introduces the unsafe SQL construction or makes an existing SQL construction newly depend on an unsafe value.
+
+If the same unsafe SQL construction already existed before the change and the diff does not make it worse, do not report it.
+
 shell_injection:
 
 Report when a value is inserted into a shell command executed using:
@@ -107,6 +139,10 @@ Report when a value is inserted into a shell command executed using:
 Do not report subprocess commands passed as an argument list without shell=True.
 
 Commands selected exclusively from a fixed allowlist are safe.
+
+For diff review, report shell injection only when the change introduces the unsafe shell command construction or makes an existing shell command newly depend on an unsafe value.
+
+If the same unsafe shell command already existed before the change and the diff does not make it worse, do not report it.
 
 path_traversal:
 
@@ -123,11 +159,15 @@ In pathlib, joining a base Path with an absolute path discards the base path.
 
 For example:
 
+```python
 Path("/safe/config") / "/etc/passwd"
+```
 
 produces:
 
+```text
 /etc/passwd
+```
 
 Do not report path traversal when:
 
@@ -205,9 +245,11 @@ This can create quadratic behavior when both collections grow.
 
 Example:
 
+```python
 for username in usernames:
-if username in existing_users:
-...
+    if username in existing_users:
+        ...
+```
 
 Recommend converting the lookup collection to a set.
 
@@ -224,10 +266,12 @@ Report when a string is repeatedly extended inside a loop using += or equivalent
 
 Example:
 
+```python
 result = ""
 
 for value in values:
-result += value
+    result += value
+```
 
 Recommend collecting fragments and using str.join().
 
@@ -279,24 +323,28 @@ If no supported rule was introduced by the change, return an empty issues list.
 
 Return only valid JSON using exactly this structure:
 
+```json
 {
-"issues": [
-{
-"severity": "medium",
-"category": "bug",
-"rule": "mutable_default_argument",
-"title": "Mutable default argument",
-"explanation": "A mutable default value is shared between function calls.",
-"recommendation": "Use None as the default and create a new object inside the function."
+  "issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "mutable_default_argument",
+      "title": "Mutable default argument",
+      "explanation": "A mutable default value is shared between function calls.",
+      "recommendation": "Use None as the default and create a new object inside the function."
+    }
+  ]
 }
-]
-}
+```
 
 If there are no meaningful issues, return exactly:
 
+```json
 {
-"issues": []
+  "issues": []
 }
+```
 
 Important output rules:
 

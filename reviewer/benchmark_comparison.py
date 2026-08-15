@@ -1,17 +1,29 @@
 from reviewer.models import BenchmarkResult, BenchmarkResultComparison
 
 
+def _benchmark_key(evaluation: dict) -> str:
+    benchmark = evaluation["benchmark"]
+
+    if "code_path" in benchmark:
+        return benchmark["code_path"]
+
+    if "after_path" in benchmark:
+        return benchmark["after_path"]
+
+    raise KeyError("Benchmark must contain either 'code_path' or 'after_path'")
+
+
 def compare_benchmark_results(
     old: BenchmarkResult,
     new: BenchmarkResult,
 ) -> BenchmarkResultComparison:
     old_by_path = {
-        evaluation["benchmark"]["code_path"]: evaluation
+        _benchmark_key(evaluation): evaluation
         for evaluation in old.evaluations
     }
 
     new_by_path = {
-        evaluation["benchmark"]["code_path"]: evaluation
+        _benchmark_key(evaluation): evaluation
         for evaluation in new.evaluations
     }
 
