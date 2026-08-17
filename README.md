@@ -4,7 +4,7 @@ A project to learn AI engineering by building a local AI-powered code reviewer f
 
 The goal isn't just to call an LLM API, but to understand how modern coding assistants are designed by implementing each component step by step. Everything runs locally using open-weight models and Ollama.
 
-The project emphasizes clean architecture, reproducible evaluation, controlled prompt experimentation, structured LLM outputs, diff-aware review, change attribution, model comparison, and local execution.
+The project emphasizes clean architecture, reproducible evaluation, controlled prompt experimentation, structured LLM outputs, diff-aware review, change attribution, model comparison, specialized multi-pass review, and local execution.
 
 ## Roadmap
 
@@ -37,15 +37,22 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - ✅ Diff change-attribution experiments
 - ✅ Cross-run comparison for diff benchmarks
 - ✅ Review committed branch changes against a base ref
-- ✅ Cross-model diff benchmark evaluation  
+- ✅ Cross-model diff benchmark evaluation
 - ✅ Aggregate wrong-rule / rule-mismatch reporting
+- ✅ Structured Ollama output with JSON Schema
+- ✅ Multi-pass candidate generation and verification experiment
+- ✅ Maintainability-specialist prompt
+- ✅ General + specialist diff-review architecture
+- ✅ Deterministic rule ownership and review merging
+- ✅ Specialized diff benchmark CLI
 
 ### Planned
 
 - Continue benchmark and taxonomy expansion where useful
+- Evaluate category-specialist review architecture
+- Measure accuracy vs inference-cost tradeoffs across review architectures
 - Evaluate larger local models on higher-VRAM hardware
 - HTML reports
-- Agent / multi-pass review mode
 
 ## Current Features
 
@@ -56,10 +63,15 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - Combine Git diffs with current changed-file contents for contextual review
 - Focus diff reviews on issues introduced or worsened by a change
 - Structured JSON responses from the LLM
+- JSON Schema constrained Ollama generation
 - Response validation and parsing
 - Versioned prompt templates
 - Full-file benchmark execution
 - Diff-specific benchmark execution
+- Candidate-generation benchmark execution
+- Multi-pass diff benchmark execution
+- Specialized general + maintainability diff review
+- Deterministic merging of specialist and general findings
 - Automatic benchmark evaluation
 - JSON export of full-file and diff benchmark results
 - Compare aggregate benchmark results
@@ -80,7 +92,9 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 
 ## Architecture
 
-The reviewer supports full-file review, working-tree diff review, and committed branch comparison while sharing the same LLM, parsing, normalization, and structured review pipeline.
+The reviewer supports full-file review, working-tree diff review, committed branch comparison, and specialized diff review while sharing the same LLM, parsing, normalization, and structured review infrastructure.
+
+### Single-Pass Review
 
 ```text
                          ┌── Python File ────────────────┐
@@ -124,7 +138,88 @@ committed branch changes
 
 Both feed the same diff-review pipeline.
 
-Both review modes can continue through an evaluation pipeline:
+### Specialized Diff Review
+
+Experiments with the 21-case diff benchmark showed that the general v11 prompt performed well on bug, security, performance, and change attribution, while its remaining failures were concentrated entirely in maintainability rules.
+
+Rather than continuing to enlarge the general prompt, the reviewer now supports a specialized two-call architecture:
+
+```text
+                         Git Diff
+                            +
+                     Current Source
+                            │
+             ┌──────────────┴──────────────┐
+             │                             │
+             ↓                             ↓
+      General Reviewer           Maintainability Specialist
+            v11                   maintainability_v1
+             │                             │
+             ↓                             ↓
+   Bug / Security /              duplicate_code
+     Performance                 long_function
+             │                             │
+             └──────────────┬──────────────┘
+                            ↓
+                 Deterministic Rule Ownership
+                            +
+                       Python Merge
+                            ↓
+                    Structured CodeReview
+```
+
+The architecture deliberately uses exactly two LLM calls.
+
+The general v11 reviewer remains responsible for:
+
+```text
+sql_injection
+shell_injection
+path_traversal
+mutable_default_argument
+unreachable_code
+list_membership_in_loop
+string_concatenation_in_loop
+```
+
+The maintainability specialist owns:
+
+```text
+duplicate_code
+long_function
+```
+
+If the general reviewer also returns one of the specialist-owned rules, that finding is discarded during the deterministic merge and the specialist result is used instead.
+
+No additional LLM call is used for merging.
+
+This prevents duplicate findings and makes rule ownership explicit and reproducible.
+
+### Experimental Candidate / Verifier Pipeline
+
+Before the specialized architecture was introduced, a candidate-generation and verification pipeline was also implemented:
+
+```text
+Diff + Current Source
+        ↓
+Candidate Generation
+        ↓
+Candidate CodeReview
+        ↓
+Verifier
+        ↓
+Final CodeReview
+```
+
+This experiment demonstrated that a second verification pass could preserve valid maintainability findings without introducing false positives.
+
+However, the architecture still depended on the candidate pass discovering an issue first. A verifier cannot recover an issue that candidate generation completely misses.
+
+This motivated the current general + specialist architecture, where the second call performs complementary detection rather than only verification.
+
+### Evaluation Pipeline
+
+All review modes can continue through the evaluation pipeline:
 
 ```text
 Structured CodeReview
@@ -183,7 +278,7 @@ The application keeps Git integration, LLM execution, prompt construction, bench
 
 ## Benchmark Workflow
 
-The benchmarking workflow is designed to support iterative prompt engineering and model evaluation.
+The benchmarking workflow is designed to support iterative prompt engineering, model evaluation, and architecture experiments.
 
 ```text
 Review Code
@@ -192,18 +287,18 @@ Run Benchmarks
       ↓
 Export Benchmark Results
       ↓
-Compare Models / Prompt Versions
+Compare Models / Prompts / Architectures
       ↓
 Inspect Failures
       ↓
 Compare Runs for Regressions
       ↓
-Improve Prompt / Taxonomy / Evaluation
+Improve Prompt / Architecture / Taxonomy / Evaluation
       ↓
 Repeat
 ```
 
-This makes prompt and model experiments measurable and reproducible rather than relying on subjective impressions.
+This makes prompt, model, and architecture experiments measurable and reproducible rather than relying on subjective impressions.
 
 Aggregate metrics show whether a run improved overall, while cross-run comparison shows exactly which benchmark cases changed.
 
@@ -348,7 +443,7 @@ pre-existing SQL injection + unrelated logging change
 → report nothing
 ```
 
-### Diff Prompt Evolution
+## Diff Prompt Evolution
 
 The first expanded baseline used prompt v9:
 
@@ -400,9 +495,9 @@ do not report
 
 This successfully fixed the remaining security attribution cases.
 
-### Current Diff Baseline
+### Single-Pass v11 Baseline
 
-The current Qwen 3.5 9B diff baseline uses **prompt v11**:
+Qwen 3.5 9B with prompt v11 produces:
 
 ```text
 Benchmarks       21
@@ -415,8 +510,6 @@ Wrong rules       0
 Accuracy         80.95%
 Severity          7/7 (100.00%)
 ```
-
-This is the strongest diff-review result so far.
 
 | Prompt | Passed | Accuracy | False Positives | False Negatives |
 | --- | ---: | ---: | ---: | ---: |
@@ -438,7 +531,7 @@ and regresses:
 strong duplicate_code positive
 ```
 
-The remaining four false negatives are:
+The four remaining false negatives are:
 
 ```text
 duplicate_code positive
@@ -451,9 +544,142 @@ All current pre-existing attribution boundary cases pass under v11.
 
 The remaining weaknesses are therefore concentrated in maintainability-rule recognition rather than change attribution.
 
+## Maintainability Specialization Experiment
+
+The concentration of all four v11 failures in maintainability motivated an experiment with task specialization rather than further expansion of the general prompt.
+
+A dedicated `maintainability_v1` candidate prompt was created for only:
+
+```text
+duplicate_code
+long_function
+```
+
+This reduced the number of competing rules and allowed the model to focus on structural maintainability reasoning.
+
+Candidate-generation results were:
+
+### Duplicate Code
+
+```text
+Benchmarks       3
+Passed            3
+Failed            0
+False positives   0
+False negatives   0
+Accuracy         100.00%
+Severity          2/2 (100.00%)
+```
+
+### Long Function
+
+```text
+Benchmarks       3
+Passed            2
+Failed            1
+False positives   0
+False negatives   1
+Accuracy         66.67%
+Severity          1/1 (100.00%)
+```
+
+The focused prompt therefore recovered both `duplicate_code` cases missed by v11 and one of the two `long_function` positives.
+
+A candidate-generation + verifier experiment was then tested.
+
+The verifier preserved the specialist findings:
+
+```text
+duplicate_code
+3/3
+100%
+
+long_function
+2/3
+66.67%
+```
+
+However, verification could not recover issues missed by candidate generation.
+
+This led to the current specialized architecture.
+
+## Specialized Two-Call Diff Review
+
+The strongest current diff-review architecture combines:
+
+```text
+Call 1
+v11 general reviewer
+
++
+
+Call 2
+maintainability_v1 specialist
+
++
+
+deterministic Python merge
+```
+
+The complete 21-case benchmark produces:
+
+```text
+Model            qwen3.5:9b
+Architecture     v11 + maintainability_v1
+Benchmarks       21
+Passed           20
+Failed            1
+Errors            0
+False positives   0
+False negatives   1
+Wrong rules       0
+Accuracy         95.24%
+Severity          10/10 (100.00%)
+Duration          81.12s
+```
+
+Compared with the single-pass v11 baseline:
+
+| Architecture | Calls | Passed | Accuracy | FP | FN | Wrong Rules |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| v11 single-pass | 1 | 17/21 | 80.95% | 0 | 4 | 0 |
+| **v11 + maintainability specialist** | **2** | **20/21** | **95.24%** | **0** | **1** | **0** |
+
+The specialized architecture recovers:
+
+```text
+duplicate_code positive
+duplicate_code strong positive
+long_function strong positive
+```
+
+while preserving all previously passing bug, security, performance, safe-change, and pre-existing attribution cases.
+
+The only remaining false negative is:
+
+```text
+Adding multiple responsibilities introduces long function
+```
+
+The experiment provides evidence that, for the current local model and taxonomy:
+
+```text
+task specialization
+        ↓
+higher maintainability recall
+        ↓
+without increasing false positives
+```
+
+The result also introduces an explicit accuracy/latency tradeoff.
+
+The specialized architecture requires two model calls instead of one, increasing inference time in exchange for substantially higher benchmark accuracy.
+
+This is now an architecture-level experiment rather than only a prompt-engineering experiment.
+
 ## Cross-Model Diff Evaluation
 
-Once v11 was established as the current diff baseline, the complete 21-case suite was evaluated across the local models already used by the project.
+Before specialized review was introduced, the complete 21-case suite was evaluated across the local models already used by the project using the same single-pass v11 prompt.
 
 The benchmark suite, prompt, deterministic generation settings, and evaluator were kept fixed. Only the model changed.
 
@@ -468,11 +694,13 @@ The benchmark suite, prompt, deterministic generation settings, and evaluator we
 
 `*` The zero false-negative count for Llama 3.1 8B and DeepSeek Coder V2 16B should not be interpreted as strong recall.
 
-Both models frequently produce a finding using the wrong taxonomy rule rather than returning no issue. Those failures are visible in individual benchmark results but are not currently represented by a dedicated aggregate wrong-rule count.
+Both models frequently produce a finding using the wrong taxonomy rule rather than returning no issue.
 
 ### Cross-Model Findings
 
-Qwen 3.5 9B remains the strongest current model:
+Qwen 3.5 9B remains the strongest current model for the project.
+
+Under the frozen single-pass v11 architecture:
 
 ```text
 17/21
@@ -487,7 +715,7 @@ Qwen 2.5 Coder 14B and Gemma 3 12B recover some findings but introduce more attr
 
 Llama 3.1 8B and DeepSeek Coder V2 16B show substantial constrained-taxonomy rule-selection instability.
 
-The experiment also provides stronger evidence about the remaining maintainability failures.
+The experiment also provided stronger evidence about the maintainability failures.
 
 Among the models with reasonably stable taxonomy behavior:
 
@@ -497,7 +725,7 @@ duplicate_code
 Qwen 3.5 9B            FAIL / FAIL
 Qwen 2.5 Coder 7B      FAIL / FAIL
 Qwen 2.5 Coder 14B     FAIL / FAIL
-Gemma 3 12B             FAIL / FAIL
+Gemma 3 12B            FAIL / FAIL
 
 
 long_function
@@ -505,30 +733,34 @@ long_function
 Qwen 3.5 9B            FAIL / FAIL
 Qwen 2.5 Coder 7B      FAIL / FAIL
 Qwen 2.5 Coder 14B     FAIL / FAIL
-Gemma 3 12B             FAIL / FAIL
+Gemma 3 12B            FAIL / FAIL
 ```
 
 The two results for each rule represent the normal and stronger positive cases.
 
-The remaining maintainability weakness is therefore not unique to Qwen 3.5 9B.
+The weakness was therefore not unique to Qwen 3.5 9B.
 
-Combined with the earlier targeted `long_function` prompt experiments, this reduces the value of continuing to tune the single-pass prompt specifically around those cases.
+The later maintainability-specialist experiment showed that changing the **task decomposition** could recover these findings without changing the model.
 
-The experiment also demonstrates that:
+This is an important result:
 
 ```text
-larger model
-    ≠
-automatically better reviewer
+model capability
+        +
+task decomposition
+        +
+prompt scope
+        ↓
+review performance
 ```
 
-and that aggregate accuracy alone is insufficient to understand model behavior.
+Model size alone is not sufficient to predict reviewer quality.
 
 ## DeepSeek Rule-Mismatch Validation
 
 DeepSeek Coder V2 16B was rerun after aggregate rule-mismatch reporting was added.
 
-```
+```text
 Benchmarks       21
 Passed            3
 Failed           18
@@ -542,7 +774,7 @@ The six wrong-rule cases make the model's taxonomy-selection instability explici
 
 Examples include:
 
-```
+```text
 expected duplicate_code
 actual   mutable_default_argument
 
@@ -562,7 +794,7 @@ The Wrong rules metric therefore distinguishes models that completely miss an ex
 
 Prompt templates are versioned independently from the application code.
 
-Different review modes can use separate templates within the same prompt version:
+Different review modes and experimental architectures can use separate templates:
 
 ```text
 prompts/
@@ -576,26 +808,32 @@ prompts/
 │   └── diff.txt
 ├── v10/
 │   └── diff.txt
-└── v11/
-    └── diff.txt
+├── v11/
+│   └── diff.txt
+├── multipass_v1/
+│   └── diff_candidates.txt
+└── maintainability_v1/
+    ├── diff_candidates.txt
+    └── diff_verify.txt
 ```
 
 Full-file review prompts use the Python source code as input.
 
-Diff-review prompts use both the Git diff and the current contents of changed Python files.
+General diff-review prompts use both the Git diff and the current contents of changed Python files.
 
 The diff identifies what changed, while the current source provides the context needed to reason about the behavior of the new version.
+
+The maintainability specialist receives the same diff/current-source representation but uses a narrower rule scope.
 
 The current baselines are:
 
 ```text
-Full-file review    v5
-Git-diff review     v11
+Full-file review             v5
+Single-pass Git-diff review  v11
+Specialized Git-diff review  v11 + maintainability_v1
 ```
 
 Existing prompt versions remain frozen so previous experiments can be reproduced and compared.
-
-Each benchmark run records the prompt version used, allowing direct comparison between prompt revisions without modifying historical prompts.
 
 ## Prompt Evaluation
 
@@ -624,7 +862,7 @@ Severity accuracy 100.0%
 
 Diff prompt experiments are evaluated independently.
 
-The current v11 diff result is:
+Single-pass v11 produces:
 
 ```text
 Benchmarks         21
@@ -633,6 +871,19 @@ Failed              4
 Accuracy           80.95%
 False positives     0
 False negatives     4
+Wrong rules         0
+Severity accuracy 100.0%
+```
+
+The current specialized architecture produces:
+
+```text
+Benchmarks         21
+Passed             20
+Failed              1
+Accuracy           95.24%
+False positives     0
+False negatives     1
 Wrong rules         0
 Severity accuracy 100.0%
 ```
@@ -702,15 +953,13 @@ The two commands answer different questions:
 - `compare-results` compares aggregate performance across benchmark result files.
 - `compare-runs` compares benchmark-by-benchmark changes between two specific runs.
 
-The cross-model experiment also exposed a limitation in the current aggregate summaries: wrong-rule predictions are visible during individual analysis but are not yet counted separately in the summary.
-
-Improving that representation is the next small evaluation-focused task.
+Wrong-rule predictions are also represented explicitly in aggregate benchmark summaries, making taxonomy-selection failures distinguishable from ordinary false negatives.
 
 ## Models
 
 The project focuses primarily on models that can run locally on consumer hardware with 12 GB of VRAM.
 
-Current diff benchmark results using the same v11 prompt are:
+Single-pass diff benchmark results using the same v11 prompt are:
 
 | Model | Diff Accuracy | Notes |
 | --- | ---: | --- |
@@ -723,7 +972,11 @@ Current diff benchmark results using the same v11 prompt are:
 
 Qwen 3.5 9B remains the preferred model for the current local reviewer.
 
-Larger models may be evaluated in the future on machines with more VRAM using the same frozen benchmark suite and prompt, allowing direct comparison with the current baseline.
+The same model reaches **95.24%** on the current 21-case diff suite when used with the specialized two-call architecture.
+
+This distinction is important: model quality and review architecture are evaluated separately.
+
+Larger models may be evaluated in the future on machines with more VRAM using the same frozen benchmark suite and prompts, allowing direct comparison with the current baselines.
 
 ## Tech Stack
 
@@ -793,10 +1046,6 @@ git diff main...HEAD
 
 The command reuses the existing v11 diff-review pipeline.
 
-It does not require a separate PR-specific prompt or benchmark format.
-
-This makes it useful for reviewing feature-branch changes before opening or merging a pull request.
-
 ### Run the full-file benchmark suite
 
 ```bash
@@ -827,7 +1076,7 @@ uv run python main.py benchmark benchmarks/ \
     --output qwen3.5-9b-seed42.json
 ```
 
-### Run the diff benchmark suite
+### Run the single-pass diff benchmark suite
 
 ```bash
 uv run python main.py benchmark-diff \
@@ -845,7 +1094,55 @@ uv run python main.py benchmark-diff \
     --prompt-version v11
 ```
 
-### Export diff benchmark results
+### Run maintainability candidate benchmarks
+
+```bash
+uv run python main.py benchmark-diff-candidates \
+    diff_benchmarks/maintainability/duplicate_code \
+    --model qwen3.5:9b \
+    --prompt-version maintainability_v1
+```
+
+### Run candidate + verifier benchmarks
+
+```bash
+uv run python main.py benchmark-diff-multi-pass \
+    diff_benchmarks/maintainability/duplicate_code \
+    --model qwen3.5:9b \
+    --prompt-version maintainability_v1
+```
+
+### Run the specialized diff benchmark
+
+Run the general v11 reviewer and maintainability specialist together:
+
+```bash
+uv run python main.py benchmark-diff-specialized \
+    diff_benchmarks \
+    --model qwen3.5:9b \
+    --output qwen3.5-9b-specialized.json
+```
+
+The result is stored under:
+
+```text
+results/diff/v11+maintainability_v1/
+```
+
+The current result is:
+
+```text
+Benchmarks       21
+Passed           20
+Failed            1
+Accuracy         95.24%
+False positives   0
+False negatives   1
+Wrong rules       0
+Severity         100%
+```
+
+### Export single-pass diff benchmark results
 
 ```bash
 uv run python main.py benchmark-diff \
@@ -875,10 +1172,12 @@ results/
 └── diff/
     ├── v9/
     ├── v10/
-    └── v11/
-        ├── qwen3.5-9b.json
-        ├── qwen2.5-coder-7b.json
-        └── ...
+    ├── v11/
+    │   ├── qwen3.5-9b.json
+    │   ├── qwen2.5-coder-7b.json
+    │   └── ...
+    └── v11+maintainability_v1/
+        └── qwen3.5-9b-specialized.json
 ```
 
 Keeping diff results separate prevents fundamentally different benchmark suites from being accidentally mixed.
@@ -931,10 +1230,11 @@ Accuracy          92.3%
 Severity          100%
 
 
-GIT-DIFF REVIEW
+SINGLE-PASS GIT-DIFF REVIEW
 
 Model             qwen3.5:9b
 Prompt            v11
+LLM calls         1
 Benchmarks        21
 Passed            17
 Accuracy          80.95%
@@ -942,18 +1242,38 @@ False positives   0
 False negatives   4
 Wrong rules       0
 Severity          100%
+
+
+SPECIALIZED GIT-DIFF REVIEW
+
+Model             qwen3.5:9b
+Prompts           v11 + maintainability_v1
+LLM calls         2
+Benchmarks        21
+Passed            20
+Accuracy          95.24%
+False positives   0
+False negatives   1
+Wrong rules       0
+Severity          100%
+Duration          81.12s
 ```
 
-The remaining diff-review failures are concentrated in:
+The only remaining specialized diff-review failure is:
 
 ```text
-duplicate_code
 long_function
 ```
 
-Cross-model testing shows that these maintainability cases are also missed by several other otherwise usable local models.
+specifically the weaker:
 
-For now, the project treats this as a measured limitation rather than continuing to expand the prompt specifically to force those benchmark cases to pass.
+```text
+Adding multiple responsibilities introduces long function
+```
+
+The current evidence suggests that task specialization can substantially improve maintainability recall without increasing false positives.
+
+The next architectural question is whether broader category specialization can provide additional gains worth the increased inference cost.
 
 ## Project Goal
 
@@ -962,6 +1282,7 @@ This project is primarily an AI engineering learning environment.
 The objective is not only to produce useful code reviews, but to understand the engineering behind LLM-based developer tools:
 
 - Structured LLM output
+- JSON Schema constrained generation
 - Prompt design and versioning
 - Deterministic generation
 - Evaluation datasets
@@ -975,6 +1296,11 @@ The objective is not only to produce useful code reviews, but to understand the 
 - Change attribution
 - Context construction for LLM code analysis
 - Git branch comparison
+- Multi-pass LLM workflows
+- Specialist model calls
+- Deterministic aggregation
+- Task decomposition
+- Accuracy vs inference-cost tradeoffs
 - Local LLM inference
 - Evaluation design and failure classification
 
