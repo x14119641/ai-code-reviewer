@@ -6,6 +6,7 @@ from reviewer.engine import (
     ReviewResult,
     build_changed_files_context,
     find_python_files,
+    merge_specialized_reviews,
     review_diff,
     review_file,
     review_folder,
@@ -337,3 +338,50 @@ def find_users(users: list[str]) -> None:
     )
 
     assert result.issues == []
+
+
+def test_merge_specialized_reviews_uses_specialist_for_maintainability() -> None:
+    general_review = CodeReview(
+        issues=[
+            Issue(
+                severity="high",
+                category="security",
+                rule="sql_injection",
+                title="SQL injection",
+                explanation="Unsafe SQL construction.",
+                recommendation="Use parameters.",
+            ),
+            Issue(
+                severity="low",
+                category="maintainability",
+                rule="duplicate_code",
+                title="General duplicate",
+                explanation="General reviewer finding.",
+                recommendation="Extract helper.",
+            ),
+        ]
+    )
+
+    maintainability_review = CodeReview(
+        issues=[
+            Issue(
+                severity="low",
+                category="maintainability",
+                rule="duplicate_code",
+                title="Specialist duplicate",
+                explanation="Specialist reviewer finding.",
+                recommendation="Extract helper.",
+            )
+        ]
+    )
+
+    merged = merge_specialized_reviews(
+        general_review=general_review,
+        maintainability_review=maintainability_review,
+    )
+
+    assert len(merged.issues) == 2
+
+    assert merged.issues[0].rule == "sql_injection"
+    assert merged.issues[1].rule == "duplicate_code"
+    assert merged.issues[1].title == "Specialist duplicate"

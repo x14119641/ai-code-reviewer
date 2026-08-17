@@ -24,7 +24,10 @@ from reviewer.taxonomy import (
 )
 
 IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
-
+SPECIALIST_MAINTAINABILITY_RULES = {
+    "duplicate_code",
+    "long_function",
+}
 
 @dataclass
 class ReviewResult:
@@ -289,4 +292,59 @@ def review_diff_multi_pass(
         candidates=candidates,
         model=model,
         prompt_version=prompt_version,
+    )
+
+
+def merge_specialized_reviews(
+    general_review: CodeReview,
+    maintainability_review: CodeReview,
+) -> CodeReview:
+    """Merge general and specialist reviews using deterministic rule ownership."""
+
+    general_issues = [
+        issue
+        for issue in general_review.issues
+        if issue.rule not in SPECIALIST_MAINTAINABILITY_RULES
+    ]
+
+    maintainability_issues = [
+        issue
+        for issue in maintainability_review.issues
+        if issue.rule in SPECIALIST_MAINTAINABILITY_RULES
+    ]
+
+    return CodeReview(
+        issues=[
+            *general_issues,
+            *maintainability_issues,
+        ]
+    )
+    
+
+def review_diff_specialized(
+    diff: str,
+    current_code: str,
+    model: str,
+    general_prompt_version: str = "v11",
+    maintainability_prompt_version: str = "maintainability_v1",
+) -> CodeReview:
+    """Review a Git diff using general and maintainability-specialist passes."""
+
+    general_review = review_diff(
+        diff=diff,
+        current_code=current_code,
+        model=model,
+        prompt_version=general_prompt_version,
+    )
+
+    maintainability_review = find_diff_candidates(
+        diff=diff,
+        current_code=current_code,
+        model=model,
+        prompt_version=maintainability_prompt_version,
+    )
+
+    return merge_specialized_reviews(
+        general_review=general_review,
+        maintainability_review=maintainability_review,
     )

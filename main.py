@@ -12,6 +12,7 @@ from reviewer.engine import (
     find_python_files,
     review_diff,
     review_diff_multi_pass,
+    review_diff_specialized,
     review_file,
     review_files,
 )
@@ -633,6 +634,78 @@ def benchmark_diff_multi_pass_command(
         print_error("Multi-pass Diff Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
     
+
+
+@app.command("benchmark-diff-specialized")
+def benchmark_diff_specialized_command(
+    path: Path,
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the specialized diff benchmark",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
+) -> None:
+    """Evaluate general + maintainability-specialist diff review."""
+
+    general_prompt_version = "v11"
+    maintainability_prompt_version = "maintainability_v1"
+    experiment_version = "v11+maintainability_v1"
+
+    def review_with_model(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        return review_diff_specialized(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            general_prompt_version=general_prompt_version,
+            maintainability_prompt_version=maintainability_prompt_version,
+        )
+
+    try:
+        benchmark_paths = find_diff_benchmarks(path)
+
+        if not benchmark_paths:
+            print_warning("No diff benchmark cases found.")
+            return
+
+        run = run_diff_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
+            prompt_version=experiment_version,
+        )
+
+        if output is not None:
+            if output.parent == Path("."):
+                output = (
+                    Path("results")
+                    / "diff"
+                    / experiment_version
+                    / output
+                )
+
+            save_benchmark_run(run, output)
+            print_result_saved(output)
+
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
+
+    except (
+        FileNotFoundError,
+        NotADirectoryError,
+        TypeError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        print_error("Specialized Diff Benchmark Failed", str(exc))
+        raise typer.Exit(code=1) from exc
     
+     
 if __name__ == "__main__":
     app()
