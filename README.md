@@ -4,77 +4,79 @@ A project to learn AI engineering by building a local AI-powered code reviewer f
 
 The goal isn't just to call an LLM API, but to understand how modern coding assistants are designed by implementing each component step by step. Everything runs locally using open-weight models and Ollama.
 
-The project emphasizes clean architecture, reproducible evaluation, controlled prompt experimentation, structured LLM outputs, diff-aware review, change attribution, and local execution.
+The project emphasizes clean architecture, reproducible evaluation, controlled prompt experimentation, structured LLM outputs, diff-aware review, change attribution, model comparison, and local execution.
 
 ## Roadmap
 
 ### Completed
 
-* ✅ Review a single file
-* ✅ Review multiple files
-* ✅ Structured JSON output
-* ✅ Benchmark runner
-* ✅ Benchmark evaluation
-* ✅ Benchmark result export
-* ✅ Benchmark result comparison
-* ✅ Rule comparison
-* ✅ Category comparison
-* ✅ Versioned prompt templates
-* ✅ Benchmark result analysis
-* ✅ Deterministic benchmark generation
-* ✅ Rule-based severity normalization
-* ✅ Controlled prompt optimization experiments
-* ✅ Cross-run regression comparison
-* ✅ Review local Git diffs
-* ✅ Diff review with current source context
-* ✅ Diff-specific benchmark format
-* ✅ Diff benchmark discovery and loading
-* ✅ Diff benchmark runner
-* ✅ Diff benchmark CLI
-* ✅ Diff benchmark result rendering
-* ✅ Diff benchmark result export
-* ✅ Diff benchmark coverage across all current taxonomy rules
-* ✅ Diff change-attribution experiments
-* ✅ Cross-run comparison for diff benchmarks
-* ✅ Review committed branch changes against a base ref
+- ✅ Review a single file
+- ✅ Review multiple files
+- ✅ Structured JSON output
+- ✅ Benchmark runner
+- ✅ Benchmark evaluation
+- ✅ Benchmark result export
+- ✅ Benchmark result comparison
+- ✅ Rule comparison
+- ✅ Category comparison
+- ✅ Versioned prompt templates
+- ✅ Benchmark result analysis
+- ✅ Deterministic benchmark generation
+- ✅ Rule-based severity normalization
+- ✅ Controlled prompt optimization experiments
+- ✅ Cross-run regression comparison
+- ✅ Review local Git diffs
+- ✅ Diff review with current source context
+- ✅ Diff-specific benchmark format
+- ✅ Diff benchmark discovery and loading
+- ✅ Diff benchmark runner
+- ✅ Diff benchmark CLI
+- ✅ Diff benchmark result rendering
+- ✅ Diff benchmark result export
+- ✅ Diff benchmark coverage across all current taxonomy rules
+- ✅ Diff change-attribution experiments
+- ✅ Cross-run comparison for diff benchmarks
+- ✅ Review committed branch changes against a base ref
+- ✅ Cross-model diff benchmark evaluation
 
 ### Planned
 
-* Continue full-file benchmark and taxonomy expansion
-* Evaluate diff prompts across additional local models
-* Improve maintainability-rule recall
-* HTML reports
-* Agent / multi-pass review mode
+- Improve benchmark failure summaries
+- Continue benchmark and taxonomy expansion where useful
+- Evaluate larger local models on higher-VRAM hardware
+- HTML reports
+- Agent / multi-pass review mode
 
 ## Current Features
 
-* Review individual Python files
-* Review entire Python projects recursively
-* Review local unstaged Git changes
-* Review committed branch changes against a base branch or commit
-* Combine Git diffs with current changed-file contents for contextual review
-* Focus diff reviews on issues introduced or worsened by a change
-* Structured JSON responses from the LLM
-* Response validation and parsing
-* Versioned prompt templates
-* Full-file benchmark execution
-* Diff-specific benchmark execution
-* Automatic benchmark evaluation
-* JSON export of full-file and diff benchmark results
-* Compare aggregate benchmark results
-* Compare models by rule
-* Compare models by category
-* Compare prompt versions
-* Inspect benchmark failures and severity mismatches
-* Compare individual benchmark behavior between two runs
-* Cross-run comparison for both full-file and diff benchmarks
-* Detect fixed and regressed benchmark cases
-* Detect benchmarks that remain failing
-* Detect added and removed benchmark cases
-* Deterministic LLM generation for reproducible experiments
-* Rule-based severity normalization
-* Controlled prompt optimization and comparison
-* Local execution with Ollama
+- Review individual Python files
+- Review entire Python projects recursively
+- Review local unstaged Git changes
+- Review committed branch changes against a base branch or commit
+- Combine Git diffs with current changed-file contents for contextual review
+- Focus diff reviews on issues introduced or worsened by a change
+- Structured JSON responses from the LLM
+- Response validation and parsing
+- Versioned prompt templates
+- Full-file benchmark execution
+- Diff-specific benchmark execution
+- Automatic benchmark evaluation
+- JSON export of full-file and diff benchmark results
+- Compare aggregate benchmark results
+- Compare models by rule
+- Compare models by category
+- Compare prompt versions
+- Inspect benchmark failures and severity mismatches
+- Compare individual benchmark behavior between two runs
+- Cross-run comparison for both full-file and diff benchmarks
+- Detect fixed and regressed benchmark cases
+- Detect benchmarks that remain failing
+- Detect added and removed benchmark cases
+- Deterministic LLM generation for reproducible experiments
+- Rule-based severity normalization
+- Controlled prompt optimization and comparison
+- Cross-model diff evaluation
+- Local execution with Ollama
 
 ## Architecture
 
@@ -177,10 +179,7 @@ reviewer/
 └── rendering.py
 ```
 
-The application keeps Git integration, LLM execution, prompt construction,
-benchmark loading, benchmark execution, evaluation, experiment comparison,
-serialization, and CLI rendering separate so each part can be tested and
-evolved independently.
+The application keeps Git integration, LLM execution, prompt construction, benchmark loading, benchmark execution, evaluation, experiment comparison, serialization, and CLI rendering separate so each part can be tested and evolved independently.
 
 ## Benchmark Workflow
 
@@ -199,12 +198,12 @@ Inspect Failures
       ↓
 Compare Runs for Regressions
       ↓
-Improve Prompt / Taxonomy
+Improve Prompt / Taxonomy / Evaluation
       ↓
 Repeat
 ```
 
-This makes prompt iterations measurable and reproducible rather than relying on subjective impressions.
+This makes prompt and model experiments measurable and reproducible rather than relying on subjective impressions.
 
 Aggregate metrics show whether a run improved overall, while cross-run comparison shows exactly which benchmark cases changed.
 
@@ -216,20 +215,20 @@ Benchmarks are deliberately built from positive, negative, and boundary cases ra
 
 Each full-file benchmark contains:
 
-* A Python source file
-* The expected findings
-* Expected rule, category, and severity
-* Automatic evaluation against the model response
-* False-positive and false-negative detection
+- A Python source file
+- The expected findings
+- Expected rule, category, and severity
+- Automatic evaluation against the model response
+- False-positive and false-negative detection
 
 Current benchmark categories and rules include:
 
-| Category        | Rules                                                   |
-| --------------- | ------------------------------------------------------- |
-| Bug             | Mutable default argument, Unreachable code              |
-| Security        | SQL injection, Shell injection, Path traversal          |
-| Performance     | List membership in loops, String concatenation in loops |
-| Maintainability | Duplicate code, Long function                           |
+| Category | Rules |
+| --- | --- |
+| Bug | Mutable default argument, Unreachable code |
+| Security | SQL injection, Shell injection, Path traversal |
+| Performance | List membership in loops, String concatenation in loops |
+| Maintainability | Duplicate code, Long function |
 
 Safe and boundary cases are included throughout the rule families to measure false positives.
 
@@ -300,26 +299,26 @@ A useful diff reviewer should not report every problem visible in the current fi
 
 The suite has expanded from the original 11 cases to **21 cases covering all nine rules in the current taxonomy**.
 
-| Category        | Rule                          |  Cases |
-| --------------- | ----------------------------- | -----: |
-| Bug             | Mutable default argument      |      2 |
-| Bug             | Unreachable code              |      2 |
-| Security        | SQL injection                 |      2 |
-| Security        | Shell injection               |      2 |
-| Security        | Path traversal                |      2 |
-| Performance     | List membership in loops      |      3 |
-| Performance     | String concatenation in loops |      2 |
-| Maintainability | Duplicate code                |      3 |
-| Maintainability | Long function                 |      3 |
-| **Total**       |                               | **21** |
+| Category | Rule | Cases |
+| --- | --- | ---: |
+| Bug | Mutable default argument | 2 |
+| Bug | Unreachable code | 2 |
+| Security | SQL injection | 2 |
+| Security | Shell injection | 2 |
+| Security | Path traversal | 2 |
+| Performance | List membership in loops | 3 |
+| Performance | String concatenation in loops | 2 |
+| Maintainability | Duplicate code | 3 |
+| Maintainability | Long function | 3 |
+| **Total** | | **21** |
 
 The suite includes:
 
-* introduced issues
-* safe changes
-* pre-existing issues
-* changes affecting unchanged code
-* stronger diagnostic maintainability cases
+- introduced issues
+- safe changes
+- pre-existing issues
+- changes affecting unchanged code
+- stronger diagnostic maintainability cases
 
 Examples include:
 
@@ -418,13 +417,11 @@ Severity          7/7 (100.00%)
 
 This is the strongest diff-review result so far.
 
-Comparison:
-
-| Prompt  |    Passed |   Accuracy | False Positives | False Negatives |
-| ------- | --------: | ---------: | --------------: | --------------: |
-| v9      |     15/21 |     71.43% |               3 |               3 |
-| v10     |     15/21 |     71.43% |               2 |               4 |
-| **v11** | **17/21** | **80.95%** |           **0** |           **4** |
+| Prompt | Passed | Accuracy | False Positives | False Negatives |
+| --- | ---: | ---: | ---: | ---: |
+| v9 | 15/21 | 71.43% | 3 | 3 |
+| v10 | 15/21 | 71.43% | 2 | 4 |
+| **v11** | **17/21** | **80.95%** | **0** | **4** |
 
 Compared with v9, v11 fixes:
 
@@ -452,6 +449,78 @@ long_function strong positive
 All current pre-existing attribution boundary cases pass under v11.
 
 The remaining weaknesses are therefore concentrated in maintainability-rule recognition rather than change attribution.
+
+## Cross-Model Diff Evaluation
+
+Once v11 was established as the current diff baseline, the complete 21-case suite was evaluated across the local models already used by the project.
+
+The benchmark suite, prompt, deterministic generation settings, and evaluator were kept fixed. Only the model changed.
+
+| Model | Passed | Accuracy | False Positives | False Negatives |
+| --- | ---: | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | **17/21** | **80.95%** | **0** | 4 |
+| Qwen 2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 |
+| Qwen 2.5 Coder 14B | 13/21 | 61.90% | 4 | 4 |
+| Gemma 3 12B | 13/21 | 61.90% | 4 | 4 |
+| Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* |
+| DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
+
+`*` The zero false-negative count for Llama 3.1 8B and DeepSeek Coder V2 16B should not be interpreted as strong recall.
+
+Both models frequently produce a finding using the wrong taxonomy rule rather than returning no issue. Those failures are visible in individual benchmark results but are not currently represented by a dedicated aggregate wrong-rule count.
+
+### Cross-Model Findings
+
+Qwen 3.5 9B remains the strongest current model:
+
+```text
+17/21
+80.95%
+0 false positives
+```
+
+Qwen 2.5 Coder 7B also maintains zero false positives but misses two additional introduced performance issues.
+
+Qwen 2.5 Coder 14B and Gemma 3 12B recover some findings but introduce more attribution failures.
+
+Llama 3.1 8B and DeepSeek Coder V2 16B show substantial constrained-taxonomy rule-selection instability.
+
+The experiment also provides stronger evidence about the remaining maintainability failures.
+
+Among the models with reasonably stable taxonomy behavior:
+
+```text
+duplicate_code
+
+Qwen 3.5 9B            FAIL / FAIL
+Qwen 2.5 Coder 7B      FAIL / FAIL
+Qwen 2.5 Coder 14B     FAIL / FAIL
+Gemma 3 12B             FAIL / FAIL
+
+
+long_function
+
+Qwen 3.5 9B            FAIL / FAIL
+Qwen 2.5 Coder 7B      FAIL / FAIL
+Qwen 2.5 Coder 14B     FAIL / FAIL
+Gemma 3 12B             FAIL / FAIL
+```
+
+The two results for each rule represent the normal and stronger positive cases.
+
+The remaining maintainability weakness is therefore not unique to Qwen 3.5 9B.
+
+Combined with the earlier targeted `long_function` prompt experiments, this reduces the value of continuing to tune the single-pass prompt specifically around those cases.
+
+The experiment also demonstrates that:
+
+```text
+larger model
+    ≠
+automatically better reviewer
+```
+
+and that aggregate accuracy alone is insufficient to understand model behavior.
 
 ## Prompt Templates
 
@@ -499,11 +568,11 @@ Prompt changes are evaluated against benchmark suites using controlled generatio
 Early Qwen 3.5 9B experiments on the original 35-case full-file benchmark suite produced:
 
 | Prompt | Accuracy | Passed | False Positives | False Negatives |
-| ------ | -------: | -----: | --------------: | --------------: |
-| v1     |    85.7% |  30/35 |               4 |               1 |
-| v2     |    88.6% |  31/35 |               3 |               1 |
-| v3     |    88.6% |  31/35 |               3 |               1 |
-| v4     |    91.4% |  32/35 |               2 |               1 |
+| --- | ---: | ---: | ---: | ---: |
+| v1 | 85.7% | 30/35 | 4 | 1 |
+| v2 | 88.6% | 31/35 | 3 | 1 |
+| v3 | 88.6% | 31/35 | 3 | 1 |
+| v4 | 91.4% | 32/35 | 2 | 1 |
 
 The full-file suite was subsequently expanded from 35 to 65 cases.
 
@@ -559,11 +628,11 @@ uv run python main.py compare-runs \
 
 The comparison reports:
 
-* **Fixed** — failed in the old run and passes in the new run
-* **Regressed** — passed in the old run and fails in the new run
-* **Still failing** — fails in both runs
-* **Added** — exists only in the new benchmark run
-* **Removed** — exists only in the old benchmark run
+- **Fixed** — failed in the old run and passes in the new run
+- **Regressed** — passed in the old run and fails in the new run
+- **Still failing** — fails in both runs
+- **Added** — exists only in the new benchmark run
+- **Removed** — exists only in the old benchmark run
 
 The v9 → v11 diff comparison produced:
 
@@ -593,41 +662,47 @@ This makes prompt regressions visible even when aggregate benchmark accuracy imp
 
 The two commands answer different questions:
 
-* `compare-results` compares aggregate performance across benchmark result files.
-* `compare-runs` compares benchmark-by-benchmark changes between two specific runs.
+- `compare-results` compares aggregate performance across benchmark result files.
+- `compare-runs` compares benchmark-by-benchmark changes between two specific runs.
+
+The cross-model experiment also exposed a limitation in the current aggregate summaries: wrong-rule predictions are visible during individual analysis but are not yet counted separately in the summary.
+
+Improving that representation is the next small evaluation-focused task.
 
 ## Models
 
-The project focuses on models that can run locally on consumer hardware with 12 GB of VRAM.
+The project focuses primarily on models that can run locally on consumer hardware with 12 GB of VRAM.
 
-Current benchmarked models:
+Current diff benchmark results using the same v11 prompt are:
 
-| Model                 | Purpose                                   |
-| --------------------- | ----------------------------------------- |
-| Qwen 3.5 9B           | Main model for current prompt experiments |
-| Qwen 2.5 Coder 7B     | Fast coding-specialized model             |
-| Qwen 2.5 Coder 14B    | Larger coding-specialized model           |
-| DeepSeek Coder V2 16B | Advanced coding and reasoning model       |
-| Llama 3.1 8B          | General-purpose reference model           |
-| Gemma 3 12B           | Google's open-weight general model        |
+| Model | Diff Accuracy | Notes |
+| --- | ---: | --- |
+| **Qwen 3.5 9B** | **80.95%** | Current main model; 0 FP |
+| Qwen 2.5 Coder 7B | 71.43% | 0 FP, lower recall |
+| Qwen 2.5 Coder 14B | 61.90% | More attribution failures |
+| Gemma 3 12B | 61.90% | Moderate result, attribution failures |
+| Llama 3.1 8B | 23.81% | Unstable constrained-rule selection |
+| DeepSeek Coder V2 16B | 14.29% | Unstable constrained-rule selection |
 
-Additional models and quantizations may be added as the project evolves.
+Qwen 3.5 9B remains the preferred model for the current local reviewer.
+
+Larger models may be evaluated in the future on machines with more VRAM using the same frozen benchmark suite and prompt, allowing direct comparison with the current baseline.
 
 ## Tech Stack
 
-* Python 3.14
-* uv
-* Typer
-* Rich
-* pytest
-* Ruff
-* Ollama
-* Local open-weight LLMs
+- Python 3.14
+- uv
+- Typer
+- Rich
+- pytest
+- Ruff
+- Ollama
+- Local open-weight LLMs
 
 ## Test Environment
 
-* AMD Radeon RX 6700 XT (12 GB VRAM)
-* Arch Linux
+- AMD Radeon RX 6700 XT (12 GB VRAM)
+- Arch Linux
 
 ## Run
 
@@ -740,7 +815,17 @@ uv run python main.py benchmark-diff \
     diff_benchmarks \
     --model qwen3.5:9b \
     --prompt-version v11 \
-    --output qwen3.5-9b.json
+    --output results/diff/v11/qwen3.5-9b.json
+```
+
+Cross-model runs can use the same suite and prompt:
+
+```bash
+uv run python main.py benchmark-diff \
+    diff_benchmarks \
+    --model qwen2.5-coder:7b \
+    --prompt-version v11 \
+    --output results/diff/v11/qwen2.5-coder-7b.json
 ```
 
 Diff results are stored separately from full-file results:
@@ -754,7 +839,9 @@ results/
     ├── v9/
     ├── v10/
     └── v11/
-        └── qwen3.5-9b.json
+        ├── qwen3.5-9b.json
+        ├── qwen2.5-coder-7b.json
+        └── ...
 ```
 
 Keeping diff results separate prevents fundamentally different benchmark suites from being accidentally mixed.
@@ -792,25 +879,65 @@ uv run python main.py compare-runs \
     results/diff/v11/qwen3.5-9b.json
 ```
 
+## Current Baselines
+
+The current experimental baselines are:
+
+```text
+FULL-FILE REVIEW
+
+Model             qwen3.5:9b
+Prompt            v5
+Benchmarks        65
+Passed            60
+Accuracy          92.3%
+Severity          100%
+
+
+GIT-DIFF REVIEW
+
+Model             qwen3.5:9b
+Prompt            v11
+Benchmarks        21
+Passed            17
+Accuracy          80.95%
+False positives   0
+False negatives   4
+Severity          100%
+```
+
+The remaining diff-review failures are concentrated in:
+
+```text
+duplicate_code
+long_function
+```
+
+Cross-model testing shows that these maintainability cases are also missed by several other otherwise usable local models.
+
+For now, the project treats this as a measured limitation rather than continuing to expand the prompt specifically to force those benchmark cases to pass.
+
 ## Project Goal
 
 This project is primarily an AI engineering learning environment.
 
 The objective is not only to produce useful code reviews, but to understand the engineering behind LLM-based developer tools:
 
-* Structured LLM output
-* Prompt design and versioning
-* Deterministic generation
-* Evaluation datasets
-* False-positive and false-negative analysis
-* Model comparison
-* Prompt regression detection
-* Taxonomy design
-* Reproducible experimentation
-* Diff-aware code review
-* Change attribution
-* Context construction for LLM code analysis
-* Git branch comparison
-* Local LLM inference
+- Structured LLM output
+- Prompt design and versioning
+- Deterministic generation
+- Evaluation datasets
+- False-positive and false-negative analysis
+- Model comparison
+- Cross-model evaluation
+- Prompt regression detection
+- Taxonomy design
+- Reproducible experimentation
+- Diff-aware code review
+- Change attribution
+- Context construction for LLM code analysis
+- Git branch comparison
+- Local LLM inference
+- Evaluation design and failure classification
 
 The reviewer is intentionally being developed incrementally so each new capability can be evaluated before adding more complexity.
