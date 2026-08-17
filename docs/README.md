@@ -1,35 +1,32 @@
 ## Diff Benchmark Suite
 
-The diff-review benchmark suite was initially introduced with **11 cases across five rules** and was later expanded to **21 cases covering all nine rules in the current taxonomy**.
+The diff-review benchmark suite was initially introduced with **11
+cases across five rules** and was later expanded to **21 cases
+covering all nine rules in the current taxonomy**.
 
 The expanded suite deliberately combines:
 
-- issues introduced by a diff
-- pre-existing issues that should not be attributed to the diff
-- safe changes
-- changes whose effects appear in unchanged code
-- stronger diagnostic cases for subjective maintainability rules
+- issues introduced by a diff - pre-existing issues that should not be
+attributed to the diff - safe changes - changes whose effects appear in
+unchanged code - stronger diagnostic cases for subjective
+maintainability rules
 
 The current coverage is:
 
-| Category | Rule | Cases |
-| --- | --- | ---: |
-| Bug | Mutable default argument | 2 |
-| Bug | Unreachable code | 2 |
-| Security | SQL injection | 2 |
-| Security | Shell injection | 2 |
-| Security | Path traversal | 2 |
-| Performance | List membership in loops | 3 |
-| Performance | String concatenation in loops | 2 |
-| Maintainability | Duplicate code | 3 |
-| Maintainability | Long function | 3 |
-| **Total** | | **21** |
+| Category | Rule | Cases | | --- | --- | ---: | | Bug |
+Mutable default argument | 2 | | Bug | Unreachable code | 2 | |
+Security | SQL injection | 2 | | Security | Shell injection | 2 |
+| Security | Path traversal | 2 | | Performance | List membership
+in loops | 3 | | Performance | String concatenation in loops | 2 |
+| Maintainability | Duplicate code | 3 | | Maintainability | Long
+function | 3 | | **Total** | | **21** |
 
-This gives every rule in the current taxonomy at least one diff-review benchmark family.
+This gives every rule in the current taxonomy at least one diff-review
+benchmark family.
 
-The additional `duplicate_code` and `long_function` cases deliberately use stronger examples to distinguish failures caused by ambiguous rule boundaries from broader issue-recognition weaknesses.
-
----
+The additional `duplicate_code` and `long_function` cases
+deliberately use stronger examples to distinguish failures caused by
+ambiguous rule boundaries from broader issue-recognition weaknesses.
 
 ## Benchmark Design
 
@@ -39,31 +36,25 @@ The performance cases test three distinct situations.
 
 #### Introduced issue
 
-```text
-dict → list
-```
+```text dict → list ```
 
-The collection type changes from dictionary to list while an existing membership check remains unchanged.
+The collection type changes from dictionary to list while an existing
+membership check remains unchanged.
 
 The diff introduces a performance regression and should produce:
 
-```text
-list_membership_in_loop
-```
+```text list_membership_in_loop ```
 
 #### Safe change
 
-```text
-dict → dict
-```
+```text dict → dict ```
 
-Only a local variable is renamed. Dictionary membership remains efficient.
+Only a local variable is renamed. Dictionary membership remains
+efficient.
 
 Expected result:
 
-```text
-no issues
-```
+```text no issues ```
 
 #### Pre-existing issue
 
@@ -73,17 +64,18 @@ The diff only performs a local rename.
 
 Expected result:
 
-```text
-no issues
-```
+```text no issues ```
 
-This case tests whether the model can distinguish an issue visible in the current code from an issue introduced by the change.
+This case tests whether the model can distinguish an issue visible in
+the current code from an issue introduced by the change.
 
 ### Unreachable Code
 
-The positive case introduces an unconditional `raise` before an existing `return`, making that return unreachable.
+The positive case introduces an unconditional `raise` before an
+existing `return`, making that return unreachable.
 
-The boundary case already contains the unreachable return before the diff and changes only an unrelated error message.
+The boundary case already contains the unreachable return before the
+diff and changes only an unrelated error message.
 
 The reviewer should detect the first case and ignore the second.
 
@@ -91,648 +83,480 @@ The reviewer should detect the first case and ignore the second.
 
 The positive case changes:
 
-```python
-items: list[str] | None = None
-```
+```python items: list[str] | None = None ```
 
 to:
 
-```python
-items: list[str] = []
-```
+```python items: list[str] = [] ```
 
 This introduces a mutable default argument and should be reported.
 
-The boundary case already contains the mutable default before the diff and changes only local variable names.
+The boundary case already contains the mutable default before the diff
+and changes only local variable names.
 
 The reviewer should therefore return no issues for the boundary case.
 
-This case became particularly useful during prompt evolution because v9 incorrectly attributed the existing issue while later prompts were able to suppress it.
+This case became particularly useful during prompt evolution because v9
+incorrectly attributed the existing issue while later prompts were able
+to suppress it.
 
 ### SQL Injection
 
-The positive case changes a parameterized query into an interpolated SQL string.
+The positive case changes a parameterized query into an interpolated SQL
+string.
 
 The diff therefore introduces `sql_injection`.
 
-The boundary case already contains the vulnerable interpolated query before the diff and changes only an audit message.
+The boundary case already contains the vulnerable interpolated query
+before the diff and changes only an audit message.
 
-The existing vulnerability should not be reported because it was not introduced by the change.
+The existing vulnerability should not be reported because it was not
+introduced by the change.
 
 Prompt v11 successfully distinguishes both cases.
 
 ### Shell Injection
 
-The positive case changes a safe argument-list subprocess call into an interpolated command executed with `shell=True`.
+The positive case changes a safe argument-list subprocess call into an
+interpolated command executed with `shell=True`.
 
 The diff therefore introduces `shell_injection`.
 
-The boundary case already contains the unsafe shell command before the diff and changes only an informational message.
+The boundary case already contains the unsafe shell command before the
+diff and changes only an informational message.
 
 Prompt v11 successfully distinguishes both cases.
 
 ### Path Traversal
 
-The positive case removes filename sanitization and changes safe path construction into a direct join between an intended base directory and a user-controlled path.
+The positive case removes filename sanitization and changes safe path
+construction into a direct join between an intended base directory and a
+user-controlled path.
 
-This allows values such as parent-directory traversal or absolute paths to escape the intended directory.
+This allows values such as parent-directory traversal or absolute paths
+to escape the intended directory.
 
-The boundary case already contains the unsafe path construction before the diff and changes only an informational message.
+The boundary case already contains the unsafe path construction before
+the diff and changes only an informational message.
 
-The current general baseline correctly detects the introduced case and ignores the pre-existing case.
+The current general baseline correctly detects the introduced case and
+ignores the pre-existing case.
 
 ### String Concatenation in Loops
 
-The positive case changes efficient `str.join()` construction into repeated `+=` concatenation inside a loop.
+The positive case changes efficient `str.join()` construction into
+repeated `+=` concatenation inside a loop.
 
-The boundary case already contains repeated string concatenation before the diff and changes only unrelated reporting logic.
+The boundary case already contains repeated string concatenation before
+the diff and changes only unrelated reporting logic.
 
-The current general baseline correctly distinguishes the introduced issue from the pre-existing one.
+The current general baseline correctly distinguishes the introduced
+issue from the pre-existing one.
 
 ### Duplicate Code
 
 The duplicate-code family contains three cases.
 
-The original positive case introduces repeated normalization and validation logic across two functions.
+The original positive case introduces repeated normalization and
+validation logic across two functions.
 
-A stronger diagnostic case contains substantially more repeated parsing and validation logic.
+A stronger diagnostic case contains substantially more repeated parsing
+and validation logic.
 
-The third case contains duplication that already existed before the diff.
+The third case contains duplication that already existed before the
+diff.
 
 Under the single-pass Qwen 3.5 9B + v11 baseline:
 
-```text
-Original positive       FAIL
-Strong positive         FAIL
-Pre-existing boundary   PASS
-```
+```text Original positive FAIL Strong positive FAIL Pre-existing
+boundary PASS ```
 
 Earlier experiments showed that v9 could detect the stronger case:
 
-```text
-Strong positive
-v9   PASS
-v10  FAIL
-v11  FAIL
-```
+```text Strong positive v9 PASS v10 FAIL v11 FAIL ```
 
-This showed that `duplicate_code` recognition was sensitive to both the strength of the example and prompt behavior.
+This showed that `duplicate_code` recognition was sensitive to both
+the strength of the example and prompt behavior.
 
 Later specialist experiments changed this result substantially.
 
 Using the focused `maintainability_v1` prompt:
 
-```text
-Original positive       PASS
-Strong positive         PASS
-Pre-existing boundary   PASS
-```
+```text Original positive PASS Strong positive PASS Pre-existing
+boundary PASS ```
 
 The specialist therefore reaches:
 
-```text
-3/3 — 100%
-0 FP
-0 FN
-```
+```text 3/3 --- 100% 0 FP 0 FN ```
 
 ### Long Function
 
 The long-function family also contains three cases.
 
-The original positive expands a previously focused function to perform several responsibilities:
+The original positive expands a previously focused function to perform
+several responsibilities:
 
-- input validation
-- iteration and aggregation
-- business-rule application
-- result construction
+- input validation - iteration and aggregation - business-rule
+application - result construction
 
 The stronger diagnostic adds:
 
-- required-field validation
-- item normalization
-- per-item validation
-- aggregation
-- discount decisions
-- shipping decisions
-- final result construction
+- required-field validation - item normalization - per-item
+validation - aggregation - discount decisions - shipping decisions -
+final result construction
 
 Under the single-pass v11 baseline:
 
-```text
-Original positive       FAIL
-Strong positive         FAIL
-Pre-existing boundary   PASS
-```
+```text Original positive FAIL Strong positive FAIL Pre-existing
+boundary PASS ```
 
-A targeted general-prompt experiment tested increasingly explicit `long_function` guidance, including operational responsibility definitions and concrete positive examples.
+A targeted general-prompt experiment tested increasingly explicit
+`long_function` guidance, including operational responsibility
+definitions and concrete positive examples.
 
 Detection did not improve.
 
-The established full-file `long_function` benchmark family showed the same pattern:
+The established full-file `long_function` benchmark family showed the
+same pattern:
 
-```text
-Benchmarks       4
-Passed           2
-Failed           2
-False positives  0
-False negatives  2
-Accuracy         50.00%
-```
+```text Benchmarks 4 Passed 2 Failed 2 False positives 0 False
+negatives 2 Accuracy 50.00% ```
 
-However, the later focused maintainability specialist improved the diff benchmark family to:
+However, the later focused maintainability specialist improved the diff
+benchmark family to:
 
-```text
-Original positive       FAIL
-Strong positive         PASS
-Pre-existing boundary   PASS
-```
+```text Original positive FAIL Strong positive PASS Pre-existing
+boundary PASS ```
 
 Result:
 
-```text
-2/3 — 66.67%
-0 FP
-1 FN
-```
+```text 2/3 --- 66.67% 0 FP 1 FN ```
 
-This distinction became important: additional general prompt tuning did not help, while narrowing the task to a maintainability-specific prompt did.
-
----
+This distinction became important: additional general prompt tuning did
+not help, while narrowing the task to a maintainability-specific prompt
+did.
 
 ## Initial Diff Review Baseline
 
-The first complete diff benchmark baseline used the original **11-case suite**:
+The first complete diff benchmark baseline used the original
+**11-case suite**:
 
-```text
-Model   qwen3.5:9b
-Prompt  v9
-Cases   11
-```
+```text Model qwen3.5:9b Prompt v9 Cases 11 ```
 
 Result:
 
-```text
-Benchmarks        11
-Passed             8
-Failed             3
-Errors             0
-False positives    3
-False negatives    0
-Accuracy          72.7%
-Severity          5/5 (100.0%)
-Duration          32.94s
+```text Benchmarks 11 Passed 8 Failed 3 Errors 0 False positives 3
+False negatives 0 Accuracy 72.7% Severity 5/5 (100.0%) Duration 32.94s
 ```
 
 All five positive introduced-issue cases passed.
 
 The model successfully detected:
 
-```text
-mutable_default_argument
-unreachable_code
-list_membership_in_loop
-sql_injection
-shell_injection
-```
+```text mutable_default_argument unreachable_code
+list_membership_in_loop sql_injection shell_injection ```
 
 All three failures involved pre-existing issues:
 
-```text
-mutable_default_argument
-shell_injection
-sql_injection
-```
+```text mutable_default_argument shell_injection sql_injection ```
 
-This identified **change attribution** as the primary weakness of the initial diff reviewer.
-
----
+This identified **change attribution** as the primary weakness
+of the initial diff reviewer.
 
 ## Expanded v9 Baseline
 
-The suite was subsequently expanded to 21 cases covering all nine taxonomy rules.
+The suite was subsequently expanded to 21 cases covering all nine
+taxonomy rules.
 
 Qwen 3.5 9B with v9 produced:
 
-```text
-Model            qwen3.5:9b
-Prompt           v9
-Benchmarks       21
-Passed           15
-Failed            6
-Errors            0
-False positives   3
-False negatives   3
-Accuracy         71.43%
-Severity          8/8 (100.00%)
-Duration         55.79s
-```
+```text Model qwen3.5:9b Prompt v9 Benchmarks 21 Passed 15 Failed 6
+Errors 0 False positives 3 False negatives 3 Accuracy 71.43% Severity
+8/8 (100.00%) Duration 55.79s ```
 
 The failures exposed two distinct problems:
 
-```text
-ATTRIBUTION
-├── pre-existing mutable_default_argument
-├── pre-existing sql_injection
-└── pre-existing shell_injection
+```text ATTRIBUTION ├── pre-existing mutable_default_argument ├──
+pre-existing sql_injection └── pre-existing shell_injection
 
-RECOGNITION
-├── duplicate_code
-├── long_function
-└── strong long_function
-```
+RECOGNITION ├── duplicate_code ├── long_function └── strong
+long_function ```
 
 The stronger `duplicate_code` diagnostic passed under v9.
 
----
-
 ## v10 Attribution Experiment
 
-Prompt v10 tested stronger generic before/after attribution instructions.
+Prompt v10 tested stronger generic before/after attribution
+instructions.
 
 The core decision model was:
 
-```text
-BEFORE safe   → AFTER unsafe       → report
-BEFORE unsafe → AFTER worse        → report
-BEFORE unsafe → AFTER same unsafe  → do not report
-BEFORE safe   → AFTER safe         → do not report
-```
+```text BEFORE safe → AFTER unsafe → report BEFORE unsafe → AFTER
+worse → report BEFORE unsafe → AFTER same unsafe → do not report BEFORE
+safe → AFTER safe → do not report ```
 
 On the complete 21-case suite:
 
-```text
-Model            qwen3.5:9b
-Prompt           v10
-Benchmarks       21
-Passed           15
-Failed            6
-Errors            0
-False positives   2
-False negatives   4
-Accuracy         71.43%
-Severity          7/7 (100.00%)
-Duration         43.89s
-```
+```text Model qwen3.5:9b Prompt v10 Benchmarks 21 Passed 15 Failed 6
+Errors 0 False positives 2 False negatives 4 Accuracy 71.43% Severity
+7/7 (100.00%) Duration 43.89s ```
 
 v10 fixed:
 
-```text
-pre-existing mutable_default_argument
-```
+```text pre-existing mutable_default_argument ```
 
 but continued to misattribute:
 
-```text
-pre-existing sql_injection
-pre-existing shell_injection
+```text pre-existing sql_injection pre-existing shell_injection
 ```
 
 It also regressed:
 
-```text
-strong duplicate_code positive
-```
+```text strong duplicate_code positive ```
 
-The result was therefore a precision/recall trade-off rather than an overall improvement:
+The result was therefore a precision/recall trade-off rather than an
+overall improvement:
 
-```text
-v9
-15/21
-3 FP / 3 FN
+```text v9 15/21 3 FP / 3 FN
 
-v10
-15/21
-2 FP / 4 FN
-```
+v10 15/21 2 FP / 4 FN ```
 
-Generic attribution constraints were not sufficient to justify replacing v9.
-
----
+Generic attribution constraints were not sufficient to justify replacing
+v9.
 
 ## Targeted Long-Function Investigation
 
-After the expanded suite identified `long_function` as a consistent weakness, a targeted experiment tested progressively more explicit guidance.
+After the expanded suite identified `long_function` as a consistent
+weakness, a targeted experiment tested progressively more explicit
+guidance.
 
 The experiment included:
 
-- a more operational definition of distinct responsibilities
-- explicit responsibility signals
-- guidance for distinguishing several concerns from cohesive steps
-- a concrete multi-responsibility positive prototype
+- a more operational definition of distinct responsibilities - explicit
+responsibility signals - guidance for distinguishing several concerns
+from cohesive steps - a concrete multi-responsibility positive prototype
 
 The result remained:
 
-```text
-Original positive       FAIL
-Strong positive         FAIL
-Pre-existing boundary   PASS
-```
+```text Original positive FAIL Strong positive FAIL Pre-existing
+boundary PASS ```
 
-The same behavior appeared in the established full-file benchmark family.
+The same behavior appeared in the established full-file benchmark
+family.
 
-This suggested that Qwen 3.5 9B was conservative when applying the `long_function` rule inside a general review prompt.
+This suggested that Qwen 3.5 9B was conservative when applying the
+`long_function` rule inside a general review prompt.
 
-Because increasingly explicit general prompt wording did not improve recognition, further single-prompt tuning was stopped.
-
----
+Because increasingly explicit general prompt wording did not improve
+recognition, further single-prompt tuning was stopped.
 
 ## v11 Targeted Attribution Experiment
 
-Prompt v11 returned to the v9-style baseline and targeted the remaining attribution failures more precisely.
+Prompt v11 returned to the v9-style baseline and targeted the remaining
+attribution failures more precisely.
 
-Instead of making the reviewer globally more conservative, v11 instructs the model to compare the **actual triggering code before and after the change**.
+Instead of making the reviewer globally more conservative, v11 instructs
+the model to compare the **actual triggering code before and after
+the change**.
 
 The central principle is:
 
-```text
-identify triggering code
-        ↓
-compare BEFORE and AFTER
-        ↓
-trigger unchanged + unrelated diff
-        ↓
-pre-existing issue
-        ↓
-do not report
-```
+```text identify triggering code ↓ compare BEFORE and AFTER ↓ trigger
+unchanged + unrelated diff ↓ pre-existing issue ↓ do not report ```
 
-For security rules, this means checking whether the vulnerable SQL construction, shell command construction, or dangerous execution behavior itself changed.
+For security rules, this means checking whether the vulnerable SQL
+construction, shell command construction, or dangerous execution
+behavior itself changed.
 
 ### SQL Injection
 
-```text
-Introduced SQL injection       PASS
-Pre-existing SQL injection     PASS
+```text Introduced SQL injection PASS Pre-existing SQL injection PASS
 ```
 
 Result:
 
-```text
-2/2 — 100%
-0 FP
-0 FN
-```
+```text 2/2 --- 100% 0 FP 0 FN ```
 
 ### Shell Injection
 
-```text
-Introduced shell injection     PASS
-Pre-existing shell injection   PASS
-```
+```text Introduced shell injection PASS Pre-existing shell injection
+PASS ```
 
 Result:
 
-```text
-2/2 — 100%
-0 FP
-0 FN
-```
+```text 2/2 --- 100% 0 FP 0 FN ```
 
-Because both targeted families improved without losing detection of newly introduced vulnerabilities, v11 was evaluated against the complete suite.
-
----
+Because both targeted families improved without losing detection of
+newly introduced vulnerabilities, v11 was evaluated against the complete
+suite.
 
 ## Single-Pass v11 Diff Baseline
 
 Qwen 3.5 9B with prompt v11 produces:
 
-```text
-Model            qwen3.5:9b
-Prompt           v11
-Benchmarks       21
-Passed           17
-Failed            4
-Errors            0
-False positives   0
-False negatives   4
-Wrong rules       0
-Accuracy         80.95%
-Severity          7/7 (100.00%)
-Duration         41.48s
-```
+```text Model qwen3.5:9b Prompt v11 Benchmarks 21 Passed 17 Failed 4
+Errors 0 False positives 0 False negatives 4 Wrong rules 0 Accuracy
+80.95% Severity 7/7 (100.00%) Duration 41.48s ```
 
 ### Prompt Comparison
 
-| Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| v9 | 15/21 | 71.43% | 3 | 3 | 8/8 (100%) |
-| v10 | 15/21 | 71.43% | 2 | 4 | 7/7 (100%) |
-| **v11** | **17/21** | **80.95%** | **0** | **4** | **7/7 (100%)** |
+| Prompt | Passed | Accuracy | False Positives | False Negatives |
+Severity | | --- | ---: | ---: | ---: | ---: | ---: | | v9 |
+15/21 | 71.43% | 3 | 3 | 8/8 (100%) | | v10 | 15/21 | 71.43% |
+2 | 4 | 7/7 (100%) | | **v11** | **17/21** |
+**80.95%** | **0** | **4** | **7/7
+(100%)** |
 
-v11 improves accuracy by approximately **9.5 percentage points** over v9 and v10.
+v11 improves accuracy by approximately **9.5 percentage points**
+over v9 and v10.
 
-More importantly, it eliminates all false positives in the current Qwen 3.5 9B diff suite.
+More importantly, it eliminates all false positives in the current Qwen
+3.5 9B diff suite.
 
 v11 remains the strongest **single-pass** diff prompt.
-
----
 
 ## v9 → v11 Regression Analysis
 
 The exported v9 and v11 runs were compared benchmark by benchmark.
 
-```text
-Old: v9 / qwen3.5:9b — 15/21 (71.4%)
-New: v11 / qwen3.5:9b — 17/21 (81.0%)
+```text Old: v9 / qwen3.5:9b --- 15/21 (71.4%) New: v11 / qwen3.5:9b
+--- 17/21 (81.0%)
 
-Comparable: 21
-Fixed: 3
-Regressed: 1
-Still failing: 3
-Added: 0
-Removed: 0
-```
+Comparable: 21 Fixed: 3 Regressed: 1 Still failing: 3 Added: 0 Removed:
+0 ```
 
 ### Fixed
 
-```text
-pre-existing mutable_default_argument
-pre-existing shell_injection
-pre-existing sql_injection
-```
+```text pre-existing mutable_default_argument pre-existing
+shell_injection pre-existing sql_injection ```
 
 ### Regressed
 
-```text
-strong duplicate_code positive
-```
+```text strong duplicate_code positive ```
 
 ### Still Failing
 
-```text
-duplicate_code positive
-long_function positive
-strong long_function positive
-```
+```text duplicate_code positive long_function positive strong
+long_function positive ```
 
 The final behavioral change is:
 
-```text
-v9 → v11
+```text v9 → v11
 
-FIXED
-├── mutable_default_argument attribution
-├── shell_injection attribution
-└── sql_injection attribution
+FIXED ├── mutable_default_argument attribution ├── shell_injection
+attribution └── sql_injection attribution
 
-REGRESSED
-└── strong duplicate_code recognition
+REGRESSED └── strong duplicate_code recognition
 
-STILL FAILING
-├── duplicate_code positive
-├── long_function positive
-└── strong long_function positive
-```
+STILL FAILING ├── duplicate_code positive ├── long_function positive └──
+strong long_function positive ```
 
 Unlike v10, the v11 trade-off produces a clear aggregate improvement.
 
 Prompt v11 therefore became the frozen single-pass diff-review baseline.
 
----
-
 ## Cross-Model v11 Evaluation
 
-After establishing v11 as the Qwen 3.5 9B baseline, the complete 21-case suite was run against the other local models already used by the project.
+After establishing v11 as the Qwen 3.5 9B baseline, the complete 21-case
+suite was run against the other local models already used by the
+project.
 
 The experiment kept the following fixed:
 
-```text
-same 21 diff benchmarks
-same v11 prompt
-same deterministic generation settings
-same evaluator
-```
+```text same 21 diff benchmarks same v11 prompt same deterministic
+generation settings same evaluator ```
 
 Only the model changed.
 
 ### Results
 
 | Model | Passed | Accuracy | False Positives | False Negatives |
-| --- | ---: | ---: | ---: | ---: |
-| **Qwen 3.5 9B** | **17/21** | **80.95%** | **0** | 4 |
-| Qwen 2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 |
-| Qwen 2.5 Coder 14B | 13/21 | 61.90% | 4 | 4 |
-| Gemma 3 12B | 13/21 | 61.90% | 4 | 4 |
-| Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* |
-| DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
+| --- | ---: | ---: | ---: | ---: | | **Qwen 3.5 9B** |
+**17/21** | **80.95%** | **0** | 4 | | Qwen
+2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 | | Qwen 2.5
+Coder 14B | 13/21 | 61.90% | 4 | 4 | | Gemma 3 12B | 13/21 |
+61.90% | 4 | 4 | | Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* | |
+DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
 
-`*` The original cross-model runs predated aggregate rule-mismatch counting.
+`*` The original cross-model runs predated aggregate rule-mismatch
+counting.
 
-The zero false-negative count for Llama 3.1 8B and DeepSeek Coder V2 16B was therefore misleading when viewed alone.
+The zero false-negative count for Llama 3.1 8B and DeepSeek Coder V2 16B
+was therefore misleading when viewed alone.
 
-These models frequently predicted an issue using the **wrong rule** rather than returning no issue.
+These models frequently predicted an issue using the **wrong
+rule** rather than returning no issue.
 
-This observation directly motivated an evaluator improvement that now tracks wrong-rule failures separately from false positives and false negatives.
-
----
+This observation directly motivated an evaluator improvement that now
+tracks wrong-rule failures separately from false positives and false
+negatives.
 
 ## Aggregate Rule-Mismatch Evaluation
 
 The benchmark evaluator distinguishes three important failure modes:
 
-```text
-expected no issue + issue reported
-        ↓
-false positive
+```text expected no issue + issue reported ↓ false positive
 
-expected issue + nothing reported
-        ↓
-false negative
+expected issue + nothing reported ↓ false negative
 
-expected issue + different rule reported
-        ↓
-wrong rule / rule mismatch
+expected issue + different rule reported ↓ wrong rule / rule mismatch
 ```
 
 A rule mismatch is counted when:
 
-```text
-benchmark expects an issue
-        +
-model reports at least one issue
-        +
-none of the reported issues uses the expected rule
-```
+```text benchmark expects an issue + model reports at least one
+issue + none of the reported issues uses the expected rule ```
 
-This prevents a model that aggressively predicts incorrect rules from appearing to have strong recall merely because its false-negative count is zero.
+This prevents a model that aggressively predicts incorrect rules from
+appearing to have strong recall merely because its false-negative count
+is zero.
 
 The metric is:
 
-- stored on individual benchmark evaluations
-- aggregated by `BenchmarkRun`
-- serialized in benchmark result exports
-- loaded by result-analysis tooling
-- available in rule/category summaries
-- displayed in benchmark summary output
+- stored on individual benchmark evaluations - aggregated by
+`BenchmarkRun` - serialized in benchmark result exports - loaded by
+result-analysis tooling - available in rule/category summaries -
+displayed in benchmark summary output
 
 ### DeepSeek Validation Run
 
-DeepSeek Coder V2 16B was rerun against the complete v11 diff suite after adding the metric.
+DeepSeek Coder V2 16B was rerun against the complete v11 diff suite
+after adding the metric.
 
-```text
-Model            deepseek-coder-v2:16b
-Prompt           v11
-Benchmarks       21
-Passed            3
-Failed           18
-Errors            0
-False positives  10
-False negatives   0
-Wrong rules       6
-Accuracy         14.29%
-Severity          3/3 (100.00%)
-Duration         205.06s
-```
+```text Model deepseek-coder-v2:16b Prompt v11 Benchmarks 21 Passed 3
+Failed 18 Errors 0 False positives 10 False negatives 0 Wrong rules 6
+Accuracy 14.29% Severity 3/3 (100.00%) Duration 205.06s ```
 
 The six wrong-rule failures were:
 
-```text
-duplicate_code
-├── normal positive
-└── strong positive
+```text duplicate_code ├── normal positive └── strong positive
 
-long_function
-├── normal positive
-└── strong positive
+long_function ├── normal positive └── strong positive
 
-list_membership_in_loop
-└── introduced positive
+list_membership_in_loop └── introduced positive
 
-string_concatenation_in_loop
-└── introduced positive
-```
+string_concatenation_in_loop └── introduced positive ```
 
-Instead of missing these cases completely, DeepSeek reported unrelated supported rules.
+Instead of missing these cases completely, DeepSeek reported unrelated
+supported rules.
 
 Examples included:
 
-```text
-expected duplicate_code
-actual   mutable_default_argument
+```text expected duplicate_code actual mutable_default_argument
 
-expected long_function
-actual   mutable_default_argument
+expected long_function actual mutable_default_argument
 
-expected list_membership_in_loop
-actual   mutable_default_argument
+expected list_membership_in_loop actual mutable_default_argument
 
-expected string_concatenation_in_loop
-actual   unreachable_code
-```
+expected string_concatenation_in_loop actual unreachable_code ```
 
-The new aggregate summary therefore describes the model substantially better:
+The new aggregate summary therefore describes the model substantially
+better:
 
-```text
-3 passed
-10 false-positive attribution failures
-6 wrong-rule failures
-0 ordinary false negatives
-```
+```text 3 passed 10 false-positive attribution failures 6 wrong-rule
+failures 0 ordinary false negatives ```
 
 The apparent `0 FN` no longer hides the taxonomy-selection problem.
-
----
 
 ## Cross-Model Failure Analysis
 
@@ -740,193 +564,139 @@ The apparent `0 FN` no longer hides the taxonomy-selection problem.
 
 Single-pass v11:
 
-```text
-17/21 — 80.95%
-0 FP
-4 FN
-0 wrong rules
-```
+```text 17/21 --- 80.95% 0 FP 4 FN 0 wrong rules ```
 
-The four failures are concentrated entirely in maintainability recognition:
+The four failures are concentrated entirely in maintainability
+recognition:
 
-```text
-duplicate_code
-├── normal positive   FAIL
-└── strong positive   FAIL
+```text duplicate_code ├── normal positive FAIL └── strong positive
+FAIL
 
-long_function
-├── normal positive   FAIL
-└── strong positive   FAIL
-```
+long_function ├── normal positive FAIL └── strong positive FAIL ```
 
 All current pre-existing attribution boundary cases pass.
 
 ### Qwen 2.5 Coder 7B
 
-```text
-15/21 — 71.43%
-0 FP
-6 FN
-```
+```text 15/21 --- 71.43% 0 FP 6 FN ```
 
-Like Qwen 3.5 9B, the 7B model produces no false positives and handles the current attribution boundaries well.
+Like Qwen 3.5 9B, the 7B model produces no false positives and handles
+the current attribution boundaries well.
 
 It also misses all four maintainability positives.
 
 Its two additional false negatives are introduced performance issues:
 
-```text
-list_membership_in_loop
-string_concatenation_in_loop
-```
+```text list_membership_in_loop string_concatenation_in_loop ```
 
-It remains interesting as a smaller and faster reviewer, but Qwen 3.5 9B is substantially stronger overall.
+It remains interesting as a smaller and faster reviewer, but Qwen 3.5 9B
+is substantially stronger overall.
 
 ### Qwen 2.5 Coder 14B
 
-```text
-13/21 — 61.90%
-4 FP
-4 FN
-```
+```text 13/21 --- 61.90% 4 FP 4 FN ```
 
-The larger Qwen 2.5 Coder model recovers some findings missed by the 7B version but performs worse on attribution.
+The larger Qwen 2.5 Coder model recovers some findings missed by the 7B
+version but performs worse on attribution.
 
 Its false positives include pre-existing cases such as:
 
-```text
-mutable_default_argument
-string_concatenation_in_loop
-shell_injection
-sql_injection
-```
+```text mutable_default_argument string_concatenation_in_loop
+shell_injection sql_injection ```
 
-This demonstrates that larger parameter count does not automatically produce better behavior under a fixed review prompt.
+This demonstrates that larger parameter count does not automatically
+produce better behavior under a fixed review prompt.
 
 ### Gemma 3 12B
 
-```text
-13/21 — 61.90%
-4 FP
-4 FN
-```
+```text 13/21 --- 61.90% 4 FP 4 FN ```
 
-Gemma reaches the same aggregate accuracy as Qwen 2.5 Coder 14B but does not fail on exactly the same cases.
+Gemma reaches the same aggregate accuracy as Qwen 2.5 Coder 14B but does
+not fail on exactly the same cases.
 
 This reinforces the importance of benchmark-level analysis.
 
 ### Llama 3.1 8B
 
-```text
-5/21 — 23.81%
-10 FP
-0 ordinary FN
-```
+```text 5/21 --- 23.81% 10 FP 0 ordinary FN ```
 
 The apparent zero false-negative count does not indicate strong recall.
 
 The model frequently selects incorrect rules.
 
-The original run predates aggregate wrong-rule counting, so a historical aggregate wrong-rule value is not asserted here.
+The original run predates aggregate wrong-rule counting, so a historical
+aggregate wrong-rule value is not asserted here.
 
 ### DeepSeek Coder V2 16B
 
-```text
-3/21 — 14.29%
-10 FP
-0 ordinary FN
-6 wrong rules
-```
+```text 3/21 --- 14.29% 10 FP 0 ordinary FN 6 wrong rules ```
 
 DeepSeek exhibits strong rule-selection instability.
 
-The explicit `Wrong rules: 6` metric now captures this behavior directly.
-
----
+The explicit `Wrong rules: 6` metric now captures this behavior
+directly.
 
 ## Maintainability Findings Across Models
 
-The cross-model experiment was especially useful for evaluating the remaining Qwen 3.5 9B maintainability failures.
+The cross-model experiment was especially useful for evaluating the
+remaining Qwen 3.5 9B maintainability failures.
 
-Among the models with reasonably stable taxonomy behavior, the same single-pass pattern appears repeatedly.
+Among the models with reasonably stable taxonomy behavior, the same
+single-pass pattern appears repeatedly.
 
 ### Duplicate Code
 
-```text
-                       Normal     Strong
-Qwen 3.5 9B            FAIL       FAIL
-Qwen 2.5 Coder 7B      FAIL       FAIL
-Qwen 2.5 Coder 14B     FAIL       FAIL
-Gemma 3 12B            FAIL       FAIL
-```
+```text Normal Strong Qwen 3.5 9B FAIL FAIL Qwen 2.5 Coder 7B FAIL
+FAIL Qwen 2.5 Coder 14B FAIL FAIL Gemma 3 12B FAIL FAIL ```
 
 ### Long Function
 
-```text
-                       Normal     Strong
-Qwen 3.5 9B            FAIL       FAIL
-Qwen 2.5 Coder 7B      FAIL       FAIL
-Qwen 2.5 Coder 14B     FAIL       FAIL
-Gemma 3 12B            FAIL       FAIL
-```
+```text Normal Strong Qwen 3.5 9B FAIL FAIL Qwen 2.5 Coder 7B FAIL
+FAIL Qwen 2.5 Coder 14B FAIL FAIL Gemma 3 12B FAIL FAIL ```
 
-The important conclusion was that the maintainability failures were **not unique to Qwen 3.5 9B**.
+The important conclusion was that the maintainability failures were
+**not unique to Qwen 3.5 9B**.
 
-At this stage, further expansion of the general v11 prompt had diminishing value.
+At this stage, further expansion of the general v11 prompt had
+diminishing value.
 
-That observation motivated the next architectural experiment: reducing the number of rules considered by an individual LLM call.
-
----
+That observation motivated the next architectural experiment: reducing
+the number of rules considered by an individual LLM call.
 
 ## Structured Output Improvement
 
-The multi-pass experiment initially exposed another problem: candidate-generation prompts did not always return machine-readable JSON.
+The multi-pass experiment initially exposed another problem:
+candidate-generation prompts did not always return machine-readable
+JSON.
 
-For example, the model could respond with prose, tool-like structures, or free-form findings even when the prompt requested JSON.
+For example, the model could respond with prose, tool-like structures,
+or free-form findings even when the prompt requested JSON.
 
-The Ollama integration was therefore extended to support an optional structured output format.
+The Ollama integration was therefore extended to support an optional
+structured output format.
 
-Instead of globally forcing every request into JSON mode, `generate_review()` accepts an optional schema:
+Instead of globally forcing every request into JSON mode,
+`generate_review()` accepts an optional schema:
 
-```text
-generate_review(
-    prompt,
-    model,
-    output_format=...
-)
-```
+```text generate_review( prompt, model, output_format=... ) ```
 
 Review requests can provide the project's review response JSON Schema.
 
 This constrains generated findings to the expected structure:
 
-```text
-{
-    "issues": [...]
-}
-```
+```text { "issues": [...] } ```
 
-while preserving the existing parser and taxonomy validation as a second validation boundary.
+while preserving the existing parser and taxonomy validation as a second
+validation boundary.
 
 The resulting pipeline is:
 
-```text
-Prompt
-   ↓
-Ollama JSON Schema constraint
-   ↓
-JSON response
-   ↓
-parse_review_response()
-   ↓
-taxonomy validation
-   ↓
-CodeReview
-```
+```text Prompt ↓ Ollama JSON Schema constraint ↓ JSON response ↓
+parse_review_response() ↓ taxonomy validation ↓ CodeReview ```
 
-This made experimental candidate generation significantly more reliable and removed output-format failures from the maintainability investigation.
-
----
+This made experimental candidate generation significantly more reliable
+and removed output-format failures from the maintainability
+investigation.
 
 ## Candidate-Generation Experiment
 
@@ -934,108 +704,68 @@ The first multi-pass step separated issue discovery from final review.
 
 A new candidate-generation prompt was introduced:
 
-```text
-diff + current source
-        ↓
-candidate-generation prompt
-        ↓
-potential findings
-```
+```text diff + current source ↓ candidate-generation prompt ↓
+potential findings ```
 
-The initial generic candidate prompt still struggled with the maintainability cases.
+The initial generic candidate prompt still struggled with the
+maintainability cases.
 
-This demonstrated that simply adding another LLM call did not automatically improve recall.
+This demonstrated that simply adding another LLM call did not
+automatically improve recall.
 
 The main problem remained the scope of the task.
 
 The model was still being asked to reason across the complete taxonomy.
 
----
-
 ## Maintainability Specialist Experiment
 
-A focused prompt version, `maintainability_v1`, was created specifically for:
+A focused prompt version, `maintainability_v1`, was created
+specifically for:
 
-```text
-duplicate_code
-long_function
-```
+```text duplicate_code long_function ```
 
 The purpose was not to teach the model benchmark answers.
 
-Instead, the experiment tested whether reducing taxonomy competition and narrowing the reasoning task would improve recognition.
+Instead, the experiment tested whether reducing taxonomy competition and
+narrowing the reasoning task would improve recognition.
 
 ### Duplicate Code Candidate Results
 
-```text
-Model            qwen3.5:9b
-Prompt           maintainability_v1
-Benchmarks       3
-Passed           3
-Failed            0
-Errors            0
-False positives   0
-False negatives   0
-Wrong rules       0
-Accuracy         100.00%
-Severity          2/2 (100.00%)
-Duration         10.05s
-```
+```text Model qwen3.5:9b Prompt maintainability_v1 Benchmarks 3
+Passed 3 Failed 0 Errors 0 False positives 0 False negatives 0 Wrong
+rules 0 Accuracy 100.00% Severity 2/2 (100.00%) Duration 10.05s ```
 
 This recovered both positive cases missed by v11:
 
-```text
-Original positive       PASS
-Strong positive         PASS
-Pre-existing boundary   PASS
-```
+```text Original positive PASS Strong positive PASS Pre-existing
+boundary PASS ```
 
 ### Long Function Candidate Results
 
-```text
-Model            qwen3.5:9b
-Prompt           maintainability_v1
-Benchmarks       3
-Passed           2
-Failed            1
-Errors            0
-False positives   0
-False negatives   1
-Wrong rules       0
-Accuracy         66.67%
-Severity          1/1 (100.00%)
-Duration          7.03s
-```
+```text Model qwen3.5:9b Prompt maintainability_v1 Benchmarks 3
+Passed 2 Failed 1 Errors 0 False positives 0 False negatives 1 Wrong
+rules 0 Accuracy 66.67% Severity 1/1 (100.00%) Duration 7.03s ```
 
 The stronger positive was recovered:
 
-```text
-Original positive       FAIL
-Strong positive         PASS
-Pre-existing boundary   PASS
-```
+```text Original positive FAIL Strong positive PASS Pre-existing
+boundary PASS ```
 
 The focused prompt therefore changed maintainability behavior from:
 
-```text
-v11 general
+```text v11 general
 
-duplicate_code   1/3
-long_function    1/3
-```
+duplicate_code 1/3 long_function 1/3 ```
 
 to:
 
-```text
-maintainability_v1
+```text maintainability_v1
 
-duplicate_code   3/3
-long_function    2/3
-```
+duplicate_code 3/3 long_function 2/3 ```
 
-This was the first strong evidence that the remaining weakness could be addressed through **task specialization** rather than increasingly benchmark-specific general prompt instructions.
-
----
+This was the first strong evidence that the remaining weakness could be
+addressed through **task specialization** rather than
+increasingly benchmark-specific general prompt instructions.
 
 ## Candidate + Verifier Multi-Pass Experiment
 
@@ -1043,297 +773,180 @@ A second LLM pass was then added to verify candidate findings.
 
 The architecture was:
 
-```text
-Diff + Current Source
-        ↓
-Candidate Generator
-        ↓
-Candidate Issues
-        ↓
-Verifier
-        ↓
-Final CodeReview
-```
+```text Diff + Current Source ↓ Candidate Generator ↓ Candidate
+Issues ↓ Verifier ↓ Final CodeReview ```
 
-The verifier was designed to reject unsupported candidate findings while preserving valid ones.
+The verifier was designed to reject unsupported candidate findings while
+preserving valid ones.
 
 ### Duplicate Code
 
-```text
-Benchmarks       3
-Passed            3
-Failed            0
-False positives   0
-False negatives   0
-Accuracy         100.00%
-Duration         22.05s
-```
+```text Benchmarks 3 Passed 3 Failed 0 False positives 0 False
+negatives 0 Accuracy 100.00% Duration 22.05s ```
 
 ### Long Function
 
-```text
-Benchmarks       3
-Passed            2
-Failed            1
-False positives   0
-False negatives   1
-Accuracy         66.67%
-Duration         13.84s
-```
+```text Benchmarks 3 Passed 2 Failed 1 False positives 0 False
+negatives 1 Accuracy 66.67% Duration 13.84s ```
 
 The verifier successfully preserved valid specialist findings.
 
 However, it exposed an architectural limitation:
 
-```text
-candidate generator misses issue
-        ↓
-no candidate exists
-        ↓
-verifier has nothing to verify
-        ↓
-issue remains missed
-```
+```text candidate generator misses issue ↓ no candidate exists ↓
+verifier has nothing to verify ↓ issue remains missed ```
 
-A verifier can improve precision, but it cannot recover findings that were never generated.
+A verifier can improve precision, but it cannot recover findings that
+were never generated.
 
 This distinction changed the direction of the experiment.
 
-Rather than using the second call only to verify the first, the next design gave the second call **independent specialist responsibility**.
-
----
+Rather than using the second call only to verify the first, the next
+design gave the second call **independent specialist
+responsibility**.
 
 ## Full-Suite Maintainability Multi-Pass Diagnostic
 
-The maintainability candidate/verifier architecture was intentionally run across the complete 21-case suite as a diagnostic.
+The maintainability candidate/verifier architecture was intentionally
+run across the complete 21-case suite as a diagnostic.
 
 Result:
 
-```text
-Model            qwen3.5:9b
-Prompt           maintainability_v1
-Benchmarks       21
-Passed           12
-Failed            9
-Errors            0
-False positives   0
-False negatives   9
-Wrong rules       0
-Accuracy         57.14%
-Severity          2/2 (100.00%)
-Duration         54.81s
-```
+```text Model qwen3.5:9b Prompt maintainability_v1 Benchmarks 21
+Passed 12 Failed 9 Errors 0 False positives 0 False negatives 9 Wrong
+rules 0 Accuracy 57.14% Severity 2/2 (100.00%) Duration 54.81s ```
 
-The specialist correctly handled many safe cases but missed most positive bug, security, and performance cases.
+The specialist correctly handled many safe cases but missed most
+positive bug, security, and performance cases.
 
-This is expected because `maintainability_v1` was deliberately scoped to maintainability.
+This is expected because `maintainability_v1` was deliberately scoped
+to maintainability.
 
 The experiment provided an important architectural lesson:
 
-```text
-specialist prompt
-        ↓
-strong inside its domain
-        +
-weak outside its domain
-```
+```text specialist prompt ↓ strong inside its domain + weak outside
+its domain ```
 
-Therefore, a specialist should complement the general reviewer rather than replace it.
-
----
+Therefore, a specialist should complement the general reviewer rather
+than replace it.
 
 ## Specialized Two-Call Diff Review
 
-The final experiment combined the strongest general reviewer with the maintainability specialist.
+The final experiment combined the strongest general reviewer with the
+maintainability specialist.
 
 The architecture is:
 
-```text
-                         Diff + Current Source
-                                  │
-                   ┌──────────────┴──────────────┐
-                   │                             │
-                   ↓                             ↓
-              General Pass               Specialist Pass
-                  v11                   maintainability_v1
-                   │                             │
-                   ↓                             ↓
-         bug / security /              duplicate_code
-            performance                 long_function
-                   │                             │
-                   └──────────────┬──────────────┘
-                                  ↓
-                       Deterministic Merge
-                                  ↓
-                          Final CodeReview
+```text Diff + Current Source │ ┌──────────────┴──────────────┐ │ │ ↓
+↓ General Pass Specialist Pass v11 maintainability_v1 │ │ ↓ ↓ bug /
+security / duplicate_code performance long_function │ │
+└──────────────┬──────────────┘ ↓ Deterministic Merge ↓ Final CodeReview
 ```
 
 Rule ownership is explicit.
 
 The general reviewer owns:
 
-```text
-mutable_default_argument
-unreachable_code
-sql_injection
-shell_injection
-path_traversal
-list_membership_in_loop
-string_concatenation_in_loop
-```
+```text mutable_default_argument unreachable_code sql_injection
+shell_injection path_traversal list_membership_in_loop
+string_concatenation_in_loop ```
 
 The maintainability specialist owns:
 
-```text
-duplicate_code
-long_function
-```
+```text duplicate_code long_function ```
 
-If the general pass returns a maintainability finding, deterministic merge logic removes it and uses the specialist result for those rules.
+If the general pass returns a maintainability finding, deterministic
+merge logic removes it and uses the specialist result for those rules.
 
 No third LLM call is required.
 
 The merge itself is ordinary Python logic.
 
----
-
 ## Specialized Full-Suite Result
 
 The complete 21-case suite was evaluated with:
 
-```text
-Model                  qwen3.5:9b
-General prompt         v11
-Specialist prompt      maintainability_v1
-LLM calls              2
-```
+```text Model qwen3.5:9b General prompt v11 Specialist prompt
+maintainability_v1 LLM calls 2 ```
 
 Result:
 
-```text
-Model            qwen3.5:9b
-Prompt           v11+maintainability_v1
-Benchmarks       21
-Passed           20
-Failed            1
-Errors            0
-False positives   0
-False negatives   1
-Wrong rules       0
-Accuracy         95.24%
-Severity          10/10 (100.00%)
-Duration         81.12s
-```
+```text Model qwen3.5:9b Prompt v11+maintainability_v1 Benchmarks 21
+Passed 20 Failed 1 Errors 0 False positives 0 False negatives 1 Wrong
+rules 0 Accuracy 95.24% Severity 10/10 (100.00%) Duration 81.12s ```
 
 This is the strongest result produced by the diff reviewer so far.
 
 ### Architecture Comparison
 
-| Architecture | Passed | Accuracy | FP | FN | Wrong Rules |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| v9 single-pass | 15/21 | 71.43% | 3 | 3 | — |
-| v10 single-pass | 15/21 | 71.43% | 2 | 4 | — |
-| v11 single-pass | 17/21 | 80.95% | 0 | 4 | 0 |
-| **v11 + maintainability specialist** | **20/21** | **95.24%** | **0** | **1** | **0** |
+| Architecture | Passed | Accuracy | FP | FN | Wrong Rules | |
+--- | ---: | ---: | ---: | ---: | ---: | | v9 single-pass |
+15/21 | 71.43% | 3 | 3 | --- | | v10 single-pass | 15/21 |
+71.43% | 2 | 4 | --- | | v11 single-pass | 17/21 | 80.95% | 0 |
+4 | 0 | | **v11 + maintainability specialist** |
+**20/21** | **95.24%** | **0** |
+**1** | **0** |
 
 Relative to v11, specialization changes:
 
-```text
-17/21
-    ↓
-20/21
+```text 17/21 ↓ 20/21
 
-80.95%
-    ↓
-95.24%
+80.95% ↓ 95.24%
 
-4 false negatives
-    ↓
-1 false negative
+4 false negatives ↓ 1 false negative
 
-0 false positives
-    ↓
-0 false positives
+0 false positives ↓ 0 false positives
 
-0 wrong rules
-    ↓
-0 wrong rules
-```
+0 wrong rules ↓ 0 wrong rules ```
 
-The improvement is therefore not produced by trading precision for recall.
+The improvement is therefore not produced by trading precision for
+recall.
 
-Three previously missed maintainability findings are recovered without regressing any existing passing case.
-
----
+Three previously missed maintainability findings are recovered without
+regressing any existing passing case.
 
 ## Specialized Benchmark-Level Analysis
 
-The specialized architecture preserves all previously successful v11 behavior.
+The specialized architecture preserves all previously successful v11
+behavior.
 
 ### Bug
 
-```text
-mutable_default_argument
-├── introduced      PASS
-└── pre-existing    PASS
+```text mutable_default_argument ├── introduced PASS └── pre-existing
+PASS
 
-unreachable_code
-├── introduced      PASS
-└── pre-existing    PASS
-```
+unreachable_code ├── introduced PASS └── pre-existing PASS ```
 
 ### Performance
 
-```text
-list_membership_in_loop
-├── safe            PASS
-├── introduced      PASS
-└── pre-existing    PASS
+```text list_membership_in_loop ├── safe PASS ├── introduced PASS └──
+pre-existing PASS
 
-string_concatenation_in_loop
-├── introduced      PASS
-└── pre-existing    PASS
+string_concatenation_in_loop ├── introduced PASS └── pre-existing PASS
 ```
 
 ### Security
 
-```text
-path_traversal
-├── pre-existing    PASS
-└── introduced      PASS
+```text path_traversal ├── pre-existing PASS └── introduced PASS
 
-shell_injection
-├── introduced      PASS
-└── pre-existing    PASS
+shell_injection ├── introduced PASS └── pre-existing PASS
 
-sql_injection
-├── introduced      PASS
-└── pre-existing    PASS
-```
+sql_injection ├── introduced PASS └── pre-existing PASS ```
 
 ### Maintainability
 
-```text
-duplicate_code
-├── normal positive       PASS
-├── strong positive       PASS
-└── pre-existing          PASS
+```text duplicate_code ├── normal positive PASS ├── strong positive
+PASS └── pre-existing PASS
 
-long_function
-├── normal positive       FAIL
-├── strong positive       PASS
-└── pre-existing          PASS
-```
+long_function ├── normal positive FAIL ├── strong positive PASS └──
+pre-existing PASS ```
 
 The only remaining failure in the entire 21-case suite is:
 
-```text
-Adding multiple responsibilities introduces long function
+```text Adding multiple responsibilities introduces long function
 ```
 
 This is a false negative.
-
----
 
 ## Single-Pass vs Specialized Architecture
 
@@ -1341,219 +954,146 @@ The most important current comparison is no longer v9 vs v10 vs v11.
 
 It is:
 
-```text
-single general reviewer
-        vs
-general reviewer + specialist
+```text single general reviewer vs general reviewer + specialist
 ```
 
 ### Single-Pass v11
 
-```text
-LLM calls         1
-Passed            17/21
-Accuracy          80.95%
-False positives   0
-False negatives   4
-Wrong rules       0
-```
+```text LLM calls 1 Passed 17/21 Accuracy 80.95% False positives 0
+False negatives 4 Wrong rules 0 ```
 
 ### Specialized Review
 
-```text
-LLM calls         2
-Passed            20/21
-Accuracy          95.24%
-False positives   0
-False negatives   1
-Wrong rules       0
-Duration          81.12s
-```
+```text LLM calls 2 Passed 20/21 Accuracy 95.24% False positives 0
+False negatives 1 Wrong rules 0 Duration 81.12s ```
 
-The specialized design gains approximately **14.3 percentage points** of benchmark accuracy over v11.
+The specialized design gains approximately **14.3 percentage
+points** of benchmark accuracy over v11.
 
 The cost is additional inference.
 
 The architecture therefore introduces a real engineering trade-off:
 
-```text
-single-pass
-├── cheaper
-├── faster
-└── lower maintainability recall
+```text single-pass ├── cheaper ├── faster └── lower maintainability
+recall
 
-specialized two-call
-├── more expensive
-├── slower
-└── substantially higher recall
-```
+specialized two-call ├── more expensive ├── slower └── substantially
+higher recall ```
 
-This trade-off can now be measured rather than discussed only conceptually.
-
----
+This trade-off can now be measured rather than discussed only
+conceptually.
 
 ## Why Specialization Helped
 
-The experiment provides evidence that the earlier maintainability failures were not simply caused by insufficient model size.
+The experiment provides evidence that the earlier maintainability
+failures were not simply caused by insufficient model size.
 
 The same Qwen 3.5 9B model changed from:
 
-```text
-v11 general prompt
-17/21
-80.95%
-```
+```text v11 general prompt 17/21 80.95% ```
 
 to:
 
-```text
-v11 + maintainability specialist
-20/21
-95.24%
-```
+```text v11 + maintainability specialist 20/21 95.24% ```
 
 without changing model weights or hardware.
 
 The main variable was task decomposition.
 
-The general prompt asks the model to reason across nine supported rules while also performing change attribution.
+The general prompt asks the model to reason across nine supported rules
+while also performing change attribution.
 
 The maintainability specialist reasons about only:
 
-```text
-duplicate_code
-long_function
-```
+```text duplicate_code long_function ```
 
-This reduces rule competition and gives the prompt more room to define structural maintainability reasoning.
+This reduces rule competition and gives the prompt more room to define
+structural maintainability reasoning.
 
 The experiment therefore suggests:
 
-```text
-same model
-    +
-better task decomposition
-    ↓
-better reviewer
+```text same model + better task decomposition ↓ better reviewer
 ```
 
-This is different from simply adding more instructions to one increasingly large prompt.
-
----
+This is different from simply adding more instructions to one
+increasingly large prompt.
 
 ## Why the Verifier Alone Was Not Enough
 
-The candidate/verifier experiment and specialist experiment answer different questions.
+The candidate/verifier experiment and specialist experiment answer
+different questions.
 
 A verifier answers:
 
-```text
-Is this proposed finding actually supported?
-```
+```text Is this proposed finding actually supported? ```
 
 A specialist answers:
 
-```text
-Are there maintainability findings that the general reviewer failed to discover?
-```
+```text Are there maintainability findings that the general reviewer
+failed to discover? ```
 
 The distinction matters because:
 
-```text
-candidate missing
-    ↓
-verifier cannot recover it
-```
+```text candidate missing ↓ verifier cannot recover it ```
 
 The current architecture therefore prioritizes complementary detection.
 
 A future architecture could combine both ideas:
 
-```text
-general detection
-        +
-specialist detection
-        ↓
-candidate merge
-        ↓
-optional verification
-        ↓
-final review
-```
+```text general detection + specialist detection ↓ candidate merge ↓
+optional verification ↓ final review ```
 
-but the current benchmark does not yet justify adding that third LLM call.
-
----
+but the current benchmark does not yet justify adding that third LLM
+call.
 
 ## Result Analysis
 
-The project provides complementary ways to analyze exported benchmark results.
+The project provides complementary ways to analyze exported benchmark
+results.
 
 ### Aggregate Comparison
 
-```bash
-uv run python main.py compare-results results/v5/
-```
+```bash uv run python main.py compare-results results/v5/ ```
 
 Results can also be grouped by rule or category:
 
-```bash
-uv run python main.py compare-results results/v5/ --by-rule
-uv run python main.py compare-results results/v5/ --by-category
-```
+```bash uv run python main.py compare-results results/v5/ --by-rule
+uv run python main.py compare-results results/v5/ --by-category ```
 
 Aggregate benchmark summaries distinguish:
 
-```text
-false positives
-false negatives
-wrong rules
-```
+```text false positives false negatives wrong rules ```
 
-rather than reducing all failed positive cases to a single detection metric.
+rather than reducing all failed positive cases to a single detection
+metric.
 
 ### Individual Run Analysis
 
-```bash
-uv run python main.py analyze-result \
-    results/v5/qwen3.5-9b-seed42-block5.json
-```
+```bash uv run python main.py analyze-result \
+results/v5/qwen3.5-9b-seed42-block5.json ```
 
 This surfaces:
 
-- false positives
-- false negatives
-- rule mismatches
-- category mismatches
-- severity mismatches
+- false positives - false negatives - rule mismatches - category
+mismatches - severity mismatches
 
 ### Cross-Run Regression Analysis
 
-```bash
-uv run python main.py compare-runs \
-    results/diff/v9/qwen3.5-9b-expanded.json \
-    results/diff/v11/qwen3.5-9b.json
-```
+```bash uv run python main.py compare-runs \
+results/diff/v9/qwen3.5-9b-expanded.json \
+results/diff/v11/qwen3.5-9b.json ```
 
 Diff benchmark results are supported by `compare-runs`.
 
 The comparison identifies:
 
-- fixed benchmarks
-- regressed benchmarks
-- benchmarks that remain failing
-- added benchmarks
-- removed benchmarks
+- fixed benchmarks - regressed benchmarks - benchmarks that remain
+failing - added benchmarks - removed benchmarks
 
 Together, the analysis tools provide:
 
-```text
-Aggregate metrics
-        ↓
-Rule / category analysis
-        ↓
-Benchmark-level regression analysis
-```
+```text Aggregate metrics ↓ Rule / category analysis ↓
+Benchmark-level regression analysis ```
 
 ### Rule-Mismatch Semantics
 
@@ -1561,347 +1101,258 @@ A positive benchmark can fail in two distinct ways.
 
 If the model returns nothing:
 
-```text
-expected issue
-    ↓
-model reports nothing
-    ↓
-false negative
+```text expected issue ↓ model reports nothing ↓ false negative
 ```
 
-If the model recognizes that something is wrong but selects a different supported rule:
+If the model recognizes that something is wrong but selects a different
+supported rule:
 
-```text
-expected rule
-    ↓
-model reports different rule
-    ↓
-wrong rule
+```text expected rule ↓ model reports different rule ↓ wrong rule
 ```
 
 These failures carry different diagnostic information.
 
 A false negative suggests an issue-recognition or recall failure.
 
-A wrong-rule result suggests taxonomy selection or instruction-following failure.
+A wrong-rule result suggests taxonomy selection or instruction-following
+failure.
 
-Historical exported results that predate the metric can still be loaded. Missing `rule_mismatches` values default to zero for compatibility, but this should be interpreted as **not recorded** rather than proof that the historical run contained no rule mismatches.
-
----
+Historical exported results that predate the metric can still be loaded.
+Missing `rule_mismatches` values default to zero for compatibility,
+but this should be interpreted as **not recorded** rather than
+proof that the historical run contained no rule mismatches.
 
 ## Current Observations
 
 ### Full-File Review
 
-- Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
-- Controlled prompt iteration improved the full-file reviewer significantly.
-- Prompt v5 remains the full-file baseline.
-- v5 reaches **92.3% accuracy on 65 benchmarks**.
-- Severity accuracy remains **100%**.
-- `unreachable_code` currently performs strongly.
-- `long_function` remains one of the weakest full-file rules.
-- A targeted general `long_function` prompt experiment did not improve recognition.
-- Further general prompt tuning for that rule was paused to avoid benchmark-specific overfitting.
+- Qwen 3.5 9B produced the strongest result in the initial multi-model
+comparison. - Controlled prompt iteration improved the full-file
+reviewer significantly. - Prompt v5 remains the full-file baseline. - v5
+reaches **92.3% accuracy on 65 benchmarks**. - Severity accuracy
+remains **100%**. - `unreachable_code` currently performs
+strongly. - `long_function` remains one of the weakest full-file
+rules. - A targeted general `long_function` prompt experiment did not
+improve recognition. - Further general prompt tuning for that rule was
+paused to avoid benchmark-specific overfitting.
 
 ### Single-Pass Git Diff Review
 
-- The diff suite contains **21 cases covering all nine rules**.
-- v9 achieved **15/21 — 71.43%** with **3 FP / 3 FN**.
-- v10 achieved **15/21 — 71.43%** with **2 FP / 4 FN**.
-- v11 achieves **17/21 — 80.95%** with **0 FP / 4 FN / 0 wrong rules** under Qwen 3.5 9B.
-- v11 fixes all three attribution false positives present under v9.
-- All remaining v11 failures are maintainability false negatives.
-- v11 remains the frozen single-pass baseline.
+- The diff suite contains **21 cases covering all nine
+rules**. - v9 achieved **15/21 --- 71.43%** with **3 FP
+/ 3 FN**. - v10 achieved **15/21 --- 71.43%** with **2
+FP / 4 FN**. - v11 achieves **17/21 --- 80.95%** with
+**0 FP / 4 FN / 0 wrong rules** under Qwen 3.5 9B. - v11 fixes
+all three attribution false positives present under v9. - All remaining
+v11 failures are maintainability false negatives. - v11 remains the
+frozen single-pass baseline.
 
 ### Specialized Git Diff Review
 
-- `maintainability_v1` recovers both `duplicate_code` positives.
-- It also recovers the stronger `long_function` positive.
-- Combining v11 and `maintainability_v1` produces **20/21 — 95.24%**.
-- The specialized architecture produces **0 false positives**.
-- It produces **1 false negative**.
-- It produces **0 wrong-rule failures**.
-- Severity accuracy remains **100%**.
-- No previously passing v11 benchmark regresses.
-- The only remaining failure is the weaker `long_function` positive.
-- The improvement is achieved with the same Qwen 3.5 9B model.
-- The architecture requires two LLM calls and therefore increases runtime.
+- `maintainability_v1` recovers both `duplicate_code` positives. -
+It also recovers the stronger `long_function` positive. - Combining
+v11 and `maintainability_v1` produces **20/21 --- 95.24%**. -
+The specialized architecture produces **0 false positives**. -
+It produces **1 false negative**. - It produces **0
+wrong-rule failures**. - Severity accuracy remains
+**100%**. - No previously passing v11 benchmark regresses. - The
+only remaining failure is the weaker `long_function` positive. - The
+improvement is achieved with the same Qwen 3.5 9B model. - The
+architecture requires two LLM calls and therefore increases runtime.
 
 ## Cross-Model Diff Review
 
-After establishing v11 as the strongest single-pass prompt, the complete 21-case suite was evaluated across the project's local model set.
+After establishing v11 as the strongest single-pass prompt, the complete
+21-case suite was evaluated across the project's local model set.
 
 The experiment was then repeated using the specialized architecture:
 
-```text
-General reviewer       v11
-Maintainability        maintainability_v1
-Merge                   deterministic rule ownership
-Benchmarks              21
-Generation              deterministic
+```text General reviewer v11 Maintainability maintainability_v1 Merge
+deterministic rule ownership Benchmarks 21 Generation deterministic
 ```
 
 This allows two separate questions to be evaluated:
 
-```text
-MODEL EFFECT
-same architecture
-different model
+```text MODEL EFFECT same architecture different model
 
-ARCHITECTURE EFFECT
-same model
-single-pass vs specialized
-```
-
----
+ARCHITECTURE EFFECT same model single-pass vs specialized ```
 
 ## Cross-Model Single-Pass v11 Results
 
 The single-pass experiment kept the following fixed:
 
-```text
-same 21 diff benchmarks
-same v11 prompt
-same deterministic generation settings
-same evaluator
-```
+```text same 21 diff benchmarks same v11 prompt same deterministic
+generation settings same evaluator ```
 
 Only the model changed.
 
 | Model | Passed | Accuracy | False Positives | False Negatives |
-| --- | ---: | ---: | ---: | ---: |
-| **Qwen 3.5 9B** | **17/21** | **80.95%** | **0** | 4 |
-| Qwen 2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 |
-| Qwen 2.5 Coder 14B | 13/21 | 61.90% | 4 | 4 |
-| Gemma 3 12B | 13/21 | 61.90% | 4 | 4 |
-| Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* |
-| DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
+| --- | ---: | ---: | ---: | ---: | | **Qwen 3.5 9B** |
+**17/21** | **80.95%** | **0** | 4 | | Qwen
+2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 | | Qwen 2.5
+Coder 14B | 13/21 | 61.90% | 4 | 4 | | Gemma 3 12B | 13/21 |
+61.90% | 4 | 4 | | Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* | |
+DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
 
-`*` The original cross-model runs for these models predated aggregate rule-mismatch counting.
+`*` The original cross-model runs for these models predated aggregate
+rule-mismatch counting.
 
-The zero false-negative counts for Llama 3.1 8B and DeepSeek Coder V2 16B are therefore misleading when viewed alone.
+The zero false-negative counts for Llama 3.1 8B and DeepSeek Coder V2
+16B are therefore misleading when viewed alone.
 
-These models frequently reported an issue using the wrong supported rule rather than returning no issue.
+These models frequently reported an issue using the wrong supported rule
+rather than returning no issue.
 
 DeepSeek was later rerun with aggregate rule-mismatch tracking enabled:
 
-```text
-Passed            3/21
-Accuracy          14.29%
-False positives   10
-False negatives   0
-Wrong rules       6
-```
+```text Passed 3/21 Accuracy 14.29% False positives 10 False
+negatives 0 Wrong rules 6 ```
 
 Qwen 3.5 9B remained the strongest single-pass model.
 
----
-
 ## Cross-Model Specialized Evaluation
 
-The specialized architecture was then evaluated using the same six models.
+The specialized architecture was then evaluated using the same six
+models.
 
 Each benchmark is reviewed by two independent passes:
 
-```text
-                         Diff + Current Source
-                                  │
-                   ┌──────────────┴──────────────┐
-                   │                             │
-                   ↓                             ↓
-              General Pass               Specialist Pass
-                  v11                   maintainability_v1
-                   │                             │
-                   ↓                             ↓
-         bug / security /              duplicate_code
-            performance                 long_function
-                   │                             │
-                   └──────────────┬──────────────┘
-                                  ↓
-                       Deterministic Merge
-                                  ↓
-                          Final CodeReview
+```text Diff + Current Source │ ┌──────────────┴──────────────┐ │ │ ↓
+↓ General Pass Specialist Pass v11 maintainability_v1 │ │ ↓ ↓ bug /
+security / duplicate_code performance long_function │ │
+└──────────────┬──────────────┘ ↓ Deterministic Merge ↓ Final CodeReview
 ```
 
-The prompts, benchmark suite, evaluator, rule ownership, and deterministic generation settings were held constant.
+The prompts, benchmark suite, evaluator, rule ownership, and
+deterministic generation settings were held constant.
 
 Only the model changed.
 
 ### Results
 
-| Model | Passed | Accuracy | FP | FN | Wrong Rules | Severity | Duration |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Qwen 3.5 9B** | **20/21** | **95.24%** | **0** | **1** | **0** | 10/10 (100%) | 81.12s |
-| Qwen 2.5 Coder 7B | 16/21 | 76.19% | **0** | 5 | 0 | 6/6 (100%) | **38.72s** |
-| Qwen 2.5 Coder 14B | 16/21 | 76.19% | 5 | **0** | 0 | 11/11 (100%) | 107.57s |
-| Gemma 3 12B | 14/21 | 66.67% | 7 | **0** | 0 | 11/11 (100%) | 183.03s |
-| Llama 3.1 8B | 9/21 | 42.86% | 10 | 0 | 2 | 9/9 (100%) | 118.26s |
-| DeepSeek Coder V2 16B | 7/21 | 33.33% | 10 | 0 | 2 | 7/7 (100%) | 295.41s |
+| Model | Passed | Accuracy | FP | FN | Wrong Rules | Severity |
+Duration | | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+---: | | **Qwen 3.5 9B** | **20/21** |
+**95.24%** | **0** | **1** | **0** |
+10/10 (100%) | 81.12s | | Qwen 2.5 Coder 7B | 16/21 | 76.19% |
+**0** | 5 | 0 | 6/6 (100%) | **38.72s** | | Qwen
+2.5 Coder 14B | 16/21 | 76.19% | 5 | **0** | 0 | 11/11
+(100%) | 107.57s | | Gemma 3 12B | 14/21 | 66.67% | 7 |
+**0** | 0 | 11/11 (100%) | 183.03s | | Llama 3.1 8B | 9/21
+| 42.86% | 10 | 0 | 2 | 9/9 (100%) | 118.26s | | DeepSeek Coder
+V2 16B | 7/21 | 33.33% | 10 | 0 | 2 | 7/7 (100%) | 295.41s |
 
-Qwen 3.5 9B remains clearly strongest under the specialized architecture.
+Qwen 3.5 9B remains clearly strongest under the specialized
+architecture.
 
 It is the only tested model that combines:
 
-```text
-high recall
-+
-zero false positives
-+
-zero wrong-rule failures
+```text high recall + zero false positives + zero wrong-rule failures
 ```
 
 while reaching:
 
-```text
-20/21
-95.24%
-```
-
----
+```text 20/21 95.24% ```
 
 ## Single-Pass vs Specialized Cross-Model Comparison
 
-The specialized architecture improves aggregate accuracy for every tested model.
+The specialized architecture improves aggregate accuracy for every
+tested model.
 
-| Model | Single-Pass v11 | Specialized | Change |
-| --- | ---: | ---: | ---: |
-| **Qwen 3.5 9B** | 80.95% | **95.24%** | **+14.29 pp** |
-| Qwen 2.5 Coder 7B | 71.43% | **76.19%** | +4.76 pp |
-| Qwen 2.5 Coder 14B | 61.90% | **76.19%** | +14.29 pp |
-| Gemma 3 12B | 61.90% | **66.67%** | +4.77 pp |
-| Llama 3.1 8B | 23.81% | **42.86%** | +19.05 pp |
-| DeepSeek Coder V2 16B | 14.29% | **33.33%** | +19.04 pp |
+| Model | Single-Pass v11 | Specialized | Change | | --- | ---:
+| ---: | ---: | | **Qwen 3.5 9B** | 80.95% |
+**95.24%** | **+14.29 pp** | | Qwen 2.5 Coder 7B |
+71.43% | **76.19%** | +4.76 pp | | Qwen 2.5 Coder 14B |
+61.90% | **76.19%** | +14.29 pp | | Gemma 3 12B | 61.90% |
+**66.67%** | +4.77 pp | | Llama 3.1 8B | 23.81% |
+**42.86%** | +19.05 pp | | DeepSeek Coder V2 16B | 14.29% |
+**33.33%** | +19.04 pp |
 
 The important result is not merely that Qwen 3.5 9B improved.
 
-All six tested models achieve higher benchmark accuracy when using the specialized architecture.
+All six tested models achieve higher benchmark accuracy when using the
+specialized architecture.
 
-This provides evidence that task decomposition has value beyond one particular model.
+This provides evidence that task decomposition has value beyond one
+particular model.
 
-However, specialization does not eliminate the underlying behavioral differences between models.
-
----
+However, specialization does not eliminate the underlying behavioral
+differences between models.
 
 ## Specialized Model Behavior
 
 ### Qwen 3.5 9B
 
-```text
-20/21 — 95.24%
-0 FP
-1 FN
-0 wrong rules
-```
+```text 20/21 --- 95.24% 0 FP 1 FN 0 wrong rules ```
 
 Qwen 3.5 9B produces the strongest overall result.
 
-The architecture preserves all bug, security, performance, and attribution successes from v11 while recovering three of the four maintainability findings previously missed.
+The architecture preserves all bug, security, performance, and
+attribution successes from v11 while recovering three of the four
+maintainability findings previously missed.
 
 The only remaining failure is:
 
-```text
-long_function
-└── weaker positive
-```
+```text long_function └── weaker positive ```
 
 This model currently provides the best balance of precision and recall.
 
----
-
 ### Qwen 2.5 Coder 7B
 
-```text
-16/21 — 76.19%
-0 FP
-5 FN
-0 wrong rules
-38.72s
-```
+```text 16/21 --- 76.19% 0 FP 5 FN 0 wrong rules 38.72s ```
 
 Qwen 2.5 Coder 7B remains highly conservative.
 
 Like Qwen 3.5 9B, it produces:
 
-```text
-0 false positives
-0 wrong rules
-```
+```text 0 false positives 0 wrong rules ```
 
 but recall remains substantially lower.
 
 Its failures are:
 
-```text
-duplicate_code
-└── weaker positive
+```text duplicate_code └── weaker positive
 
-long_function
-├── weaker positive
-└── strong positive
+long_function ├── weaker positive └── strong positive
 
-performance
-├── list_membership_in_loop
-└── string_concatenation_in_loop
+performance ├── list_membership_in_loop └── string_concatenation_in_loop
 ```
 
-The model therefore remains interesting as a smaller and faster alternative when precision is more important than recall.
-
----
+The model therefore remains interesting as a smaller and faster
+alternative when precision is more important than recall.
 
 ### Qwen 2.5 Coder 14B
 
-```text
-16/21 — 76.19%
-5 FP
-0 FN
-0 wrong rules
-107.57s
-```
+```text 16/21 --- 76.19% 5 FP 0 FN 0 wrong rules 107.57s ```
 
 The 14B model shows almost the opposite behavior from the 7B model.
 
 It detects every expected positive issue:
 
-```text
-0 false negatives
-```
+```text 0 false negatives ```
 
 including all maintainability positives.
 
-However, it incorrectly reports several issues that were already present before the diff.
+However, it incorrectly reports several issues that were already present
+before the diff.
 
 Its five false-positive benchmark failures include pre-existing:
 
-```text
-mutable_default_argument
-duplicate_code
-string_concatenation_in_loop
-shell_injection
-sql_injection
-```
+```text mutable_default_argument duplicate_code
+string_concatenation_in_loop shell_injection sql_injection ```
 
-The model therefore demonstrates strong issue recognition but weaker change attribution.
+The model therefore demonstrates strong issue recognition but weaker
+change attribution.
 
 This is an important distinction:
 
-```text
-recognition       strong
-attribution       weaker
-```
+```text recognition strong attribution weaker ```
 
 A larger model is not automatically a better diff reviewer.
 
----
-
 ### Gemma 3 12B
 
-```text
-14/21 — 66.67%
-7 FP
-0 FN
-0 wrong rules
-183.03s
-```
+```text 14/21 --- 66.67% 7 FP 0 FN 0 wrong rules 183.03s ```
 
 Gemma also detects all expected positive findings.
 
@@ -1911,144 +1362,78 @@ Seven safe or pre-existing cases become false positives.
 
 The model therefore exhibits:
 
-```text
-high recognition
-+
-low attribution precision
-```
+```text high recognition + low attribution precision ```
 
 rather than a simple issue-detection problem.
 
----
-
 ### Llama 3.1 8B
 
-```text
-9/21 — 42.86%
-10 FP
-0 FN
-2 wrong rules
-118.26s
-```
+```text 9/21 --- 42.86% 10 FP 0 FN 2 wrong rules 118.26s ```
 
-Specialization substantially increases aggregate accuracy relative to its single-pass result:
+Specialization substantially increases aggregate accuracy relative to
+its single-pass result:
 
-```text
-23.81%
-    ↓
-42.86%
-```
+```text 23.81% ↓ 42.86% ```
 
 but the reviewer remains unstable.
 
-Ten benchmark cases produce false positives and two positive cases use the wrong supported rule.
+Ten benchmark cases produce false positives and two positive cases use
+the wrong supported rule.
 
 The model therefore remains unsuitable as the default reviewer.
 
----
-
 ### DeepSeek Coder V2 16B
 
-```text
-7/21 — 33.33%
-10 FP
-0 FN
-2 wrong rules
-295.41s
-```
+```text 7/21 --- 33.33% 10 FP 0 FN 2 wrong rules 295.41s ```
 
 DeepSeek also improves substantially over its single-pass result:
 
-```text
-14.29%
-    ↓
-33.33%
-```
+```text 14.29% ↓ 33.33% ```
 
 but remains the weakest practical candidate.
 
 It combines:
 
-```text
-10 false positives
-2 wrong-rule failures
-very high inference time
-```
+```text 10 false positives 2 wrong-rule failures very high inference
+time ```
 
-The specialized architecture improves its recognition, but does not solve its attribution and taxonomy-selection instability.
-
----
+The specialized architecture improves its recognition, but does not
+solve its attribution and taxonomy-selection instability.
 
 ## Precision vs Recall Across Models
 
 The specialized experiment exposes distinct reviewer behaviors.
 
-```text
-Qwen 3.5 9B
-    strong recognition
-    +
-    strong attribution
-    ↓
-    20/21
+```text Qwen 3.5 9B strong recognition + strong attribution ↓ 20/21
 
+Qwen 2.5 Coder 7B weaker recognition + strong attribution ↓ conservative
+reviewer
 
-Qwen 2.5 Coder 7B
-    weaker recognition
-    +
-    strong attribution
-    ↓
-    conservative reviewer
+Qwen 2.5 Coder 14B strong recognition + weaker attribution ↓ aggressive
+reviewer
 
+Gemma 3 12B strong recognition + weak attribution ↓ many false positives
 
-Qwen 2.5 Coder 14B
-    strong recognition
-    +
-    weaker attribution
-    ↓
-    aggressive reviewer
+Llama 3.1 / DeepSeek weak attribution + taxonomy instability ↓
+unsuitable reviewer behavior ```
 
+This demonstrates why aggregate accuracy alone is insufficient for model
+selection.
 
-Gemma 3 12B
-    strong recognition
-    +
-    weak attribution
-    ↓
-    many false positives
-
-
-Llama 3.1 / DeepSeek
-    weak attribution
-    +
-    taxonomy instability
-    ↓
-    unsuitable reviewer behavior
-```
-
-This demonstrates why aggregate accuracy alone is insufficient for model selection.
-
-Two models can reach the same accuracy while exhibiting very different failure modes.
+Two models can reach the same accuracy while exhibiting very different
+failure modes.
 
 For example:
 
-```text
-Qwen 2.5 Coder 7B
-16/21
-0 FP / 5 FN
+```text Qwen 2.5 Coder 7B 16/21 0 FP / 5 FN
 
-Qwen 2.5 Coder 14B
-16/21
-5 FP / 0 FN
-```
+Qwen 2.5 Coder 14B 16/21 5 FP / 0 FN ```
 
 Both reach:
 
-```text
-76.19%
-```
+```text 76.19% ```
 
 but they represent fundamentally different reviewer trade-offs.
-
----
 
 ## Architecture-Level Finding
 
@@ -2056,253 +1441,558 @@ The cross-model experiment strengthens the evidence for specialization.
 
 The improvement is not isolated to Qwen 3.5 9B.
 
-```text
-                     SINGLE       SPECIALIZED
+```text SINGLE SPECIALIZED
 
-Qwen 3.5 9B          80.95%  →    95.24%
-Qwen 2.5 7B          71.43%  →    76.19%
-Qwen 2.5 14B         61.90%  →    76.19%
-Gemma 3 12B          61.90%  →    66.67%
-Llama 3.1 8B         23.81%  →    42.86%
-DeepSeek 16B         14.29%  →    33.33%
-```
+Qwen 3.5 9B 80.95% → 95.24% Qwen 2.5 7B 71.43% → 76.19% Qwen 2.5 14B
+61.90% → 76.19% Gemma 3 12B 61.90% → 66.67% Llama 3.1 8B 23.81% → 42.86%
+DeepSeek 16B 14.29% → 33.33% ```
 
 Every tested model improves in aggregate accuracy.
 
 This suggests that:
 
-```text
-task decomposition
-        ↓
-reduces rule competition
-        ↓
-improves issue recognition
-```
+```text task decomposition ↓ reduces rule competition ↓ improves
+issue recognition ```
 
 is an architectural effect rather than a behavior unique to one model.
 
-At the same time, the experiment demonstrates that architecture cannot fully compensate for model behavior.
+At the same time, the experiment demonstrates that architecture cannot
+fully compensate for model behavior.
 
-Models with weak change attribution continue to generate false positives even after specialization.
+Models with weak change attribution continue to generate false positives
+even after specialization.
 
-Models with unstable taxonomy selection continue to produce wrong-rule failures.
+Models with unstable taxonomy selection continue to produce wrong-rule
+failures.
 
-The architecture and model therefore contribute independently to final reviewer quality.
-
----
+The architecture and model therefore contribute independently to final
+reviewer quality.
 
 ## Current Model Selection
 
 The current preferred model remains:
 
-```text
-Qwen 3.5 9B
-```
+```text Qwen 3.5 9B ```
 
 Under the strongest architecture:
 
-```text
-v11 general
+```text v11 general + maintainability_v1 specialist + deterministic
+rule ownership ```
+
+it achieves:
+
+```text 20/21 95.24% 0 false positives 1 false negative 0 wrong rules
+100% severity accuracy ```
+
+Qwen 2.5 Coder 7B remains the most interesting lightweight alternative:
+
+```text 16/21 76.19% 0 false positives 0 wrong rules 38.72s ```
+
+The remaining models currently provide no compelling
+accuracy/precision/runtime advantage over these two options.
+
+Full-File Specialization Experiment
+
+After the maintainability specialist substantially improved Git-diff
+review, the same architectural idea was tested against the established
+full-file benchmark suite.
+
+The purpose was to determine whether the benefit came from
+specialization in general or whether it was specifically useful for the
+more complex diff-review task.
+
+The experiment used:
+
+General reviewer       v5
+Maintainability        maintainability_file_v1
+Merge                  deterministic rule ownership
+Benchmarks              65
+Model                   qwen3.5:9b
+Generation              deterministic
+
+The architecture mirrors the specialized diff reviewer:
+
+                         Source File
+                             │
+                ┌────────────┴────────────┐
+                │                         │
+                ↓                         ↓
+           General Pass             Specialist Pass
+                v5              maintainability_file_v1
+                │                         │
+                ↓                         ↓
+      bug / security /            duplicate_code
+         performance               long_function
+                │                         │
+                └────────────┬────────────┘
+                             ↓
+                  Deterministic Merge
+                             ↓
+                     Final CodeReview
+
+The experiment therefore tests the same basic hypothesis as the diff
+specialization:
+
+same model
++
+same benchmark suite
++
+task decomposition
+↓
+does specialization improve review quality?
+
+Specialized Full-File Result
+
+The specialized architecture produced:
+
+Model            qwen3.5:9b
+Prompt           v5+maintainability_file_v1
+Benchmarks       65
+Passed           59
+Failed            6
+Errors            0
+False positives   3
+False negatives   3
+Wrong rules       0
+Accuracy         90.77%
+Severity         30/30 (100.00%)
+Duration         239.97s
+
+The established v5 baseline is:
+
+Model            qwen3.5:9b
+Prompt           v5
+Benchmarks       65
+Passed           60
+Failed            5
+Accuracy         92.31%
+Severity         100.00%
+
+Therefore:
+
+Architecture                           Passed     Accuracy   Failed
+
+v5 single-pass                  60/65   92.31%    5
+v5 + maintainability specialist         59/65       90.77%        6
+
+Unlike the Git-diff experiment, specialization does not improve the
+full-file reviewer.
+
+Full-File Regression Analysis
+
+The baseline and specialized runs were compared benchmark by benchmark:
+
+Old: v5 / qwen3.5:9b — 60/65 (92.3%)
+New: v5+maintainability_file_v1 / qwen3.5:9b — 59/65 (90.8%)
+
+Comparable: 65
+Fixed: 0
+Regressed: 1
+Still failing: 5
+Added: 0
+Removed: 0
+
+Fixed
+
+None
+
+The specialist did not recover any benchmark that failed under the
+original v5 reviewer.
+
+Regressed
+
+benchmarks/maintainability/duplicate_code/shared_validation_helper_safe.py
+
+The baseline correctly recognized that the shared validation helper
+avoids meaningful duplication.
+
+The specialist instead reported duplicate_code, producing a new false
+positive.
+
+Still Failing
+
+The five existing v5 failures remain:
+
+benchmarks/bug/mutable_default_argument/none_default_safe.py
+benchmarks/maintainability/long_function/long_function.py
+benchmarks/maintainability/long_function/multi_responsibility_function.py
+benchmarks/performance/list_membership_in_loop/tuple_membership_in_loop_safe.py
+benchmarks/security/path_traversal/user_absolute_path.py
+
+The specialist therefore changes the full-file result from:
+
+60/65
+92.31%
+
+to:
+
+59/65
+90.77%
+
+without fixing any existing failure.
+
+Diff vs Full-File Specialization
+
+Running the same architectural idea across both review modes produces an
+important result.
+
+Git-Diff Review
+
+v11 single-pass
+17/21
+80.95%
+0 FP / 4 FN
+
+        ↓ specialization
+
+v11 + maintainability_v1
+20/21
+95.24%
+0 FP / 1 FN
+
+Result:
+
++3 passing benchmarks
++14.29 percentage points
+3 maintainability findings recovered
+0 regressions
+
+Full-File Review
+
+v5 single-pass
+60/65
+92.31%
+
+        ↓ specialization
+
+v5 + maintainability_file_v1
+59/65
+90.77%
+
+Result:
+
+0 benchmarks fixed
+1 benchmark regressed
+-1.54 percentage points
+additional inference cost
+
+The effect of specialization is therefore strongly dependent on the
+review task.
+
+DIFF REVIEW
+general reviewer must reason about:
+    issue recognition
+    +
+    nine-rule taxonomy
+    +
+    before/after semantics
+    +
+    change attribution
+        ↓
+specialization helps
+
+
+FULL-FILE REVIEW
+general reviewer sees:
+    current source
+    +
+    nine-rule taxonomy
+        ↓
+v5 already performs strongly
+        ↓
+specialization adds little
+        +
+        can introduce false positives
+
+This suggests that specialization is most useful when the general review
+task contains enough competing reasoning responsibilities to interfere
+with issue recognition.
+
+It should therefore not automatically be applied to every review mode.
+
+Architecture Generalization Finding
+
+The combined experiments refine the earlier conclusion that
+specialization improves reviewer quality.
+
+The evidence now shows something more specific:
+
+specialization
+    ≠
+universally better reviewer
+
+Instead:
+
+task complexity
+        +
+rule competition
+        +
+change attribution
+        ↓
+determines whether specialization is useful
+
+For Git-diff review, decomposition produces a substantial improvement:
+
+80.95%
+    ↓
+95.24%
+
+For full-file review, the same strategy slightly reduces performance:
+
+92.31%
+    ↓
+90.77%
+
+This is useful negative experimental evidence.
+
+It demonstrates that the architecture should be selected according to
+the characteristics of the review task rather than applying additional
+LLM passes by default.
+
+The current preferred architectures are therefore:
+
+FULL-FILE REVIEW
+
+Qwen 3.5 9B
++
+v5
++
+single pass
+
+60/65
+92.31%
+
+
+GIT-DIFF REVIEW
+
+Qwen 3.5 9B
++
+v11 general reviewer
 +
 maintainability_v1 specialist
 +
 deterministic rule ownership
-```
 
-it achieves:
-
-```text
 20/21
 95.24%
-0 false positives
-1 false negative
-0 wrong rules
-100% severity accuracy
-```
-
-Qwen 2.5 Coder 7B remains the most interesting lightweight alternative:
-
-```text
-16/21
-76.19%
-0 false positives
-0 wrong rules
-38.72s
-```
-
-The remaining models currently provide no compelling accuracy/precision/runtime advantage over these two options.
-
----
 
 ## Current Observations
 
 ### Full-File Review
 
-- Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
-- Controlled prompt iteration improved the full-file reviewer significantly.
-- Prompt v5 remains the full-file baseline.
-- v5 reaches **92.3% accuracy on 65 benchmarks**.
-- Severity accuracy remains **100%**.
-- `unreachable_code` currently performs strongly.
-- `long_function` remains one of the weakest full-file rules.
-- A targeted general `long_function` prompt experiment did not improve recognition.
-- Further general prompt tuning for that rule was paused to avoid benchmark-specific overfitting.
+- Qwen 3.5 9B produced the strongest result in the initial multi-model
+comparison. - Controlled prompt iteration improved the full-file
+reviewer significantly. - Prompt v5 remains the full-file baseline. - v5
+reaches **92.3% accuracy on 65 benchmarks**. - Severity accuracy
+remains **100%**. - `unreachable_code` currently performs
+strongly. - `long_function` remains one of the weakest full-file
+rules. - A targeted general `long_function` prompt experiment did not
+improve recognition. - Further general prompt tuning for that rule was
+paused to avoid benchmark-specific overfitting. - Full-file
+maintainability specialization was evaluated using
+v5 + maintainability_file_v1. - The specialized architecture achieved
+59/65 --- 90.77%, compared with 60/65 --- 92.31% for v5. - It
+fixed 0 existing failures and introduced 1 regression. - The
+regression was the safe shared_validation_helper_safe.py
+duplicate-code case. - Full-file specialization therefore does not
+currently justify its additional inference cost. - v5 single-pass
+remains the preferred full-file architecture.
 
 ### Single-Pass Git Diff Review
 
-- The diff suite contains **21 cases covering all nine rules**.
-- v9 achieved **15/21 — 71.43%** with **3 FP / 3 FN**.
-- v10 achieved **15/21 — 71.43%** with **2 FP / 4 FN**.
-- v11 achieves **17/21 — 80.95%** with **0 FP / 4 FN / 0 wrong rules** under Qwen 3.5 9B.
-- v11 fixes all three attribution false positives present under v9.
-- All remaining v11 failures are maintainability false negatives.
-- v11 remains the frozen single-pass baseline.
+- The diff suite contains **21 cases covering all nine
+rules**. - v9 achieved **15/21 --- 71.43%** with **3 FP
+/ 3 FN**. - v10 achieved **15/21 --- 71.43%** with **2
+FP / 4 FN**. - v11 achieves **17/21 --- 80.95%** with
+**0 FP / 4 FN / 0 wrong rules** under Qwen 3.5 9B. - v11 fixes
+all three attribution false positives present under v9. - All remaining
+v11 failures are maintainability false negatives. - v11 remains the
+frozen single-pass baseline.
 
 ### Specialized Git Diff Review
 
-- `maintainability_v1` recovers both `duplicate_code` positives under Qwen 3.5 9B.
-- It also recovers the stronger `long_function` positive.
-- Combining v11 and `maintainability_v1` produces **20/21 — 95.24%**.
-- The architecture produces **0 false positives**.
-- It produces **1 false negative**.
-- It produces **0 wrong-rule failures**.
-- Severity accuracy remains **100%**.
-- No previously passing v11 benchmark regresses.
-- The only remaining Qwen 3.5 9B failure is the weaker `long_function` positive.
-- The architecture requires two LLM calls and therefore increases inference cost.
+- `maintainability_v1` recovers both `duplicate_code` positives
+under Qwen 3.5 9B. - It also recovers the stronger `long_function`
+positive. - Combining v11 and `maintainability_v1` produces
+**20/21 --- 95.24%**. - The architecture produces **0 false
+positives**. - It produces **1 false negative**. - It
+produces **0 wrong-rule failures**. - Severity accuracy remains
+**100%**. - No previously passing v11 benchmark regresses. - The
+only remaining Qwen 3.5 9B failure is the weaker `long_function`
+positive. - The architecture requires two LLM calls and therefore
+increases inference cost.
 
 ### Cross-Model Specialized Review
 
-- Every tested model improves in aggregate accuracy under the specialized architecture.
-- Qwen 3.5 9B improves from **80.95% → 95.24%**.
-- Qwen 2.5 Coder 7B improves from **71.43% → 76.19%**.
-- Qwen 2.5 Coder 14B improves from **61.90% → 76.19%**.
-- Gemma 3 12B improves from **61.90% → 66.67%**.
-- Llama 3.1 8B improves from **23.81% → 42.86%**.
-- DeepSeek Coder V2 16B improves from **14.29% → 33.33%**.
-- Qwen 3.5 9B is the only tested model combining very high accuracy with **0 FP and 0 wrong rules**.
-- Qwen 2.5 Coder 7B remains conservative with **0 FP / 0 wrong rules**, but has lower recall.
-- Qwen 2.5 Coder 14B reaches the same accuracy as the 7B model but with the opposite error profile: **5 FP / 0 FN**.
-- Gemma has strong positive recognition but substantially weaker attribution.
-- Llama and DeepSeek improve numerically but remain unstable reviewers.
-- Larger model size does not automatically improve diff-review quality.
+- Every tested model improves in aggregate accuracy under the
+specialized architecture. - Qwen 3.5 9B improves from **80.95% →
+95.24%**. - Qwen 2.5 Coder 7B improves from **71.43% →
+76.19%**. - Qwen 2.5 Coder 14B improves from **61.90% →
+76.19%**. - Gemma 3 12B improves from **61.90% → 66.67%**. -
+Llama 3.1 8B improves from **23.81% → 42.86%**. - DeepSeek Coder
+V2 16B improves from **14.29% → 33.33%**. - Qwen 3.5 9B is the
+only tested model combining very high accuracy with **0 FP and 0
+wrong rules**. - Qwen 2.5 Coder 7B remains conservative with **0
+FP / 0 wrong rules**, but has lower recall. - Qwen 2.5 Coder 14B
+reaches the same accuracy as the 7B model but with the opposite error
+profile: **5 FP / 0 FN**. - Gemma has strong positive
+recognition but substantially weaker attribution. - Llama and DeepSeek
+improve numerically but remain unstable reviewers. - Larger model size
+does not automatically improve diff-review quality.
 
 ### Architecture
 
-- Adding more generic prompt instructions showed diminishing returns.
-- Candidate generation alone did not solve the maintainability problem.
-- Verification improved confidence but could not recover missing candidates.
-- Narrow maintainability specialization substantially improved issue recognition.
-- A specialist should complement rather than replace the general reviewer.
-- Deterministic rule ownership avoids requiring an additional merge LLM call.
-- Cross-model results provide evidence that specialization is not specific to one model.
-- Model quality and reviewer architecture are separate experimental variables.
-- Task decomposition is now a first-class architectural component.
-
----
+- Adding more generic prompt instructions showed diminishing returns. -
+Candidate generation alone did not solve the maintainability problem. -
+Verification improved confidence but could not recover missing
+candidates. - Narrow maintainability specialization substantially
+improved issue recognition. - A specialist should complement rather than
+replace the general reviewer. - Deterministic rule ownership avoids
+requiring an additional merge LLM call. - Cross-model results provide
+evidence that specialization is not specific to one model. - Model
+quality and reviewer architecture are separate experimental variables. -
+Task decomposition is now a first-class architectural component. -
+However, the full-file experiment demonstrates that specialization is
+not universally beneficial. - Full-file specialization fixed no
+existing benchmark and introduced one regression. - The value of
+specialization therefore depends on task complexity and reviewer
+responsibilities. - Specialization should be introduced only when
+benchmark evidence demonstrates a measurable benefit.
 
 ## Current Evaluation State
 
-```text
-FULL-FILE REVIEW
-65-case suite
-Prompt v5
-Qwen 3.5 9B
-60/65 — 92.3%
-100% severity accuracy
-      │
-      └── known weakness
-          └── long_function
+```text FULL-FILE REVIEW 65-case suite Prompt v5 Qwen 3.5 9B 60/65
+--- 92.3% 100% severity accuracy │ ├── specialization experiment │ └──
+v5 + maintainability_file_v1 │ 59/65 --- 90.77% │ 0 fixed / 1 regression
+│ → specialization rejected │ └── preferred architecture └── v5
+single-pass
 
+SINGLE-PASS GIT-DIFF REVIEW 21-case suite Prompt v11 Qwen 3.5 9B 17/21
+--- 80.95% 0 FP / 4 FN / 0 wrong rules │ └── all failures in
+maintainability
 
-SINGLE-PASS GIT-DIFF REVIEW
-21-case suite
-Prompt v11
-Qwen 3.5 9B
-17/21 — 80.95%
-0 FP / 4 FN / 0 wrong rules
-      │
-      └── all failures in maintainability
+SPECIALIZED GIT-DIFF REVIEW General v11 + Maintainability
+maintainability_v1 + Deterministic rule ownership │ ↓ Qwen 3.5 9B 20/21
+--- 95.24% 0 FP / 1 FN / 0 wrong rules 10/10 severity --- 100% 81.12s │
+└── remaining failure └── long_function weaker positive
 
-
-SPECIALIZED GIT-DIFF REVIEW
-General v11
-+
-Maintainability maintainability_v1
-+
-Deterministic rule ownership
-      │
-      ↓
-Qwen 3.5 9B
-20/21 — 95.24%
-0 FP / 1 FN / 0 wrong rules
-10/10 severity — 100%
-81.12s
-      │
-      └── remaining failure
-          └── long_function weaker positive
-
-
-CROSS-MODEL SPECIALIZED REVIEW
-      │
-      ├── Qwen 3.5 9B
-      │   └── 20/21 — 95.24%
-      │       0 FP / 1 FN / 0 wrong
-      │
-      ├── Qwen 2.5 Coder 7B
-      │   └── 16/21 — 76.19%
-      │       0 FP / 5 FN / 0 wrong
-      │
-      ├── Qwen 2.5 Coder 14B
-      │   └── 16/21 — 76.19%
-      │       5 FP / 0 FN / 0 wrong
-      │
-      ├── Gemma 3 12B
-      │   └── 14/21 — 66.67%
-      │       7 FP / 0 FN / 0 wrong
-      │
-      ├── Llama 3.1 8B
-      │   └── 9/21 — 42.86%
-      │       10 FP / 0 FN / 2 wrong
-      │
-      └── DeepSeek Coder V2 16B
-          └── 7/21 — 33.33%
-              10 FP / 0 FN / 2 wrong
-```
-
----
+CROSS-MODEL SPECIALIZED REVIEW │ ├── Qwen 3.5 9B │ └── 20/21 --- 95.24%
+│ 0 FP / 1 FN / 0 wrong │ ├── Qwen 2.5 Coder 7B │ └── 16/21 --- 76.19% │
+0 FP / 5 FN / 0 wrong │ ├── Qwen 2.5 Coder 14B │ └── 16/21 --- 76.19% │
+5 FP / 0 FN / 0 wrong │ ├── Gemma 3 12B │ └── 14/21 --- 66.67% │ 7 FP /
+0 FN / 0 wrong │ ├── Llama 3.1 8B │ └── 9/21 --- 42.86% │ 10 FP / 0 FN /
+2 wrong │ └── DeepSeek Coder V2 16B └── 7/21 --- 33.33% 10 FP / 0 FN / 2
+wrong ```
 
 ## Current Conclusions
 
-The project has now moved beyond both single-prompt optimization and single-model architectural testing.
+The project has now moved beyond both single-prompt optimization and
+single-model architectural testing.
 
 The experimental progression is:
 
-```text
-full-file review
-        ↓
-single-pass diff review
-        ↓
-change-attribution tuning
-        ↓
-cross-model evaluation
-        ↓
-failure-classification improvements
-        ↓
-candidate generation
-        ↓
-candidate verification
-        ↓
-maintainability specialization
-        ↓
-general + specialist architecture
-        ↓
-cross-model architecture validation
-```
+```text full-file review ↓ single-pass diff review ↓
+change-attribution tuning ↓ cross-model evaluation ↓
+failure-classification improvements ↓ candidate generation ↓ candidate
+verification ↓ maintainability specialization ↓ general + specialist
+architecture ↓ cross-model architecture validation ```
 
 The strongest current configuration remains:
 
-```text
+```text Qwen 3.5 9B + v11 general reviewer + maintainability_v1
+specialist + deterministic rule ownership
+
+20/21 95.24% 0 false positives 1 false negative 0 wrong rules 100%
+severity accuracy ```
+
+The cross-model experiment adds an important result:
+
+```text same specialization architecture ↓ all six models improve
+```
+
+This provides evidence that specialization is not merely a Qwen
+3.5-specific prompt optimization.
+
+However:
+
+```text better architecture ≠ all models become good reviewers ```
+
+The model still determines important behavioral characteristics.
+
+Qwen 2.5 Coder 7B remains conservative.
+
+Qwen 2.5 Coder 14B and Gemma detect more positive issues but struggle
+with attribution.
+
+Llama and DeepSeek remain unstable despite substantial percentage
+improvements.
+
+The main conclusions are therefore:
+
+```text model choice + prompt design + task decomposition + change
+attribution + deterministic aggregation ↓ reviewer quality ```
+
+No single component is sufficient by itself.
+
+The current **20/21 specialized Qwen 3.5 9B result should now remain
+frozen as the architectural baseline**.
+
+The next experimental priority should be benchmark generalization rather
+than further tuning against the same 21 cases.
+
+The existing prompts should remain unchanged while new unseen diff
+benchmarks are added.
+
+That will test whether:
+
+```text 95.24% on current suite ↓ survives unseen cases ↓ evidence of
+generalization ```
+
+rather than continuing to optimize against a small known benchmark set.
+### Full-File vs Diff Architectural Baselines
+
+The full-file specialization experiment adds an important qualification
+to the specialization results.
+
+FULL-FILE
+
+v5 single-pass
+60/65
+92.31%
+
+specialized
+59/65
+90.77%
+
+→ specialization rejected
+
+
+GIT-DIFF
+
+v11 single-pass
+17/21
+80.95%
+
+specialized
+20/21
+95.24%
+
+→ specialization retained
+
+The strongest configurations are therefore different for each task:
+
+FULL-FILE REVIEW
+
+Qwen 3.5 9B
++
+v5 single-pass
+
+60/65
+92.31%
+
+
+GIT-DIFF REVIEW
+
 Qwen 3.5 9B
 +
 v11 general reviewer
@@ -2317,66 +2007,46 @@ deterministic rule ownership
 1 false negative
 0 wrong rules
 100% severity accuracy
-```
 
-The cross-model experiment adds an important result:
+This strengthens the broader architectural conclusion:
 
-```text
-same specialization architecture
-        ↓
-all six models improve
-```
-
-This provides evidence that specialization is not merely a Qwen 3.5-specific prompt optimization.
-
-However:
-
-```text
-better architecture
+more LLM calls
         ≠
-all models become good reviewers
-```
+better reviewer
 
-The model still determines important behavioral characteristics.
+Instead:
 
-Qwen 2.5 Coder 7B remains conservative.
-
-Qwen 2.5 Coder 14B and Gemma detect more positive issues but struggle with attribution.
-
-Llama and DeepSeek remain unstable despite substantial percentage improvements.
-
-The main conclusions are therefore:
-
-```text
 model choice
         +
 prompt design
         +
-task decomposition
+task characteristics
         +
 change attribution
+        +
+appropriate task decomposition
         +
 deterministic aggregation
         ↓
 reviewer quality
-```
 
-No single component is sufficient by itself.
+Specialization should therefore be introduced only when benchmark
+evidence demonstrates that decomposing the task solves a measurable
+weakness.
 
-The current **20/21 specialized Qwen 3.5 9B result should now remain frozen as the architectural baseline**.
+The 20/21 specialized diff result and 60/65 v5 full-file result
+should now remain frozen as the two architectural baselines.
 
-The next experimental priority should be benchmark generalization rather than further tuning against the same 21 cases.
+The next experimental priority should be benchmark generalization,
+especially expanding the diff suite with unseen cases while leaving
+v11 and maintainability_v1 unchanged.
 
-The existing prompts should remain unchanged while new unseen diff benchmarks are added.
-
-That will test whether:
-
-```text
-95.24% on current suite
+20/21 on known diff cases
         ↓
-survives unseen cases
+freeze architecture + prompts
         ↓
-evidence of generalization
-```
-
-rather than continuing to optimize against a small known benchmark set.
+add unseen benchmark cases
+        ↓
+measure again
+        ↓
+does 95.24% generalize?
