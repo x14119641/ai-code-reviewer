@@ -9,6 +9,7 @@ DEFAULT_PROMPT_VERSION = "v11"
 
 REVIEW_PROMPT_TYPE = "review"
 DIFF_PROMPT_TYPE = "diff"
+DIFF_CANDIDATES_PROMPT_TYPE = "diff_candidates"
 
 
 def load_prompt_template(
@@ -25,6 +26,22 @@ def load_prompt_template(
         )
 
     return prompt_path.read_text(encoding="utf-8")
+
+
+def build_diff_candidates_prompt(
+    diff: str,
+    current_code: str,
+    prompt_version: str,
+) -> str:
+    """Build a candidate-generation prompt for multi-pass diff review."""
+    return _build_prompt(
+        prompt_version=prompt_version,
+        prompt_type=DIFF_CANDIDATES_PROMPT_TYPE,
+        replacements={
+            DIFF_PLACEHOLDER: diff,
+            CURRENT_CODE_PLACEHOLDER: current_code,
+        },
+    )
 
 
 def _build_prompt(

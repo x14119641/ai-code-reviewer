@@ -8,6 +8,7 @@ from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.diff_benchmark_runner import find_diff_benchmarks, run_diff_benchmarks
 from reviewer.engine import (
     build_changed_files_context,
+    find_diff_candidates,
     find_python_files,
     review_diff,
     review_file,
@@ -418,7 +419,112 @@ def review_pr_command(
     except (ValueError, RuntimeError) as exc:
         print_error("PR Review Failed", str(exc))
         raise typer.Exit(code=1) from exc
-    
-    
+
+
+@app.command("review-diff-candidates")
+def review_diff_candidates_command(
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for candidate generation",
+    ),
+    prompt_version: str = typer.Option(
+        "multipass_v1",
+        "--prompt-version",
+        help="Prompt version used for candidate generation.",
+    ),
+) -> None:
+    """Find candidate issues in the current unstaged Git diff."""
+    try:
+        diff = get_git_diff()
+
+        if not diff.strip():
+            print_warning("No changes to review")
+            return
+
+        changed_files = get_changed_python_files()
+        current_code = build_changed_files_context(changed_files)
+
+        result = find_diff_candidates(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+        print_review(review=result)
+
+    except GitDiffError as exc:
+        print_error("Git Diff Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+    except (ValueError, RuntimeError) as exc:
+        print_error("Candidate Generation Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+
+
+@app.command("benchmark-diff-candidates")
+def benchmark_diff_candidates_command(
+    path: Path,
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for candidate generation",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
+    prompt_version: str = typer.Option(
+        "multipass_v1",
+        "--prompt-version",
+        help="Prompt version used for candidate generation.",
+    ),
+) -> None:
+    """Evaluate candidate generation using diff benchmark cases."""
+
+    def review_with_model(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        return find_diff_candidates(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+    try:
+        benchmark_paths = find_diff_benchmarks(path)
+
+        if not benchmark_paths:
+            print_warning("No diff benchmark cases found.")
+            return
+
+        run = run_diff_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+        if output is not None:
+            if output.parent == Path("."):
+                output = Path("results") / "diff" / prompt_version / output
+
+            save_benchmark_run(run, output)
+            print_result_saved(output)
+
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
+
+    except (
+        FileNotFoundError,
+        NotADirectoryError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        print_error("Candidate Benchmark Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+
+
 if __name__ == "__main__":
     app()

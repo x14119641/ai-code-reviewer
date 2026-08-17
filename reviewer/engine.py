@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from reviewer.llm import generate_review
+from reviewer.llm import REVIEW_RESPONSE_SCHEMA, generate_review
 from reviewer.models import CodeReview, Issue
 from reviewer.prompts import (
     DEFAULT_PROMPT_VERSION,
+    build_diff_candidates_prompt,
     build_diff_prompt,
     build_review_prompt,
 )
@@ -198,3 +199,25 @@ def build_changed_files_context(files: Iterable[Path]) -> str:
         sections.append(f"File: {path}\n\n{code}")
 
     return "\n\n".join(sections)
+
+
+def find_diff_candidates(
+    diff: str,
+    current_code: str,
+    model: str,
+    prompt_version: str,
+) -> CodeReview:
+    """Find candidate issues in a Git diff for later verification."""
+    prompt = build_diff_candidates_prompt(
+        diff=diff,
+        current_code=current_code,
+        prompt_version=prompt_version,
+        output_format=REVIEW_RESPONSE_SCHEMA,
+    )
+
+    response = generate_review(
+        prompt=prompt,
+        model=model,
+    )
+
+    return parse_review_response(response)
