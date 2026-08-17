@@ -679,9 +679,6 @@ def benchmark_diff_specialized_command(
             general_prompt_version=general_prompt_version,
             maintainability_prompt_version=maintainability_prompt_version,
             context_size=context_size,
-            inference=InferenceConfig(
-                context_size=context_size,
-            ),
         )
 
     try:
@@ -696,6 +693,9 @@ def benchmark_diff_specialized_command(
             review_function=review_with_model,
             model=model,
             prompt_version=experiment_version,
+            inference=InferenceConfig(
+                context_size=context_size,
+            ),
         )
 
         if output is not None:
