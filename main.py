@@ -11,6 +11,7 @@ from reviewer.engine import (
     find_diff_candidates,
     find_python_files,
     review_diff,
+    review_diff_multi_pass,
     review_file,
     review_files,
 )
@@ -526,5 +527,112 @@ def benchmark_diff_candidates_command(
         raise typer.Exit(code=1) from exc
 
 
+@app.command("review-diff-multi-pass")
+def review_diff_multi_pass_command(
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the multi-pass review",
+    ),
+    prompt_version: str = typer.Option(
+        "maintainability_v1",
+        "--prompt-version",
+        help="Prompt version used for the multi-pass review.",
+    ),
+) -> None:
+    """Review the current unstaged Git diff using two LLM passes."""
+    try:
+        diff = get_git_diff()
+
+        if not diff.strip():
+            print_warning("No changes to review")
+            return
+
+        changed_files = get_changed_python_files()
+        current_code = build_changed_files_context(changed_files)
+
+        result = review_diff_multi_pass(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+        print_review(review=result)
+
+    except GitDiffError as exc:
+        print_error("Git Diff Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+    except (TypeError, ValueError, RuntimeError) as exc:
+        print_error("Multi-pass Review Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+
+
+
+@app.command("benchmark-diff-multi-pass")
+def benchmark_diff_multi_pass_command(
+    path: Path,
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the multi-pass diff benchmark",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
+    prompt_version: str = typer.Option(
+        "maintainability_v1",
+        "--prompt-version",
+        help="Prompt version used for the multi-pass diff benchmark.",
+    ),
+) -> None:
+    """Evaluate two-pass diff review using diff benchmark cases."""
+
+    def review_with_model(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        return review_diff_multi_pass(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+    try:
+        benchmark_paths = find_diff_benchmarks(path)
+
+        if not benchmark_paths:
+            print_warning("No diff benchmark cases found.")
+            return
+
+        run = run_diff_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
+            prompt_version=prompt_version,
+        )
+
+        if output is not None:
+            if output.parent == Path("."):
+                output = Path("results") / "diff" / prompt_version / output
+
+            save_benchmark_run(run, output)
+            print_result_saved(output)
+
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
+
+    except (
+        FileNotFoundError,
+        NotADirectoryError,
+        TypeError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        print_error("Multi-pass Diff Benchmark Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+    
+    
 if __name__ == "__main__":
     app()

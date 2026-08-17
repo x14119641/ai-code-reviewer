@@ -4,13 +4,14 @@ PROMPTS_DIRECTORY = Path("prompts")
 SOURCE_CODE_PLACEHOLDER = "{{SOURCE_CODE}}"
 DIFF_PLACEHOLDER = "{{DIFF}}"
 CURRENT_CODE_PLACEHOLDER = "{{CURRENT_CODE}}"
+CANDIDATES_PLACEHOLDER = "{{CANDIDATES}}"
 
 DEFAULT_PROMPT_VERSION = "v11"
 
 REVIEW_PROMPT_TYPE = "review"
 DIFF_PROMPT_TYPE = "diff"
 DIFF_CANDIDATES_PROMPT_TYPE = "diff_candidates"
-
+DIFF_VERIFIER_PROMPT_TYPE = "diff_verify"
 
 def load_prompt_template(
     prompt_version: str,
@@ -92,5 +93,23 @@ def build_diff_prompt(
         replacements={
             DIFF_PLACEHOLDER: diff,
             CURRENT_CODE_PLACEHOLDER: current_code,
+        },
+    )
+
+
+def build_diff_verifier_prompt(
+    diff: str,
+    current_code: str,
+    candidates: str,
+    prompt_version: str,
+) -> str:
+    """Build the verification prompt for multi-pass diff review."""
+    return _build_prompt(
+        prompt_version=prompt_version,
+        prompt_type=DIFF_VERIFIER_PROMPT_TYPE,
+        replacements={
+            DIFF_PLACEHOLDER: diff,
+            CURRENT_CODE_PLACEHOLDER: current_code,
+            CANDIDATES_PLACEHOLDER: candidates,
         },
     )

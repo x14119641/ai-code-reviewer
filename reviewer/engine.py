@@ -10,6 +10,7 @@ from reviewer.prompts import (
     DEFAULT_PROMPT_VERSION,
     build_diff_candidates_prompt,
     build_diff_prompt,
+    build_diff_verifier_prompt,
     build_review_prompt,
 )
 from reviewer.taxonomy import (
@@ -221,3 +222,71 @@ def find_diff_candidates(
     )
 
     return parse_review_response(response)
+
+
+def serialize_review(review: CodeReview) -> str:
+    return json.dumps(
+        {
+            "issues": [
+                {
+                    "severity": issue.severity,
+                    "category": issue.category,
+                    "rule": issue.rule,
+                    "title": issue.title,
+                    "explanation": issue.explanation,
+                    "recommendation": issue.recommendation,
+                }
+                for issue in review.issues
+            ]
+        },
+        indent=2,
+    )
+
+
+def verify_diff_candidates(
+    diff: str,
+    current_code: str,
+    candidates: CodeReview,
+    model: str,
+    prompt_version: str,
+) -> CodeReview:
+    """Verify candidate issues against the diff and current code."""
+    candidates_json = serialize_review(candidates)
+
+    prompt = build_diff_verifier_prompt(
+        diff=diff,
+        current_code=current_code,
+        candidates=candidates_json,
+        prompt_version=prompt_version,
+    )
+
+    response = generate_review(
+        prompt=prompt,
+        model=model,
+        output_format=REVIEW_RESPONSE_SCHEMA,
+    )
+
+    return parse_review_response(response)
+
+
+def review_diff_multi_pass(
+    diff: str,
+    current_code: str,
+    model: str,
+    prompt_version: str,
+) -> CodeReview:
+    """Review a Git diff using candidate generation followed by verification."""
+    candidates = find_diff_candidates(
+        diff=diff,
+        current_code=current_code,
+        model=model,
+        prompt_version=prompt_version,
+    )
+
+    return verify_diff_candidates(
+        diff=diff,
+        current_code=current_code,
+        candidates=candidates,
+        model=model,
+        prompt_version=prompt_version,
+    )
