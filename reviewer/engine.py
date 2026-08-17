@@ -212,12 +212,12 @@ def find_diff_candidates(
         diff=diff,
         current_code=current_code,
         prompt_version=prompt_version,
-        output_format=REVIEW_RESPONSE_SCHEMA,
     )
 
     response = generate_review(
         prompt=prompt,
         model=model,
+        output_format=REVIEW_RESPONSE_SCHEMA,
     )
 
     return parse_review_response(response)

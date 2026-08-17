@@ -8,7 +8,18 @@ This is NOT the final verification stage.
 
 Prefer recall over precision.
 
-If the current code satisfies the triggering condition of one of the supported rules and the Git diff plausibly introduced or worsened that condition, include it as a candidate.
+Evaluate every supported rule independently.
+
+For each supported rule, ask:
+
+1. Is the exact triggering condition of this rule present in the current code?
+2. Could the provided Git diff have introduced, expanded, duplicated, exposed, or worsened that condition?
+
+Do not stop after deciding that one rule does not apply.
+
+Do not assume that the absence of obvious security or bug issues means there are no maintainability or performance candidates.
+
+If the current code satisfies the triggering condition of a supported rule and the Git diff plausibly introduced or worsened that condition, include it as a candidate.
 
 Do not require absolute certainty that the issue should appear in the final review.
 
