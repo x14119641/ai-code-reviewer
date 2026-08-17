@@ -652,6 +652,11 @@ def benchmark_diff_specialized_command(
         "qwen3.5:9b",
         help="Ollama model used for the specialized diff benchmark",
     ),
+    context_size: int = typer.Option(
+        4096,
+        "--context-size",
+        help="Ollama context window size.",
+    ),
     output: Path | None = typer.Option(
         None,
         help="Output filename or path.",
@@ -673,6 +678,7 @@ def benchmark_diff_specialized_command(
             model=model,
             general_prompt_version=general_prompt_version,
             maintainability_prompt_version=maintainability_prompt_version,
+            context_size=context_size,
         )
 
     try:

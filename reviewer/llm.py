@@ -62,6 +62,7 @@ def generate_review(
     model: str = "qwen3.5:9b",
     *,
     output_format: dict[str, Any] | None = None,
+    context_size: int = 4096,
 ) -> str:
     payload: dict[str, Any] = {
         "model": model,
@@ -71,6 +72,7 @@ def generate_review(
         "options": {
             "temperature": 0,
             "seed": 42,
+            "num_ctx": context_size, # context window, default 4k=4096, 8k=8192, 16k=16384
         },
     }
 

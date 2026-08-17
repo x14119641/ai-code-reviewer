@@ -37,9 +37,15 @@ def test_review_file_returns_parsed_code_review(
     source_file = tmp_path / "example.py"
     source_file.write_text("print('hello')", encoding="utf-8")
 
-    def fake_generate_review(prompt: str, model: str) -> str:
+    def fake_generate_review(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
         assert "print('hello')" in prompt
         assert model == "test-model"
+        assert context_size == 4096
 
         return """
         {
@@ -95,9 +101,15 @@ def test_review_file_builds_prompt_and_calls_llm(
 
         return f"PROMPT:{source_code}"
 
-    def fake_llm(prompt: str, model: str) -> str:
+    def fake_llm(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
         calls["prompt"] = prompt
         calls["model"] = model
+        calls["context_size"] = str(context_size)
 
         return '{"issues": []}'
 
@@ -123,6 +135,7 @@ def test_review_file_builds_prompt_and_calls_llm(
         "prompt_version": "v1",
         "prompt": "PROMPT:print('hello')",
         "model": "test-model",
+        "context_size": "4096",
     }
 
 
@@ -224,9 +237,11 @@ def test_review_folder_reviews_all_python_files(
         path: Path,
         model: str,
         prompt_version: str = DEFAULT_PROMPT_VERSION,
+        context_size: int = 4096,
     ) -> CodeReview:
         assert model == "test-model"
         assert prompt_version == DEFAULT_PROMPT_VERSION
+        assert context_size == 4096
         return fake_review
 
     monkeypatch.setattr(
@@ -318,10 +333,16 @@ def find_users(users: list[str]) -> None:
             pass
 """
 
-    def fake_generate_review(prompt: str, model: str) -> str:
+    def fake_generate_review(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
         assert diff in prompt
         assert current_code in prompt
         assert model == "test-model"
+        assert context_size == 4096
 
         return '{"issues": []}'
 

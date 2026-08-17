@@ -132,6 +132,7 @@ def review_file(
     path: Path,
     model: str,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
+    context_size: int = 4096,
 ) -> CodeReview:
     """Read and review one source-code file"""
     if not path.exists():
@@ -146,26 +147,27 @@ def review_file(
         prompt_version=prompt_version,
     )
 
-    response = generate_review(prompt=prompt, model=model)
+    response = generate_review(prompt=prompt, model=model, context_size=context_size,)
 
     return parse_review_response(response)
 
 
-def review_folder(path: Path, model: str) -> Iterator[ReviewResult]:
+def review_folder(path: Path, model: str, context_size: int = 4096,) -> Iterator[ReviewResult]:
     """Review all Python files found in a directory."""
     files = find_python_files(path=path)
 
-    yield from review_files(files, model)
+    yield from review_files(files, model,context_size=context_size,)
 
 
 def review_files(
     files: Iterable[Path],
     model: str,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
+    context_size: int = 4096,
 ) -> Iterator[ReviewResult]:
     """Review an iterable of Python files one at a time."""
     for file in files:
-        review = review_file(file, model, prompt_version=prompt_version)
+        review = review_file(file, model, prompt_version=prompt_version, context_size=context_size,)
         yield ReviewResult(path=file, review=review)
 
 
@@ -174,6 +176,7 @@ def review_diff(
     current_code: str,
     model: str,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
+    context_size: int = 4096,
 ) -> CodeReview:
     """Review a Git diff with current source context."""
     prompt = build_diff_prompt(
@@ -185,6 +188,7 @@ def review_diff(
     response = generate_review(
         prompt=prompt,
         model=model,
+        context_size=context_size,
     )
 
     return parse_review_response(response)
@@ -210,6 +214,7 @@ def find_diff_candidates(
     current_code: str,
     model: str,
     prompt_version: str,
+    context_size: int = 4096,
 ) -> CodeReview:
     """Find candidate issues in a Git diff for later verification."""
     prompt = build_diff_candidates_prompt(
@@ -222,6 +227,7 @@ def find_diff_candidates(
         prompt=prompt,
         model=model,
         output_format=REVIEW_RESPONSE_SCHEMA,
+        context_size=context_size,
     )
 
     return parse_review_response(response)
@@ -252,6 +258,7 @@ def verify_diff_candidates(
     candidates: CodeReview,
     model: str,
     prompt_version: str,
+    context_size: int = 4096,
 ) -> CodeReview:
     """Verify candidate issues against the diff and current code."""
     candidates_json = serialize_review(candidates)
@@ -267,6 +274,7 @@ def verify_diff_candidates(
         prompt=prompt,
         model=model,
         output_format=REVIEW_RESPONSE_SCHEMA,
+        context_size=context_size,
     )
 
     return parse_review_response(response)
@@ -277,6 +285,7 @@ def review_diff_multi_pass(
     current_code: str,
     model: str,
     prompt_version: str,
+    context_size: int = 4096,
 ) -> CodeReview:
     """Review a Git diff using candidate generation followed by verification."""
     candidates = find_diff_candidates(
@@ -284,6 +293,7 @@ def review_diff_multi_pass(
         current_code=current_code,
         model=model,
         prompt_version=prompt_version,
+        context_size=context_size,
     )
 
     return verify_diff_candidates(
@@ -292,6 +302,7 @@ def review_diff_multi_pass(
         candidates=candidates,
         model=model,
         prompt_version=prompt_version,
+        context_size=context_size,
     )
 
 
@@ -327,6 +338,7 @@ def review_diff_specialized(
     model: str,
     general_prompt_version: str = "v11",
     maintainability_prompt_version: str = "maintainability_v1",
+    context_size: int = 4096,
 ) -> CodeReview:
     """Review a Git diff using general and maintainability-specialist passes."""
 
@@ -335,6 +347,7 @@ def review_diff_specialized(
         current_code=current_code,
         model=model,
         prompt_version=general_prompt_version,
+        context_size=context_size,
     )
 
     maintainability_review = find_diff_candidates(
@@ -342,6 +355,7 @@ def review_diff_specialized(
         current_code=current_code,
         model=model,
         prompt_version=maintainability_prompt_version,
+        context_size=context_size,
     )
 
     return merge_specialized_reviews(
@@ -355,6 +369,7 @@ def review_file_specialized(
     model: str,
     general_prompt_version: str = "v5",
     maintainability_prompt_version: str = "maintainability_file_v1",
+    context_size: int = 4096,
 ) -> CodeReview:
     """Review one file using general and maintainability-specialist passes."""
     if not path.exists():
@@ -372,6 +387,7 @@ def review_file_specialized(
     general_response = generate_review(
         prompt=general_prompt,
         model=model,
+        context_size=context_size,
     )
 
     general_review = parse_review_response(general_response)
@@ -385,6 +401,7 @@ def review_file_specialized(
         prompt=specialist_prompt,
         model=model,
         output_format=REVIEW_RESPONSE_SCHEMA,
+        context_size=context_size,
     )
 
     maintainability_review = parse_review_response(specialist_response)
