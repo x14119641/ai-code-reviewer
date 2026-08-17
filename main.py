@@ -24,7 +24,7 @@ from reviewer.git_diff import (
     get_git_diff,
     get_git_diff_against,
 )
-from reviewer.models import CodeReview
+from reviewer.models import CodeReview, InferenceConfig
 from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.rendering import (
     build_category_comparison_table,
@@ -679,6 +679,9 @@ def benchmark_diff_specialized_command(
             general_prompt_version=general_prompt_version,
             maintainability_prompt_version=maintainability_prompt_version,
             context_size=context_size,
+            inference=InferenceConfig(
+                context_size=context_size,
+            ),
         )
 
     try:

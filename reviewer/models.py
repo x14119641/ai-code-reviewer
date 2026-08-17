@@ -91,12 +91,22 @@ class BenchmarkFailure:
 
 
 @dataclass(frozen=True)
+class InferenceConfig:
+    runtime: str = "ollama"
+    context_size: int = 4096
+    temperature: float = 0
+    seed: int = 42
+    
+    
+    
+@dataclass(frozen=True)
 class BenchmarkRun:
     created_at: datetime
     model: str
     prompt_version: str
     evaluations: tuple[BenchmarkEvaluation, ...]
     duration_seconds: float
+    inference: InferenceConfig = InferenceConfig()
     failures: tuple[BenchmarkFailure, ...] = ()
     schema_version: int = BENCHMARK_SCHEMA_VERSION
 

@@ -10,6 +10,7 @@ from reviewer.models import (
     BenchmarkFailure,
     BenchmarkRun,
     CodeReview,
+    InferenceConfig,
 )
 
 ReviewFunction = Callable[[Path], CodeReview]
@@ -37,10 +38,13 @@ def run_benchmarks(
     *,
     model: str,
     prompt_version: str,
+    inference: InferenceConfig | None = None,
 ) -> BenchmarkRun:
     start_time = perf_counter()
     evaluations: list[BenchmarkEvaluation] = []
     failures: list[BenchmarkFailure] = []
+    if inference is None:
+        inference = InferenceConfig()
 
     for code_path in benchmark_paths:
         benchmark = load_benchmark(code_path)
@@ -67,4 +71,5 @@ def run_benchmarks(
         failures=tuple(failures),
         created_at=datetime.now(UTC),
         prompt_version=prompt_version,
+        inference=inference,
     )

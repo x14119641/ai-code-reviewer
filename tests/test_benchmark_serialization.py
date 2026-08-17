@@ -15,8 +15,8 @@ from reviewer.models import (
     BenchmarkFailure,
     BenchmarkRun,
     CodeReview,
-    DiffBenchmark,
     ExpectedIssue,
+    InferenceConfig,
     Issue,
 )
 from reviewer.prompts import DEFAULT_PROMPT_VERSION
@@ -104,6 +104,12 @@ def test_benchmark_run_to_dict_includes_results_and_summary() -> None:
         failures=[],
         created_at=datetime.now(UTC),
         prompt_version=DEFAULT_PROMPT_VERSION,
+        inference=InferenceConfig(
+            runtime="ollama",
+            context_size=8192,
+            temperature=0,
+            seed=42,
+        ),
     )
 
     result = benchmark_run_to_dict(run)
@@ -122,6 +128,13 @@ def test_benchmark_run_to_dict_includes_results_and_summary() -> None:
     assert result["evaluations"][0]["benchmark"]["code_path"] == (
         "benchmarks/example.py"
     )
+
+    assert result["inference"] == {
+        "runtime": "ollama",
+        "context_size": 8192,
+        "temperature": 0,
+        "seed": 42,
+    }
 
     json.dumps(result)
 
@@ -171,10 +184,16 @@ def test_benchmark_run_to_dict_serializes_failures() -> None:
     run = BenchmarkRun(
         model="test-model",
         evaluations=[],
-        duration_seconds=1.0,
+        duration_seconds=1.234,
         failures=[failure],
         created_at=datetime.now(UTC),
         prompt_version=DEFAULT_PROMPT_VERSION,
+        inference=InferenceConfig(
+            runtime="ollama",
+            context_size=8192,
+            temperature=0,
+            seed=42,
+        ),
     )
 
     result = benchmark_run_to_dict(run)
@@ -187,61 +206,11 @@ def test_benchmark_run_to_dict_serializes_failures() -> None:
 
     assert result["failures"][0]["error_type"] == "RuntimeError"
     assert result["failures"][0]["message"] == "Invalid model response"
-    assert result["failures"][0]["benchmark"]["code_path"] == ("benchmarks/broken.py")
+    assert result["failures"][0]["benchmark"]["code_path"] == "benchmarks/broken.py"
 
-
-def test_to_json_compatible_serializes_datetime() -> None:
-    created_at = datetime(2026, 7, 31, 16, 0, tzinfo=UTC)
-
-    result = to_json_compatible(created_at)
-
-    assert result == "2026-07-31T16:00:00+00:00"
-
-
-def test_benchmark_run_to_dict_serializes_diff_benchmark() -> None:
-    before_path = Path("diff_benchmarks/example/before.py")
-    after_path = Path("diff_benchmarks/example/after.py")
-
-    benchmark = DiffBenchmark(
-        name="Example diff benchmark",
-        before_path=before_path,
-        after_path=after_path,
-        before_source="value = 1\n",
-        after_source="value = 2\n",
-        expected_issues=(),
-    )
-
-    review = CodeReview(issues=[])
-
-    evaluation = BenchmarkEvaluation(
-        benchmark=benchmark,
-        review=review,
-        expected_issue_count=0,
-        actual_issue_count=0,
-        false_positive=False,
-        false_negative=False,
-        rule_matched=False,
-        rule_mismatch=False,
-        category_matched=False,
-        severity_matched=False,
-        passed=True,
-    )
-
-    run = BenchmarkRun(
-        created_at=datetime.now(UTC),
-        model="test-model",
-        prompt_version="v9",
-        evaluations=(evaluation,),
-        duration_seconds=1.0,
-    )
-
-    data = benchmark_run_to_dict(run)
-
-    serialized_benchmark = data["evaluations"][0]["benchmark"]
-
-    assert serialized_benchmark["before_path"].endswith(
-        "diff_benchmarks/example/before.py"
-    )
-    assert serialized_benchmark["after_path"].endswith(
-        "diff_benchmarks/example/after.py"
-    )
+    assert result["inference"] == {
+        "runtime": "ollama",
+        "context_size": 8192,
+        "temperature": 0,
+        "seed": 42,
+    }

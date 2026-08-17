@@ -14,6 +14,7 @@ from reviewer.models import (
     BenchmarkFailure,
     BenchmarkRun,
     CodeReview,
+    InferenceConfig,
     Issue,
 )
 
@@ -37,11 +38,15 @@ def run_diff_benchmarks(
     *,
     model: str,
     prompt_version: str,
+    inference: InferenceConfig  | None = None,
 ) -> BenchmarkRun:
     start_time = perf_counter()
 
     evaluations: list[BenchmarkEvaluation] = []
     failures: list[BenchmarkFailure] = []
+    
+    if inference is None:
+        inference = InferenceConfig()
 
     for benchmark_path in benchmark_paths:
         benchmark = load_diff_benchmark(benchmark_path)
@@ -77,6 +82,7 @@ def run_diff_benchmarks(
         failures=tuple(failures),
         duration_seconds=duration_seconds,
         created_at=datetime.now(UTC),
+        inference=inference,
     )
 
 
