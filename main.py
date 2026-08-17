@@ -14,6 +14,7 @@ from reviewer.engine import (
     review_diff_multi_pass,
     review_diff_specialized,
     review_file,
+    review_file_specialized,
     review_files,
 )
 from reviewer.git_diff import (
@@ -176,21 +177,28 @@ def benchmark_command(
         print_error("Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
 
-
 @app.command("compare-results")
 def compare_results(
     directory: Path,
     by_rule: bool = typer.Option(
-        False, "--by-rule", help="Compare benchmark results grouped by rule"
+        False,
+        "--by-rule",
+        help="Compare benchmark results grouped by rule",
     ),
     by_category: bool = typer.Option(
-        False, "--by-category", help="Compare benchmark results grouped by category"
+        False,
+        "--by-category",
+        help="Compare benchmark results grouped by category",
     ),
 ) -> None:
-    """Compare previously exported benchmark result files"""
+    """Compare previously exported benchmark result files."""
     if by_rule and by_category:
-        print_error("Error", "Use either --by-rule " "or --by-category, not both.")
+        print_error(
+            "Error",
+            "Use either --by-rule or --by-category, not both.",
+        )
         raise typer.Exit(code=1)
+
     try:
         if by_rule:
             results = load_results(directory)
@@ -201,6 +209,7 @@ def compare_results(
             )
 
             table = build_rule_comparison_table(results)
+
         elif by_category:
             results = load_results(directory)
 
@@ -210,6 +219,7 @@ def compare_results(
             )
 
             table = build_category_comparison_table(results)
+
         else:
             summaries = load_result_summaries(directory)
 
@@ -225,7 +235,6 @@ def compare_results(
         raise typer.Exit(code=1) from error
 
     print_table(table)
-
 
 @app.command("analyze-result")
 def analyze_result_command(
@@ -706,6 +715,81 @@ def benchmark_diff_specialized_command(
         print_error("Specialized Diff Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
     
-     
+
+@app.command("benchmark-specialized")
+def benchmark_specialized_command(
+    path: Path,
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the specialized benchmark",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
+) -> None:
+    """Evaluate general + maintainability-specialist full-file review."""
+
+    general_prompt_version = "v5"
+    maintainability_prompt_version = "maintainability_file_v1"
+    experiment_version = "v5+maintainability_file_v1"
+
+    try:
+        benchmark_paths = find_benchmark_files(path)
+
+        if not benchmark_paths:
+            print_warning("No benchmark files found.")
+            return
+
+        total = len(benchmark_paths)
+        current = 0
+
+        def review_with_model(
+            source_path: Path,
+        ) -> CodeReview:
+            nonlocal current
+
+            current += 1
+
+            print_benchmark_progress(
+                current=current,
+                total=total,
+                path=source_path,
+            )
+
+            return review_file_specialized(
+                source_path,
+                model=model,
+                general_prompt_version=general_prompt_version,
+                maintainability_prompt_version=maintainability_prompt_version,
+            )
+
+        run = run_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
+            prompt_version=experiment_version,
+        )
+
+        if output is not None:
+            if output.parent == Path("."):
+                output = Path("results") / experiment_version / output
+
+            save_benchmark_run(run, output)
+            print_result_saved(output)
+
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
+
+    except (
+        FileNotFoundError,
+        TypeError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        print_error("Specialized Benchmark Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+         
 if __name__ == "__main__":
     app()

@@ -348,3 +348,48 @@ def review_diff_specialized(
         general_review=general_review,
         maintainability_review=maintainability_review,
     )
+    
+
+def review_file_specialized(
+    path: Path,
+    model: str,
+    general_prompt_version: str = "v5",
+    maintainability_prompt_version: str = "maintainability_file_v1",
+) -> CodeReview:
+    """Review one file using general and maintainability-specialist passes."""
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    if not path.is_file():
+        raise ValueError(f"Not a file: {path}")
+
+    code = path.read_text(encoding="utf-8")
+
+    general_prompt = build_review_prompt(
+        code,
+        prompt_version=general_prompt_version,
+    )
+
+    general_response = generate_review(
+        prompt=general_prompt,
+        model=model,
+    )
+
+    general_review = parse_review_response(general_response)
+
+    specialist_prompt = build_review_prompt(
+        code,
+        prompt_version=maintainability_prompt_version,
+    )
+
+    specialist_response = generate_review(
+        prompt=specialist_prompt,
+        model=model,
+        output_format=REVIEW_RESPONSE_SCHEMA,
+    )
+
+    maintainability_review = parse_review_response(specialist_response)
+
+    return merge_specialized_reviews(
+        general_review=general_review,
+        maintainability_review=maintainability_review,
+    )
