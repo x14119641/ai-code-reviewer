@@ -37,11 +37,11 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - ✅ Diff change-attribution experiments
 - ✅ Cross-run comparison for diff benchmarks
 - ✅ Review committed branch changes against a base ref
-- ✅ Cross-model diff benchmark evaluation
+- ✅ Cross-model diff benchmark evaluation  
+- ✅ Aggregate wrong-rule / rule-mismatch reporting
 
 ### Planned
 
-- Improve benchmark failure summaries
 - Continue benchmark and taxonomy expansion where useful
 - Evaluate larger local models on higher-VRAM hardware
 - HTML reports
@@ -411,6 +411,7 @@ Failed            4
 Errors            0
 False positives   0
 False negatives   4
+Wrong rules       0
 Accuracy         80.95%
 Severity          7/7 (100.00%)
 ```
@@ -477,6 +478,7 @@ Qwen 3.5 9B remains the strongest current model:
 17/21
 80.95%
 0 false positives
+0 wrong rules
 ```
 
 Qwen 2.5 Coder 7B also maintains zero false positives but misses two additional introduced performance issues.
@@ -521,6 +523,40 @@ automatically better reviewer
 ```
 
 and that aggregate accuracy alone is insufficient to understand model behavior.
+
+## DeepSeek Rule-Mismatch Validation
+
+DeepSeek Coder V2 16B was rerun after aggregate rule-mismatch reporting was added.
+
+```
+Benchmarks       21
+Passed            3
+Failed           18
+False positives  10
+False negatives   0
+Wrong rules       6
+Accuracy         14.29%
+```
+
+The six wrong-rule cases make the model's taxonomy-selection instability explicit.
+
+Examples include:
+
+```
+expected duplicate_code
+actual   mutable_default_argument
+
+expected long_function
+actual   mutable_default_argument
+
+expected list_membership_in_loop
+actual   mutable_default_argument
+
+expected string_concatenation_in_loop
+actual   unreachable_code
+```
+
+The Wrong rules metric therefore distinguishes models that completely miss an expected issue from models that detect something but classify it under the wrong supported rule.
 
 ## Prompt Templates
 
@@ -597,6 +633,7 @@ Failed              4
 Accuracy           80.95%
 False positives     0
 False negatives     4
+Wrong rules         0
 Severity accuracy 100.0%
 ```
 
@@ -677,7 +714,7 @@ Current diff benchmark results using the same v11 prompt are:
 
 | Model | Diff Accuracy | Notes |
 | --- | ---: | --- |
-| **Qwen 3.5 9B** | **80.95%** | Current main model; 0 FP |
+| **Qwen 3.5 9B** | **80.95%** | Current main model; 0 FP, 0 wrong rules |
 | Qwen 2.5 Coder 7B | 71.43% | 0 FP, lower recall |
 | Qwen 2.5 Coder 14B | 61.90% | More attribution failures |
 | Gemma 3 12B | 61.90% | Moderate result, attribution failures |
@@ -903,6 +940,7 @@ Passed            17
 Accuracy          80.95%
 False positives   0
 False negatives   4
+Wrong rules       0
 Severity          100%
 ```
 

@@ -23,6 +23,7 @@ def make_result(
         failed=len(evaluations),
         false_positives=0,
         false_negatives=0,
+        rule_mismatches=0,
         errors=0,
         accuracy=0.0,
         duration_seconds=1.0,

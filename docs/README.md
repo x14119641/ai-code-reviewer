@@ -476,6 +476,7 @@ Failed            4
 Errors            0
 False positives   0
 False negatives   4
+Wrong rules       0
 Accuracy         80.95%
 Severity          7/7 (100.00%)
 Duration         41.48s
@@ -586,13 +587,120 @@ Only the model changed.
 | Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* |
 | DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
 
-`*` The zero false-negative count for Llama 3.1 8B and DeepSeek Coder V2 16B is misleading when viewed alone.
+`*` The original cross-model runs predated aggregate rule-mismatch counting.
 
-These models frequently predict an issue using the **wrong rule** rather than returning no issue.
+The zero false-negative count for Llama 3.1 8B and DeepSeek Coder V2 16B was therefore misleading when viewed alone.
 
-Those failures are surfaced individually by the evaluator but are not currently represented as a separate aggregate summary count.
+These models frequently predicted an issue using the **wrong rule** rather than returning no issue.
 
-This cross-model experiment therefore exposed a useful future evaluation improvement: aggregate summaries should distinguish rule mismatches from ordinary false positives and false negatives.
+This observation directly motivated an evaluator improvement that now tracks wrong-rule failures separately from false positives and false negatives.
+
+---
+
+## Aggregate Rule-Mismatch Evaluation
+
+The benchmark evaluator now distinguishes three important failure modes:
+
+```text
+expected no issue + issue reported
+        ↓
+false positive
+
+expected issue + nothing reported
+        ↓
+false negative
+
+expected issue + different rule reported
+        ↓
+wrong rule / rule mismatch
+```
+
+A rule mismatch is counted when:
+
+```text
+benchmark expects an issue
+        +
+model reports at least one issue
+        +
+none of the reported issues uses the expected rule
+```
+
+This prevents a model that aggressively predicts incorrect rules from appearing to have strong recall merely because its false-negative count is zero.
+
+The metric is now:
+
+- stored on individual benchmark evaluations
+- aggregated by `BenchmarkRun`
+- serialized in benchmark result exports
+- loaded by result-analysis tooling
+- available in rule/category summaries
+- displayed in benchmark summary output
+
+### DeepSeek Validation Run
+
+DeepSeek Coder V2 16B was rerun against the complete v11 diff suite after adding the metric.
+
+```text
+Model            deepseek-coder-v2:16b
+Prompt           v11
+Benchmarks       21
+Passed            3
+Failed           18
+Errors            0
+False positives  10
+False negatives   0
+Wrong rules       6
+Accuracy         14.29%
+Severity          3/3 (100.00%)
+Duration         205.06s
+```
+
+The six wrong-rule failures were:
+
+```text
+duplicate_code
+├── normal positive
+└── strong positive
+
+long_function
+├── normal positive
+└── strong positive
+
+list_membership_in_loop
+└── introduced positive
+
+string_concatenation_in_loop
+└── introduced positive
+```
+
+Instead of missing these cases completely, DeepSeek reported unrelated supported rules.
+
+Examples included:
+
+```text
+expected duplicate_code
+actual   mutable_default_argument
+
+expected long_function
+actual   mutable_default_argument
+
+expected list_membership_in_loop
+actual   mutable_default_argument
+
+expected string_concatenation_in_loop
+actual   unreachable_code
+```
+
+The new aggregate summary therefore describes the model substantially better:
+
+```text
+3 passed
+10 false-positive attribution failures
+6 wrong-rule failures
+0 ordinary false negatives
+```
+
+The apparent `0 FN` no longer hides the taxonomy-selection problem.
 
 ---
 
@@ -604,6 +712,7 @@ This cross-model experiment therefore exposed a useful future evaluation improve
 17/21 — 80.95%
 0 FP
 4 FN
+0 wrong rules
 ```
 
 The four failures are concentrated entirely in maintainability recognition:
@@ -704,31 +813,24 @@ The model frequently selects incorrect rules, including repeated `sql_injection`
 
 Its behavior therefore reflects broader taxonomy/instruction-following instability rather than merely conservative issue detection.
 
+The original run predates aggregate wrong-rule counting, so a historical aggregate wrong-rule value is not asserted here.
+
 ### DeepSeek Coder V2 16B
 
 ```text
 3/21 — 14.29%
 10 FP
 0 ordinary FN
+6 wrong rules
 ```
 
-DeepSeek exhibits similar but even stronger rule-selection instability.
+DeepSeek exhibits strong rule-selection instability.
 
-Examples include predicting:
+It reports an issue for many positive cases, but often chooses an unrelated rule.
 
-```text
-mutable_default_argument
-```
+The explicit `Wrong rules: 6` metric now captures this behavior directly.
 
-for unrelated maintainability cases and:
-
-```text
-unreachable_code
-```
-
-for a string-concatenation performance case.
-
-The result suggests that this model/prompt pairing is currently unsuitable for the constrained taxonomy reviewer.
+The result confirms that this model/prompt pairing is currently unsuitable for the constrained taxonomy reviewer.
 
 ---
 
@@ -745,7 +847,7 @@ Among the models with reasonably stable taxonomy behavior, the same pattern appe
 Qwen 3.5 9B            FAIL       FAIL
 Qwen 2.5 Coder 7B      FAIL       FAIL
 Qwen 2.5 Coder 14B     FAIL       FAIL
-Gemma 3 12B             FAIL       FAIL
+Gemma 3 12B            FAIL       FAIL
 ```
 
 ### Long Function
@@ -755,7 +857,7 @@ Gemma 3 12B             FAIL       FAIL
 Qwen 3.5 9B            FAIL       FAIL
 Qwen 2.5 Coder 7B      FAIL       FAIL
 Qwen 2.5 Coder 14B     FAIL       FAIL
-Gemma 3 12B             FAIL       FAIL
+Gemma 3 12B            FAIL       FAIL
 ```
 
 Llama 3.1 8B and DeepSeek Coder V2 16B are not strong evidence for this comparison because their taxonomy selection is unstable across the suite.
@@ -788,6 +890,7 @@ The current diff-review model comparison can be summarized as:
 Qwen 3.5 9B
 ├── best overall accuracy
 ├── 0 false positives
+├── 0 observed wrong-rule failures
 ├── strongest issue recall among precise models
 └── current default
 
@@ -809,6 +912,8 @@ Llama 3.1 8B
 └── unstable constrained-rule selection
 
 DeepSeek Coder V2 16B
+├── 10 false positives
+├── 6 wrong-rule failures
 └── unstable constrained-rule selection
 ```
 
@@ -836,6 +941,16 @@ Results can also be grouped by rule or category:
 uv run python main.py compare-results results/v5/ --by-rule
 uv run python main.py compare-results results/v5/ --by-category
 ```
+
+Aggregate benchmark summaries now distinguish:
+
+```text
+false positives
+false negatives
+wrong rules
+```
+
+rather than reducing all failed positive cases to a single detection metric.
 
 ### Individual Run Analysis
 
@@ -880,11 +995,11 @@ Rule / category analysis
 Benchmark-level regression analysis
 ```
 
-### Evaluation Limitation Identified by Cross-Model Testing
+### Rule-Mismatch Semantics
 
-The cross-model experiment exposed one limitation in the current aggregate summaries.
+A positive benchmark can now fail in two distinct ways.
 
-A positive benchmark can fail because:
+If the model returns nothing:
 
 ```text
 expected issue
@@ -894,31 +1009,25 @@ model reports nothing
 false negative
 ```
 
-but it can also fail because:
+If the model recognizes that something is wrong but selects a different supported rule:
 
 ```text
 expected rule
     ↓
-model reports a different rule
+model reports different rule
     ↓
-rule mismatch
+wrong rule
 ```
 
-The evaluator already exposes rule mismatches in individual results.
+These failures carry different diagnostic information.
 
-However, aggregate summaries currently emphasize false-positive and false-negative counts without a separate wrong-rule count.
+A false negative suggests an issue-recognition or recall failure.
 
-This can make models with unstable rule selection appear less problematic than they actually are.
+A wrong-rule result suggests taxonomy selection or instruction-following failure.
 
-For example:
+Keeping these metrics separate makes cross-model comparisons substantially more informative.
 
-```text
-False negatives: 0
-```
-
-does not necessarily mean all expected issues were recognized correctly if several positive cases instead failed through rule mismatches.
-
-A future evaluator improvement should therefore consider exposing rule mismatches explicitly in aggregate benchmark summaries.
+Historical exported results that predate the metric can still be loaded. Missing `rule_mismatches` values default to zero for compatibility, but this should be interpreted as **not recorded** rather than proof that the historical run contained no rule mismatches.
 
 ---
 
@@ -942,7 +1051,7 @@ A future evaluator improvement should therefore consider exposing rule mismatche
 - The diff suite contains **21 cases covering all nine rules**.
 - v9 achieved **15/21 — 71.43%** with **3 FP / 3 FN**.
 - v10 achieved **15/21 — 71.43%** with **2 FP / 4 FN**.
-- v11 achieves **17/21 — 80.95%** with **0 FP / 4 FN**.
+- v11 achieves **17/21 — 80.95%** with **0 FP / 4 FN / 0 wrong rules** under Qwen 3.5 9B.
 - v11 fixes all three attribution false positives present under v9.
 - Pre-existing mutable-default, SQL-injection, and shell-injection cases now pass.
 - Newly introduced SQL and shell vulnerabilities remain correctly detected.
@@ -961,7 +1070,20 @@ A future evaluator improvement should therefore consider exposing rule mismatche
 - Models with identical aggregate accuracy can fail on different benchmark cases.
 - The `duplicate_code` and `long_function` positives are missed across several otherwise reasonably behaving models.
 - The remaining maintainability weakness is therefore not specific to Qwen 3.5 9B.
-- Cross-model testing exposed the need for clearer aggregate reporting of wrong-rule failures.
+- Aggregate wrong-rule reporting now makes taxonomy-selection failures explicit.
+- DeepSeek Coder V2 16B produces **6 wrong-rule failures** in the current validation run.
+
+### Evaluation
+
+- False positives represent findings on benchmarks that expect no issue.
+- False negatives represent positive benchmarks where the model reports no issue.
+- Wrong rules represent positive benchmarks where the model reports an issue but does not select the expected rule.
+- These failure types are intentionally kept separate.
+- Individual evaluations store the rule-mismatch state.
+- Benchmark runs aggregate the number of wrong-rule failures.
+- Exported results serialize the new metric.
+- Result loading remains compatible with historical exports.
+- Aggregate summaries now display `Wrong rules`.
 
 ---
 
@@ -985,7 +1107,7 @@ All 9 taxonomy rules represented
 Prompt v11 baseline
 Qwen 3.5 9B
 17/21 — 80.95%
-0 FP / 4 FN
+0 FP / 4 FN / 0 wrong rules
 7/7 severity — 100%
       │
       ├── attribution
@@ -1029,9 +1151,26 @@ CROSS-MODEL v11
       │
       └── DeepSeek Coder V2 16B
           └── 3/21 — 14.29%
+              10 FP / 0 FN / 6 wrong rules
 ```
 
 The single-pass diff-review prompt investigation is now sufficiently mature to stop optimizing specifically around the remaining maintainability cases.
+
+The evaluator also now provides a clearer failure taxonomy:
+
+```text
+model reports issue on safe benchmark
+        ↓
+false positive
+
+model reports nothing on positive benchmark
+        ↓
+false negative
+
+model reports different rule on positive benchmark
+        ↓
+wrong rule
+```
 
 The main findings are:
 
@@ -1055,13 +1194,12 @@ does not automatically mean better reviewer
 aggregate accuracy alone
         ↓
 is insufficient for understanding model behavior
+
+explicit failure classification
+        ↓
+makes model behavior easier to diagnose
 ```
 
-The immediate next engineering improvement should be small and evaluation-focused:
+The aggregate rule-mismatch reporting improvement is now complete.
 
-```text
-make aggregate failure summaries distinguish
-wrong-rule / rule-mismatch failures more clearly
-```
-
-After that evaluation improvement, the project can move beyond further single-prompt tuning and into the next architectural experiment.
+The project can therefore move beyond evaluator cleanup and further single-prompt tuning into the next architectural experiment.

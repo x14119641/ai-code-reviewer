@@ -16,6 +16,7 @@ def create_evaluation(
     passed: bool = True,
     false_positive: bool = False,
     false_negative: bool = False,
+    rule_mismatch: bool = False,
     rule_matched: bool = False,
     category_matched: bool = False,
     severity_matched: bool = False,
@@ -35,6 +36,7 @@ def create_evaluation(
         false_positive=false_positive,
         false_negative=false_negative,
         rule_matched=rule_matched,
+        rule_mismatch=rule_mismatch,
         category_matched=category_matched,
         severity_matched=severity_matched,
         passed=passed,
@@ -169,3 +171,19 @@ def test_diff_benchmark_display_path_uses_after_path() -> None:
     )
 
     assert benchmark.display_path == after_path
+
+
+
+def test_benchmark_run_counts_rule_mismatches() -> None:
+    run = BenchmarkRun(
+        model="test-model",
+        prompt_version="v1",
+        evaluations=(
+            create_evaluation(rule_mismatch=True, passed=False),
+            create_evaluation(rule_mismatch=False),
+        ),
+        duration_seconds=1.0,
+        created_at=datetime.now(UTC),
+    )
+
+    assert run.rule_mismatches == 1

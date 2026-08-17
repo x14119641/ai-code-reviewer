@@ -40,6 +40,12 @@ def evaluate_benchmark(
     )
 
     rule_matched = matching_pair is not None
+    
+    rule_mismatch = (
+        expects_issues
+        and detected_issues
+        and not rule_matched
+    )
 
     if matching_pair is None:
         category_matched = False
@@ -66,6 +72,7 @@ def evaluate_benchmark(
         false_positive=false_positive,
         false_negative=false_negative,
         rule_matched=rule_matched,
+        rule_mismatch=rule_mismatch,
         category_matched=category_matched,
         severity_matched=severity_matched,
         passed=passed,

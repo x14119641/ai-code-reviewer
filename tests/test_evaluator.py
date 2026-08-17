@@ -65,3 +65,42 @@ def test_category_mismatch_fails_benchmark() -> None:
     assert evaluation.category_matched is False
     assert evaluation.severity_matched is True
     assert evaluation.passed is False
+    
+    
+    
+    
+def test_wrong_rule_is_classified_as_rule_mismatch() -> None:
+    benchmark = Benchmark(
+        name="Expected duplicate code",
+        code_path=Path("example.py"),
+        source_code="value = 1",
+        expected_issues=(
+            ExpectedIssue(
+                severity="low",
+                rule="duplicate_code",
+                category="maintainability",
+                explanation="Expected duplicate code.",
+            ),
+        ),
+    )
+
+    review = CodeReview(
+        issues=[
+            Issue(
+                severity="medium",
+                category="bug",
+                rule="mutable_default_argument",
+                title="Wrong issue",
+                explanation="Wrong rule returned.",
+                recommendation="Example recommendation.",
+            )
+        ]
+    )
+
+    evaluation = evaluate_benchmark(benchmark, review)
+
+    assert evaluation.passed is False
+    assert evaluation.false_positive is False
+    assert evaluation.false_negative is False
+    assert evaluation.rule_mismatch is True
+    assert evaluation.rule_matched is False

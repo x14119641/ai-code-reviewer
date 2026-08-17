@@ -41,6 +41,7 @@ class Benchmark:
     @property
     def expects_issues(self) -> bool:
         return bool(self.expected_issues)
+
     @property
     def display_path(self) -> Path:
         return self.code_path
@@ -58,7 +59,7 @@ class DiffBenchmark:
     @property
     def expects_issues(self) -> bool:
         return bool(self.expected_issues)
-    
+
     @property
     def display_path(self) -> Path:
         return self.after_path
@@ -76,6 +77,7 @@ class BenchmarkEvaluation:
     false_positive: bool
     false_negative: bool
     rule_matched: bool
+    rule_mismatch: bool
     category_matched: bool
     severity_matched: bool
     passed: bool
@@ -157,6 +159,10 @@ class BenchmarkRun:
 
         return self.severity_matches / self.severity_evaluated_count
 
+    @property
+    def rule_mismatches(self) -> int:
+        return sum(evaluation.rule_mismatch for evaluation in self.evaluations)
+
 
 @dataclass(frozen=True)
 class BenchmarkResultSummary:
@@ -170,6 +176,7 @@ class BenchmarkResultSummary:
     failed: int
     false_positives: int
     false_negatives: int
+    rule_mismatches: int
     errors: int
     accuracy: float
     duration_seconds: float
@@ -192,6 +199,7 @@ class RuleComparisonSummary:
     failed: int
     false_positives: int
     false_negatives: int
+    rule_mismatches: int
 
     @property
     def accuracy(self) -> float:
@@ -209,6 +217,7 @@ class CategoryComparisonSummary:
     failed: int
     false_positives: int
     false_negatives: int
+    rule_mismatches: int
 
     @property
     def accuracy(self) -> float:

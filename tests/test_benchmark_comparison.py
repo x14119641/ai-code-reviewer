@@ -14,6 +14,7 @@ def make_result(evaluations: list[dict]) -> BenchmarkResult:
         failed=sum(not evaluation["passed"] for evaluation in evaluations),
         false_positives=0,
         false_negatives=0,
+        rule_mismatches=0,
         errors=0,
         accuracy=0.0,
         duration_seconds=0.0,

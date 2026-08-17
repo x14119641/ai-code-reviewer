@@ -75,6 +75,12 @@ def load_result(path: Path) -> BenchmarkResult:
             f"Supported version: {BENCHMARK_SCHEMA_VERSION}"
         )
 
+    rule_mismatches=_optional_integer(
+        data,
+        "rule_mismatches",
+        path,
+    ),
+    
     failures = _require_list(data, "failures", path)
     evaluations = _require_list(data, "evaluations", path)
     
@@ -93,6 +99,7 @@ def load_result(path: Path) -> BenchmarkResult:
         failed=_require_integer(data, "failed", path),
         false_positives=_require_integer(data, "false_positives", path),
         false_negatives=_require_integer(data, "false_negatives", path),
+        rule_mismatches=rule_mismatches,
         errors=len(failures),
         accuracy=_require_number(data, "accuracy", path),
         duration_seconds=_require_number(
@@ -203,6 +210,16 @@ def _require_list(
 
     return value
 
+def _optional_integer(
+    data: dict[str, Any],
+    field: str,
+    path: Path,
+    default: int = 0,
+) -> int:
+    if field not in data:
+        return default
+
+    return _require_integer(data, field, path)
 
 def extract_rule_from_evaluation(evaluation: dict[str, Any]) -> str | None:
     """Return the benchmark rule represented by an evaluation."""
@@ -273,6 +290,11 @@ def summarize_rules(
 
         benchmark_count = len(rule_evaluations)
 
+        rule_mismatches = sum(
+            evaluation.get("rule_mismatch") is True
+            for evaluation in rule_evaluations
+        )
+        
         summaries.append(
             RuleComparisonSummary(
                 rule=rule,
@@ -281,6 +303,7 @@ def summarize_rules(
                 failed=benchmark_count - passed,
                 false_positives=false_positives,
                 false_negatives=false_negatives,
+                rule_mismatches=rule_mismatches,
             )
         )
 
@@ -363,7 +386,12 @@ def summarize_categories(
         )
 
         benchmark_count = len(category_evaluations)
-
+        
+        rule_mismatches = sum(
+            evaluation.get("rule_mismatch") is True
+            for evaluation in category_evaluations
+        )
+        
         summaries.append(
             CategoryComparisonSummary(
                 category=category,
@@ -372,6 +400,7 @@ def summarize_categories(
                 failed=benchmark_count - passed,
                 false_positives=false_positives,
                 false_negatives=false_negatives,
+                rule_mismatches=rule_mismatches,
             )
         )
 

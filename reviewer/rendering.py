@@ -154,6 +154,10 @@ def print_benchmark_summary(run: BenchmarkRun) -> None:
         f"[yellow]{run.false_negatives}[/yellow]",
     )
     table.add_row(
+        "Wrong rules",
+        f"[yellow]{run.rule_mismatches}[/yellow]",
+    )
+    table.add_row(
         "Accuracy",
         f"[bold cyan]{run.accuracy:.2%}[/bold cyan]",
     )
@@ -233,6 +237,7 @@ def build_comparison_table(
     table.add_column("FP", justify="right")
     table.add_column("FN", justify="right")
     table.add_column("Errors", justify="right")
+    table.add_column("Wrong", justify="right")
     table.add_column("Time", justify="right")
 
     for summary in summaries:
@@ -245,6 +250,7 @@ def build_comparison_table(
             str(summary.false_positives),
             str(summary.false_negatives),
             str(summary.errors),
+            str(summary.rule_mismatches),
             f"{summary.duration_seconds:.1f}s",
         )
 
