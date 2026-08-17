@@ -1485,46 +1485,6 @@ but the current benchmark does not yet justify adding that third LLM call.
 
 ---
 
-## Current Model Selection
-
-The single-pass cross-model comparison remains useful for separating model behavior from architecture behavior.
-
-```text
-Qwen 3.5 9B
-├── best single-pass accuracy
-├── 0 false positives
-├── 0 observed wrong-rule failures
-└── current default
-
-Qwen 2.5 Coder 7B
-├── 0 false positives
-├── good attribution
-├── lower recall
-└── useful smaller/faster alternative
-
-Qwen 2.5 Coder 14B
-├── stronger recognition in some cases
-└── weaker attribution
-
-Gemma 3 12B
-├── moderate overall result
-└── attribution failures remain
-
-Llama 3.1 8B
-└── unstable constrained-rule selection
-
-DeepSeek Coder V2 16B
-├── 10 false positives
-├── 6 wrong-rule failures
-└── unstable constrained-rule selection
-```
-
-Qwen 3.5 9B remains the preferred local model.
-
-The specialist experiment also shows that improving architecture can currently provide more value than simply selecting a larger local model.
-
----
-
 ## Result Analysis
 
 The project provides complementary ways to analyze exported benchmark results.
@@ -1667,15 +1627,565 @@ Historical exported results that predate the metric can still be loaded. Missing
 - The improvement is achieved with the same Qwen 3.5 9B model.
 - The architecture requires two LLM calls and therefore increases runtime.
 
-### Cross-Model Diff Review
+## Cross-Model Diff Review
 
-- Qwen 3.5 9B remains the strongest single-pass model at **80.95%**.
-- Qwen 2.5 Coder 7B is second at **71.43%** and also produces zero false positives.
-- Qwen 2.5 Coder 14B and Gemma 3 12B both reach **61.90%** but exhibit more attribution failures.
-- Llama 3.1 8B and DeepSeek Coder V2 16B perform poorly with the constrained taxonomy prompt.
-- Larger parameter count does not automatically improve diff-review performance.
-- Aggregate wrong-rule reporting makes taxonomy-selection failures explicit.
-- DeepSeek Coder V2 16B produces **6 wrong-rule failures** in the current validation run.
+After establishing v11 as the strongest single-pass prompt, the complete 21-case suite was evaluated across the project's local model set.
+
+The experiment was then repeated using the specialized architecture:
+
+```text
+General reviewer       v11
+Maintainability        maintainability_v1
+Merge                   deterministic rule ownership
+Benchmarks              21
+Generation              deterministic
+```
+
+This allows two separate questions to be evaluated:
+
+```text
+MODEL EFFECT
+same architecture
+different model
+
+ARCHITECTURE EFFECT
+same model
+single-pass vs specialized
+```
+
+---
+
+## Cross-Model Single-Pass v11 Results
+
+The single-pass experiment kept the following fixed:
+
+```text
+same 21 diff benchmarks
+same v11 prompt
+same deterministic generation settings
+same evaluator
+```
+
+Only the model changed.
+
+| Model | Passed | Accuracy | False Positives | False Negatives |
+| --- | ---: | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | **17/21** | **80.95%** | **0** | 4 |
+| Qwen 2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 |
+| Qwen 2.5 Coder 14B | 13/21 | 61.90% | 4 | 4 |
+| Gemma 3 12B | 13/21 | 61.90% | 4 | 4 |
+| Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* |
+| DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
+
+`*` The original cross-model runs for these models predated aggregate rule-mismatch counting.
+
+The zero false-negative counts for Llama 3.1 8B and DeepSeek Coder V2 16B are therefore misleading when viewed alone.
+
+These models frequently reported an issue using the wrong supported rule rather than returning no issue.
+
+DeepSeek was later rerun with aggregate rule-mismatch tracking enabled:
+
+```text
+Passed            3/21
+Accuracy          14.29%
+False positives   10
+False negatives   0
+Wrong rules       6
+```
+
+Qwen 3.5 9B remained the strongest single-pass model.
+
+---
+
+## Cross-Model Specialized Evaluation
+
+The specialized architecture was then evaluated using the same six models.
+
+Each benchmark is reviewed by two independent passes:
+
+```text
+                         Diff + Current Source
+                                  │
+                   ┌──────────────┴──────────────┐
+                   │                             │
+                   ↓                             ↓
+              General Pass               Specialist Pass
+                  v11                   maintainability_v1
+                   │                             │
+                   ↓                             ↓
+         bug / security /              duplicate_code
+            performance                 long_function
+                   │                             │
+                   └──────────────┬──────────────┘
+                                  ↓
+                       Deterministic Merge
+                                  ↓
+                          Final CodeReview
+```
+
+The prompts, benchmark suite, evaluator, rule ownership, and deterministic generation settings were held constant.
+
+Only the model changed.
+
+### Results
+
+| Model | Passed | Accuracy | FP | FN | Wrong Rules | Severity | Duration |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | **20/21** | **95.24%** | **0** | **1** | **0** | 10/10 (100%) | 81.12s |
+| Qwen 2.5 Coder 7B | 16/21 | 76.19% | **0** | 5 | 0 | 6/6 (100%) | **38.72s** |
+| Qwen 2.5 Coder 14B | 16/21 | 76.19% | 5 | **0** | 0 | 11/11 (100%) | 107.57s |
+| Gemma 3 12B | 14/21 | 66.67% | 7 | **0** | 0 | 11/11 (100%) | 183.03s |
+| Llama 3.1 8B | 9/21 | 42.86% | 10 | 0 | 2 | 9/9 (100%) | 118.26s |
+| DeepSeek Coder V2 16B | 7/21 | 33.33% | 10 | 0 | 2 | 7/7 (100%) | 295.41s |
+
+Qwen 3.5 9B remains clearly strongest under the specialized architecture.
+
+It is the only tested model that combines:
+
+```text
+high recall
++
+zero false positives
++
+zero wrong-rule failures
+```
+
+while reaching:
+
+```text
+20/21
+95.24%
+```
+
+---
+
+## Single-Pass vs Specialized Cross-Model Comparison
+
+The specialized architecture improves aggregate accuracy for every tested model.
+
+| Model | Single-Pass v11 | Specialized | Change |
+| --- | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | 80.95% | **95.24%** | **+14.29 pp** |
+| Qwen 2.5 Coder 7B | 71.43% | **76.19%** | +4.76 pp |
+| Qwen 2.5 Coder 14B | 61.90% | **76.19%** | +14.29 pp |
+| Gemma 3 12B | 61.90% | **66.67%** | +4.77 pp |
+| Llama 3.1 8B | 23.81% | **42.86%** | +19.05 pp |
+| DeepSeek Coder V2 16B | 14.29% | **33.33%** | +19.04 pp |
+
+The important result is not merely that Qwen 3.5 9B improved.
+
+All six tested models achieve higher benchmark accuracy when using the specialized architecture.
+
+This provides evidence that task decomposition has value beyond one particular model.
+
+However, specialization does not eliminate the underlying behavioral differences between models.
+
+---
+
+## Specialized Model Behavior
+
+### Qwen 3.5 9B
+
+```text
+20/21 — 95.24%
+0 FP
+1 FN
+0 wrong rules
+```
+
+Qwen 3.5 9B produces the strongest overall result.
+
+The architecture preserves all bug, security, performance, and attribution successes from v11 while recovering three of the four maintainability findings previously missed.
+
+The only remaining failure is:
+
+```text
+long_function
+└── weaker positive
+```
+
+This model currently provides the best balance of precision and recall.
+
+---
+
+### Qwen 2.5 Coder 7B
+
+```text
+16/21 — 76.19%
+0 FP
+5 FN
+0 wrong rules
+38.72s
+```
+
+Qwen 2.5 Coder 7B remains highly conservative.
+
+Like Qwen 3.5 9B, it produces:
+
+```text
+0 false positives
+0 wrong rules
+```
+
+but recall remains substantially lower.
+
+Its failures are:
+
+```text
+duplicate_code
+└── weaker positive
+
+long_function
+├── weaker positive
+└── strong positive
+
+performance
+├── list_membership_in_loop
+└── string_concatenation_in_loop
+```
+
+The model therefore remains interesting as a smaller and faster alternative when precision is more important than recall.
+
+---
+
+### Qwen 2.5 Coder 14B
+
+```text
+16/21 — 76.19%
+5 FP
+0 FN
+0 wrong rules
+107.57s
+```
+
+The 14B model shows almost the opposite behavior from the 7B model.
+
+It detects every expected positive issue:
+
+```text
+0 false negatives
+```
+
+including all maintainability positives.
+
+However, it incorrectly reports several issues that were already present before the diff.
+
+Its five false-positive benchmark failures include pre-existing:
+
+```text
+mutable_default_argument
+duplicate_code
+string_concatenation_in_loop
+shell_injection
+sql_injection
+```
+
+The model therefore demonstrates strong issue recognition but weaker change attribution.
+
+This is an important distinction:
+
+```text
+recognition       strong
+attribution       weaker
+```
+
+A larger model is not automatically a better diff reviewer.
+
+---
+
+### Gemma 3 12B
+
+```text
+14/21 — 66.67%
+7 FP
+0 FN
+0 wrong rules
+183.03s
+```
+
+Gemma also detects all expected positive findings.
+
+Its primary weakness is attribution.
+
+Seven safe or pre-existing cases become false positives.
+
+The model therefore exhibits:
+
+```text
+high recognition
++
+low attribution precision
+```
+
+rather than a simple issue-detection problem.
+
+---
+
+### Llama 3.1 8B
+
+```text
+9/21 — 42.86%
+10 FP
+0 FN
+2 wrong rules
+118.26s
+```
+
+Specialization substantially increases aggregate accuracy relative to its single-pass result:
+
+```text
+23.81%
+    ↓
+42.86%
+```
+
+but the reviewer remains unstable.
+
+Ten benchmark cases produce false positives and two positive cases use the wrong supported rule.
+
+The model therefore remains unsuitable as the default reviewer.
+
+---
+
+### DeepSeek Coder V2 16B
+
+```text
+7/21 — 33.33%
+10 FP
+0 FN
+2 wrong rules
+295.41s
+```
+
+DeepSeek also improves substantially over its single-pass result:
+
+```text
+14.29%
+    ↓
+33.33%
+```
+
+but remains the weakest practical candidate.
+
+It combines:
+
+```text
+10 false positives
+2 wrong-rule failures
+very high inference time
+```
+
+The specialized architecture improves its recognition, but does not solve its attribution and taxonomy-selection instability.
+
+---
+
+## Precision vs Recall Across Models
+
+The specialized experiment exposes distinct reviewer behaviors.
+
+```text
+Qwen 3.5 9B
+    strong recognition
+    +
+    strong attribution
+    ↓
+    20/21
+
+
+Qwen 2.5 Coder 7B
+    weaker recognition
+    +
+    strong attribution
+    ↓
+    conservative reviewer
+
+
+Qwen 2.5 Coder 14B
+    strong recognition
+    +
+    weaker attribution
+    ↓
+    aggressive reviewer
+
+
+Gemma 3 12B
+    strong recognition
+    +
+    weak attribution
+    ↓
+    many false positives
+
+
+Llama 3.1 / DeepSeek
+    weak attribution
+    +
+    taxonomy instability
+    ↓
+    unsuitable reviewer behavior
+```
+
+This demonstrates why aggregate accuracy alone is insufficient for model selection.
+
+Two models can reach the same accuracy while exhibiting very different failure modes.
+
+For example:
+
+```text
+Qwen 2.5 Coder 7B
+16/21
+0 FP / 5 FN
+
+Qwen 2.5 Coder 14B
+16/21
+5 FP / 0 FN
+```
+
+Both reach:
+
+```text
+76.19%
+```
+
+but they represent fundamentally different reviewer trade-offs.
+
+---
+
+## Architecture-Level Finding
+
+The cross-model experiment strengthens the evidence for specialization.
+
+The improvement is not isolated to Qwen 3.5 9B.
+
+```text
+                     SINGLE       SPECIALIZED
+
+Qwen 3.5 9B          80.95%  →    95.24%
+Qwen 2.5 7B          71.43%  →    76.19%
+Qwen 2.5 14B         61.90%  →    76.19%
+Gemma 3 12B          61.90%  →    66.67%
+Llama 3.1 8B         23.81%  →    42.86%
+DeepSeek 16B         14.29%  →    33.33%
+```
+
+Every tested model improves in aggregate accuracy.
+
+This suggests that:
+
+```text
+task decomposition
+        ↓
+reduces rule competition
+        ↓
+improves issue recognition
+```
+
+is an architectural effect rather than a behavior unique to one model.
+
+At the same time, the experiment demonstrates that architecture cannot fully compensate for model behavior.
+
+Models with weak change attribution continue to generate false positives even after specialization.
+
+Models with unstable taxonomy selection continue to produce wrong-rule failures.
+
+The architecture and model therefore contribute independently to final reviewer quality.
+
+---
+
+## Current Model Selection
+
+The current preferred model remains:
+
+```text
+Qwen 3.5 9B
+```
+
+Under the strongest architecture:
+
+```text
+v11 general
++
+maintainability_v1 specialist
++
+deterministic rule ownership
+```
+
+it achieves:
+
+```text
+20/21
+95.24%
+0 false positives
+1 false negative
+0 wrong rules
+100% severity accuracy
+```
+
+Qwen 2.5 Coder 7B remains the most interesting lightweight alternative:
+
+```text
+16/21
+76.19%
+0 false positives
+0 wrong rules
+38.72s
+```
+
+The remaining models currently provide no compelling accuracy/precision/runtime advantage over these two options.
+
+---
+
+## Current Observations
+
+### Full-File Review
+
+- Qwen 3.5 9B produced the strongest result in the initial multi-model comparison.
+- Controlled prompt iteration improved the full-file reviewer significantly.
+- Prompt v5 remains the full-file baseline.
+- v5 reaches **92.3% accuracy on 65 benchmarks**.
+- Severity accuracy remains **100%**.
+- `unreachable_code` currently performs strongly.
+- `long_function` remains one of the weakest full-file rules.
+- A targeted general `long_function` prompt experiment did not improve recognition.
+- Further general prompt tuning for that rule was paused to avoid benchmark-specific overfitting.
+
+### Single-Pass Git Diff Review
+
+- The diff suite contains **21 cases covering all nine rules**.
+- v9 achieved **15/21 — 71.43%** with **3 FP / 3 FN**.
+- v10 achieved **15/21 — 71.43%** with **2 FP / 4 FN**.
+- v11 achieves **17/21 — 80.95%** with **0 FP / 4 FN / 0 wrong rules** under Qwen 3.5 9B.
+- v11 fixes all three attribution false positives present under v9.
+- All remaining v11 failures are maintainability false negatives.
+- v11 remains the frozen single-pass baseline.
+
+### Specialized Git Diff Review
+
+- `maintainability_v1` recovers both `duplicate_code` positives under Qwen 3.5 9B.
+- It also recovers the stronger `long_function` positive.
+- Combining v11 and `maintainability_v1` produces **20/21 — 95.24%**.
+- The architecture produces **0 false positives**.
+- It produces **1 false negative**.
+- It produces **0 wrong-rule failures**.
+- Severity accuracy remains **100%**.
+- No previously passing v11 benchmark regresses.
+- The only remaining Qwen 3.5 9B failure is the weaker `long_function` positive.
+- The architecture requires two LLM calls and therefore increases inference cost.
+
+### Cross-Model Specialized Review
+
+- Every tested model improves in aggregate accuracy under the specialized architecture.
+- Qwen 3.5 9B improves from **80.95% → 95.24%**.
+- Qwen 2.5 Coder 7B improves from **71.43% → 76.19%**.
+- Qwen 2.5 Coder 14B improves from **61.90% → 76.19%**.
+- Gemma 3 12B improves from **61.90% → 66.67%**.
+- Llama 3.1 8B improves from **23.81% → 42.86%**.
+- DeepSeek Coder V2 16B improves from **14.29% → 33.33%**.
+- Qwen 3.5 9B is the only tested model combining very high accuracy with **0 FP and 0 wrong rules**.
+- Qwen 2.5 Coder 7B remains conservative with **0 FP / 0 wrong rules**, but has lower recall.
+- Qwen 2.5 Coder 14B reaches the same accuracy as the 7B model but with the opposite error profile: **5 FP / 0 FN**.
+- Gemma has strong positive recognition but substantially weaker attribution.
+- Llama and DeepSeek improve numerically but remain unstable reviewers.
+- Larger model size does not automatically improve diff-review quality.
 
 ### Architecture
 
@@ -1685,7 +2195,9 @@ Historical exported results that predate the metric can still be loaded. Missing
 - Narrow maintainability specialization substantially improved issue recognition.
 - A specialist should complement rather than replace the general reviewer.
 - Deterministic rule ownership avoids requiring an additional merge LLM call.
-- Task decomposition is now a first-class experimental variable alongside model and prompt selection.
+- Cross-model results provide evidence that specialization is not specific to one model.
+- Model quality and reviewer architecture are separate experimental variables.
+- Task decomposition is now a first-class architectural component.
 
 ---
 
@@ -1694,7 +2206,7 @@ Historical exported results that predate the metric can still be loaded. Missing
 ```text
 FULL-FILE REVIEW
 65-case suite
-Prompt v5 baseline
+Prompt v5
 Qwen 3.5 9B
 60/65 — 92.3%
 100% severity accuracy
@@ -1705,35 +2217,12 @@ Qwen 3.5 9B
 
 SINGLE-PASS GIT-DIFF REVIEW
 21-case suite
-All 9 taxonomy rules represented
 Prompt v11
 Qwen 3.5 9B
 17/21 — 80.95%
 0 FP / 4 FN / 0 wrong rules
-7/7 severity — 100%
       │
-      ├── attribution
-      │   └── all current pre-existing boundaries PASS
-      │
-      └── maintainability recognition
-          ├── duplicate_code
-          │   ├── normal positive FAIL
-          │   └── strong positive FAIL
-          │
-          └── long_function
-              ├── normal positive FAIL
-              └── strong positive FAIL
-
-
-MAINTAINABILITY SPECIALIST
-Prompt maintainability_v1
-Qwen 3.5 9B
-      │
-      ├── duplicate_code
-      │   └── 3/3 — 100%
-      │
-      └── long_function
-          └── 2/3 — 66.67%
+      └── all failures in maintainability
 
 
 SPECIALIZED GIT-DIFF REVIEW
@@ -1750,54 +2239,44 @@ Qwen 3.5 9B
 10/10 severity — 100%
 81.12s
       │
-      ├── bug
-      │   └── all PASS
-      │
-      ├── security
-      │   └── all PASS
-      │
-      ├── performance
-      │   └── all PASS
-      │
-      └── maintainability
-          ├── duplicate_code
-          │   └── all PASS
-          │
-          └── long_function
-              ├── strong positive PASS
-              ├── pre-existing PASS
-              └── normal positive FAIL
+      └── remaining failure
+          └── long_function weaker positive
 
 
-CROSS-MODEL SINGLE-PASS v11
+CROSS-MODEL SPECIALIZED REVIEW
       │
       ├── Qwen 3.5 9B
-      │   └── 17/21 — 80.95%
+      │   └── 20/21 — 95.24%
+      │       0 FP / 1 FN / 0 wrong
       │
       ├── Qwen 2.5 Coder 7B
-      │   └── 15/21 — 71.43%
+      │   └── 16/21 — 76.19%
+      │       0 FP / 5 FN / 0 wrong
       │
       ├── Qwen 2.5 Coder 14B
-      │   └── 13/21 — 61.90%
+      │   └── 16/21 — 76.19%
+      │       5 FP / 0 FN / 0 wrong
       │
       ├── Gemma 3 12B
-      │   └── 13/21 — 61.90%
+      │   └── 14/21 — 66.67%
+      │       7 FP / 0 FN / 0 wrong
       │
       ├── Llama 3.1 8B
-      │   └── 5/21 — 23.81%
+      │   └── 9/21 — 42.86%
+      │       10 FP / 0 FN / 2 wrong
       │
       └── DeepSeek Coder V2 16B
-          └── 3/21 — 14.29%
-              10 FP / 0 FN / 6 wrong rules
+          └── 7/21 — 33.33%
+              10 FP / 0 FN / 2 wrong
 ```
 
 ---
 
 ## Current Conclusions
 
-The project has now moved beyond single-prompt optimization.
+The project has now moved beyond both single-prompt optimization and single-model architectural testing.
 
-The main experimental progression has been:
+The experimental progression is:
 
 ```text
 full-file review
@@ -1817,12 +2296,15 @@ candidate verification
 maintainability specialization
         ↓
 general + specialist architecture
+        ↓
+cross-model architecture validation
 ```
 
-The strongest current result is:
+The strongest current configuration remains:
 
 ```text
 Qwen 3.5 9B
++
 v11 general reviewer
 +
 maintainability_v1 specialist
@@ -1837,58 +2319,64 @@ deterministic rule ownership
 100% severity accuracy
 ```
 
-The main findings are:
+The cross-model experiment adds an important result:
 
 ```text
-concrete before/after trigger comparison
+same specialization architecture
         ↓
-improves change attribution
-
-generic conservatism
-        ↓
-can suppress legitimate findings
-
-subjective maintainability rules
-        ↓
-are difficult under broad single-pass prompts
-
-focused specialist prompt
-        ↓
-substantially improves maintainability recall
-
-candidate verification
-        ↓
-can validate findings but cannot recover missing candidates
-
-general + specialist detection
-        ↓
-provides complementary coverage
-
-deterministic rule ownership
-        ↓
-avoids an unnecessary merge LLM call
-
-same model + better task decomposition
-        ↓
-can outperform a broader single-pass architecture
-
-larger model
-        ↓
-does not automatically mean better reviewer
-
-higher accuracy
-        ↓
-must be considered alongside inference cost
-
-aggregate accuracy alone
-        ↓
-is insufficient for understanding model behavior
+all six models improve
 ```
 
-The current architecture has therefore demonstrated a measurable benefit from specialization.
+This provides evidence that specialization is not merely a Qwen 3.5-specific prompt optimization.
 
-The next architectural question is no longer whether multi-pass review can help.
+However:
 
-It is whether additional specialization — for example separate security, bug, performance, and maintainability reviewers — provides enough additional accuracy or robustness to justify the increased inference cost and system complexity.
+```text
+better architecture
+        ≠
+all models become good reviewers
+```
 
-The current **20/21 specialized result should remain frozen as the baseline for that next experiment**.
+The model still determines important behavioral characteristics.
+
+Qwen 2.5 Coder 7B remains conservative.
+
+Qwen 2.5 Coder 14B and Gemma detect more positive issues but struggle with attribution.
+
+Llama and DeepSeek remain unstable despite substantial percentage improvements.
+
+The main conclusions are therefore:
+
+```text
+model choice
+        +
+prompt design
+        +
+task decomposition
+        +
+change attribution
+        +
+deterministic aggregation
+        ↓
+reviewer quality
+```
+
+No single component is sufficient by itself.
+
+The current **20/21 specialized Qwen 3.5 9B result should now remain frozen as the architectural baseline**.
+
+The next experimental priority should be benchmark generalization rather than further tuning against the same 21 cases.
+
+The existing prompts should remain unchanged while new unseen diff benchmarks are added.
+
+That will test whether:
+
+```text
+95.24% on current suite
+        ↓
+survives unseen cases
+        ↓
+evidence of generalization
+```
+
+rather than continuing to optimize against a small known benchmark set.
