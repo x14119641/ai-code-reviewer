@@ -1,0 +1,13 @@
+{
+  "name": "Adding statement after continue introduces unreachable code",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "unreachable_code",
+      "category": "bug",
+      "explanation": "The diff adds a statement immediately after continue, so that statement can never execute."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Duplicating validation logic introduces duplicate code",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "duplicate_code",
+      "category": "maintainability",
+      "explanation": "The diff introduces substantially duplicated normalization and validation logic in two functions that could be extracted into a shared helper."
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Cohesive profile normalization growth is not a long function",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

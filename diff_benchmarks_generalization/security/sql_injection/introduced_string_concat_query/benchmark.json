@@ -1,0 +1,13 @@
+{
+  "name": "Changing parameterized query to string concatenation introduces SQL injection",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "rule": "sql_injection",
+      "category": "security",
+      "explanation": "The diff replaces a parameterized SQL query with direct string concatenation of user-controlled input."
+    }
+  ]
+}

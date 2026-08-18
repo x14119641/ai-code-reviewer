@@ -1,0 +1,6 @@
+{
+  "name": "Pre-existing list membership in loop is not introduced by diff",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

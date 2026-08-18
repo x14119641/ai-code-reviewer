@@ -1,0 +1,13 @@
+{
+  "name": "Changing argument list to interpolated shell command introduces shell injection",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "critical",
+      "rule": "shell_injection",
+      "category": "security",
+      "explanation": "The diff places the host value directly into a shell command and executes it with shell=True, allowing shell metacharacters in the input to alter the command."
+    }
+  ]
+}

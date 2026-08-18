@@ -1,0 +1,6 @@
+{
+  "name": "Pre-existing long function is not introduced by unrelated helper addition",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

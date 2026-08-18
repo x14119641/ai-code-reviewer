@@ -1,0 +1,13 @@
+{
+  "name": "Removing filename restriction introduces path traversal",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "path_traversal",
+      "category": "security",
+      "explanation": "The diff removes the restriction to the final path component and joins the user-provided filename directly to the base directory, allowing traversal sequences to escape the intended directory."
+    }
+  ]
+}

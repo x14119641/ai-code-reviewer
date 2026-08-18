@@ -1,0 +1,13 @@
+{
+  "name": "Growing order processing into multiple responsibilities introduces a long function",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "long_function",
+      "category": "maintainability",
+      "explanation": "The diff substantially expands process_order with validation, discount calculation, status classification, and output construction, making the function responsible for several distinct tasks."
+    }
+  ]
+}

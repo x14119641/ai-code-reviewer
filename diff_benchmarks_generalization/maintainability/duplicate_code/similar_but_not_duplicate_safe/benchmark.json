@@ -1,0 +1,6 @@
+{
+  "name": "Similar validation functions are not meaningful duplicate code",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}
