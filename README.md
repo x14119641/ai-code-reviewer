@@ -45,6 +45,11 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - ✅ General + specialist diff-review architecture
 - ✅ Deterministic rule ownership and review merging
 - ✅ Specialized diff benchmark CLI
+- ✅ Configurable Ollama context size for specialized diff benchmarks
+- ✅ Persisted inference metadata in benchmark exports
+- ✅ Benchmark result schema v2
+- ✅ Context-size experiments at 4K / 8K / 16K
+- ✅ Larger MoE model evaluation with Gemma 4 26B and Qwen 3.5 35B-A3B
 
 ### Planned
 
@@ -89,6 +94,9 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - Controlled prompt optimization and comparison
 - Cross-model diff evaluation
 - Local execution with Ollama
+- Configurable inference context for specialized diff benchmarks
+- Persisted inference metadata (`runtime`, `context_size`, `temperature`, `seed`)
+- Versioned benchmark-result schema
 
 ## Architecture
 
@@ -978,6 +986,120 @@ This distinction is important: model quality and review architecture are evaluat
 
 Larger models may be evaluated in the future on machines with more VRAM using the same frozen benchmark suite and prompts, allowing direct comparison with the current baselines.
 
+## Context-Size and Larger-Model Experiments
+
+After the specialized Qwen 3.5 9B baseline was frozen, the inference context was made configurable and recorded in benchmark metadata.
+
+The same specialized 21-case suite was then used to test context size and larger local MoE models without changing the review prompts or architecture.
+
+### Qwen 3.5 9B Context-Size Experiment
+
+| Context | Passed | Accuracy | FP | FN | Duration | Ollama execution |
+| ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| **4096** | **20/21** | **95.24%** | **0** | **1** | **81.58s** | 100% GPU |
+| 8192 | 18/21 | 85.71% | 0 | 3 | 88.09s | 100% GPU |
+| 16384 | 18/21 | 85.71% | 0 | 3 | 87.88s | 100% GPU |
+
+Increasing context size did not improve the current benchmark.
+
+The 4K configuration remained both the most accurate and the fastest of the tested context sizes.
+
+Because the benchmark inputs already fit comfortably inside the 4K window, a larger context window provides no demonstrated benefit for the current suite.
+
+### Larger MoE Models at 4K
+
+Two larger models were then evaluated with the same specialized architecture and a 4096-token context:
+
+| Model | Passed | Accuracy | FP | FN | Wrong Rules | Duration | Ollama execution |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| **Qwen 3.5 9B** | **20/21** | **95.24%** | **0** | 1 | 0 | **81.58s** | 100% GPU |
+| Gemma 4 26B | 17/21 | 80.95% | 4 | **0** | 0 | 146.98s | 55% GPU / 45% CPU |
+| Qwen 3.5 35B-A3B | 16/21 | 76.19% | 5 | **0** | 0 | 199.46s | 45% GPU / 55% CPU |
+
+The larger models showed a different failure profile from Qwen 3.5 9B.
+
+Both larger models detected every expected positive issue:
+
+```text
+Gemma 4 26B
+0 false negatives
+
+Qwen 3.5 35B-A3B
+0 false negatives
+```
+
+However, they were more aggressive about reporting issues that already existed before the change.
+
+Gemma 4 26B produced four attribution false positives:
+
+```text
+pre-existing mutable_default_argument
+pre-existing unreachable_code
+pre-existing duplicate_code
+pre-existing long_function
+```
+
+Qwen 3.5 35B-A3B produced five:
+
+```text
+pre-existing mutable_default_argument
+pre-existing unreachable_code
+pre-existing duplicate_code
+pre-existing string_concatenation_in_loop
+pre-existing shell_injection
+```
+
+This produces a useful precision/recall distinction:
+
+```text
+Qwen 3.5 9B
+strong attribution precision
++
+slightly lower recall
+
+larger MoE models
+strong positive recognition
++
+weaker change attribution
+```
+
+On the current RX 6700 XT 12 GB system, the larger models also require substantial CPU offload.
+
+Qwen 3.5 9B remains fully GPU-resident, while Gemma 4 26B and Qwen 3.5 35B-A3B are split across CPU and GPU and are substantially slower.
+
+The preferred specialized configuration therefore remains:
+
+```text
+qwen3.5:9b
+context 4096
+v11 general
++
+maintainability_v1 specialist
++
+deterministic rule ownership
+
+20/21
+95.24%
+0 FP
+1 FN
+0 wrong rules
+100% severity
+```
+
+The experiment reinforces two existing project findings:
+
+```text
+larger model
+≠
+better diff reviewer
+
+larger context
+≠
+better diff reviewer
+```
+
+Model selection should be based on measured reviewer behavior, attribution precision, latency, and hardware fit rather than parameter count alone.
+
 ## Tech Stack
 
 - Python 3.14
@@ -991,7 +1113,9 @@ Larger models may be evaluated in the future on machines with more VRAM using th
 
 ## Test Environment
 
+- AMD Ryzen 5 5600X (6 cores)
 - AMD Radeon RX 6700 XT (12 GB VRAM)
+- 32 GB system RAM
 - Arch Linux
 
 ## Run
@@ -1120,8 +1244,36 @@ Run the general v11 reviewer and maintainability specialist together:
 uv run python main.py benchmark-diff-specialized \
     diff_benchmarks \
     --model qwen3.5:9b \
+    --context-size 4096 \
     --output qwen3.5-9b-specialized.json
 ```
+
+The context window is configurable with `--context-size`. The default is `4096`.
+
+For example:
+
+```bash
+uv run python main.py benchmark-diff-specialized \
+    diff_benchmarks \
+    --model qwen3.5:9b \
+    --context-size 8192
+```
+
+Benchmark exports now use schema version 2 and persist the inference configuration used for the run:
+
+```json
+{
+  "schema_version": 2,
+  "inference": {
+    "runtime": "ollama",
+    "context_size": 4096,
+    "temperature": 0,
+    "seed": 42
+  }
+}
+```
+
+This makes model comparisons reproducible without relying on external notes about the Ollama configuration.
 
 The result is stored under:
 
@@ -1273,7 +1425,7 @@ Adding multiple responsibilities introduces long function
 
 The current evidence suggests that task specialization can substantially improve maintainability recall without increasing false positives.
 
-The next architectural question is whether broader category specialization can provide additional gains worth the increased inference cost.
+The specialized architecture is now frozen as the current diff-review baseline. The next experimental priority is benchmark generalization: add unseen diff cases while keeping v11, `maintainability_v1`, the merge strategy, and the 4K inference configuration unchanged.
 
 ## Project Goal
 

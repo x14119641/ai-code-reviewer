@@ -13,13 +13,18 @@ maintainability rules
 
 The current coverage is:
 
-| Category | Rule | Cases | | --- | --- | ---: | | Bug |
-Mutable default argument | 2 | | Bug | Unreachable code | 2 | |
-Security | SQL injection | 2 | | Security | Shell injection | 2 |
-| Security | Path traversal | 2 | | Performance | List membership
-in loops | 3 | | Performance | String concatenation in loops | 2 |
-| Maintainability | Duplicate code | 3 | | Maintainability | Long
-function | 3 | | **Total** | | **21** |
+| Category | Rule | Cases |
+| --- | --- | ---: |
+| Bug | Mutable default argument | 2 |
+| Bug | Unreachable code | 2 |
+| Security | SQL injection | 2 |
+| Security | Shell injection | 2 |
+| Security | Path traversal | 2 |
+| Performance | List membership in loops | 3 |
+| Performance | String concatenation in loops | 2 |
+| Maintainability | Duplicate code | 3 |
+| Maintainability | Long function | 3 |
+| **Total** | | **21** |
 
 This gives every rule in the current taxonomy at least one diff-review
 benchmark family.
@@ -400,12 +405,11 @@ Errors 0 False positives 0 False negatives 4 Wrong rules 0 Accuracy
 
 ### Prompt Comparison
 
-| Prompt | Passed | Accuracy | False Positives | False Negatives |
-Severity | | --- | ---: | ---: | ---: | ---: | ---: | | v9 |
-15/21 | 71.43% | 3 | 3 | 8/8 (100%) | | v10 | 15/21 | 71.43% |
-2 | 4 | 7/7 (100%) | | **v11** | **17/21** |
-**80.95%** | **0** | **4** | **7/7
-(100%)** |
+| Prompt | Passed | Accuracy | False Positives | False Negatives | Severity |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| v9 | 15/21 | 71.43% | 3 | 3 | 8/8 (100%) |
+| v10 | 15/21 | 71.43% | 2 | 4 | 7/7 (100%) |
+| **v11** | **17/21** | **80.95%** | **0** | **4** | **7/7 (100%)** |
 
 v11 improves accuracy by approximately **9.5 percentage points**
 over v9 and v10.
@@ -471,12 +475,13 @@ Only the model changed.
 ### Results
 
 | Model | Passed | Accuracy | False Positives | False Negatives |
-| --- | ---: | ---: | ---: | ---: | | **Qwen 3.5 9B** |
-**17/21** | **80.95%** | **0** | 4 | | Qwen
-2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 | | Qwen 2.5
-Coder 14B | 13/21 | 61.90% | 4 | 4 | | Gemma 3 12B | 13/21 |
-61.90% | 4 | 4 | | Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* | |
-DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
+| --- | ---: | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | **17/21** | **80.95%** | **0** | 4 |
+| Qwen 2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 |
+| Qwen 2.5 Coder 14B | 13/21 | 61.90% | 4 | 4 |
+| Gemma 3 12B | 13/21 | 61.90% | 4 | 4 |
+| Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* |
+| DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
 
 `*` The original cross-model runs predated aggregate rule-mismatch
 counting.
@@ -722,7 +727,10 @@ The model was still being asked to reason across the complete taxonomy.
 A focused prompt version, `maintainability_v1`, was created
 specifically for:
 
-```text duplicate_code long_function ```
+```text
+duplicate_code
+long_function
+```
 
 The purpose was not to teach the model benchmark answers.
 
@@ -837,23 +845,46 @@ maintainability specialist.
 
 The architecture is:
 
-```text Diff + Current Source │ ┌──────────────┴──────────────┐ │ │ ↓
-↓ General Pass Specialist Pass v11 maintainability_v1 │ │ ↓ ↓ bug /
-security / duplicate_code performance long_function │ │
-└──────────────┬──────────────┘ ↓ Deterministic Merge ↓ Final CodeReview
+```text
+                 Diff + Current Source
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+             ↓                         ↓
+        General Pass             Specialist Pass
+            v11                maintainability_v1
+             │                         │
+             ↓                         ↓
+   bug / security /             duplicate_code
+      performance               long_function
+             │                         │
+             └────────────┬────────────┘
+                          ↓
+                Deterministic Merge
+                          ↓
+                  Final CodeReview
 ```
 
 Rule ownership is explicit.
 
 The general reviewer owns:
 
-```text mutable_default_argument unreachable_code sql_injection
-shell_injection path_traversal list_membership_in_loop
-string_concatenation_in_loop ```
+```text
+mutable_default_argument
+unreachable_code
+sql_injection
+shell_injection
+path_traversal
+list_membership_in_loop
+string_concatenation_in_loop
+```
 
 The maintainability specialist owns:
 
-```text duplicate_code long_function ```
+```text
+duplicate_code
+long_function
+```
 
 If the general pass returns a maintainability finding, deterministic
 merge logic removes it and uses the specialist result for those rules.
@@ -866,26 +897,40 @@ The merge itself is ordinary Python logic.
 
 The complete 21-case suite was evaluated with:
 
-```text Model qwen3.5:9b General prompt v11 Specialist prompt
-maintainability_v1 LLM calls 2 ```
+```text
+Model              qwen3.5:9b
+General prompt     v11
+Specialist prompt  maintainability_v1
+LLM calls          2
+```
 
 Result:
 
-```text Model qwen3.5:9b Prompt v11+maintainability_v1 Benchmarks 21
-Passed 20 Failed 1 Errors 0 False positives 0 False negatives 1 Wrong
-rules 0 Accuracy 95.24% Severity 10/10 (100.00%) Duration 81.12s ```
+```text
+Model            qwen3.5:9b
+Prompt           v11+maintainability_v1
+Benchmarks       21
+Passed           20
+Failed            1
+Errors            0
+False positives   0
+False negatives   1
+Wrong rules       0
+Accuracy         95.24%
+Severity         10/10 (100.00%)
+Duration         81.12s
+```
 
 This is the strongest result produced by the diff reviewer so far.
 
 ### Architecture Comparison
 
-| Architecture | Passed | Accuracy | FP | FN | Wrong Rules | |
---- | ---: | ---: | ---: | ---: | ---: | | v9 single-pass |
-15/21 | 71.43% | 3 | 3 | --- | | v10 single-pass | 15/21 |
-71.43% | 2 | 4 | --- | | v11 single-pass | 17/21 | 80.95% | 0 |
-4 | 0 | | **v11 + maintainability specialist** |
-**20/21** | **95.24%** | **0** |
-**1** | **0** |
+| Architecture | Passed | Accuracy | FP | FN | Wrong Rules |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| v9 single-pass | 15/21 | 71.43% | 3 | 3 | --- |
+| v10 single-pass | 15/21 | 71.43% | 2 | 4 | --- |
+| v11 single-pass | 17/21 | 80.95% | 0 | 4 | 0 |
+| **v11 + maintainability specialist** | **20/21** | **95.24%** | **0** | **1** | **0** |
 
 Relative to v11, specialization changes:
 
@@ -1005,7 +1050,10 @@ while also performing change attribution.
 
 The maintainability specialist reasons about only:
 
-```text duplicate_code long_function ```
+```text
+duplicate_code
+long_function
+```
 
 This reduces rule competition and gives the prompt more room to define
 structural maintainability reasoning.
@@ -1187,12 +1235,13 @@ generation settings same evaluator ```
 Only the model changed.
 
 | Model | Passed | Accuracy | False Positives | False Negatives |
-| --- | ---: | ---: | ---: | ---: | | **Qwen 3.5 9B** |
-**17/21** | **80.95%** | **0** | 4 | | Qwen
-2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 | | Qwen 2.5
-Coder 14B | 13/21 | 61.90% | 4 | 4 | | Gemma 3 12B | 13/21 |
-61.90% | 4 | 4 | | Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* | |
-DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
+| --- | ---: | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | **17/21** | **80.95%** | **0** | 4 |
+| Qwen 2.5 Coder 7B | 15/21 | 71.43% | **0** | 6 |
+| Qwen 2.5 Coder 14B | 13/21 | 61.90% | 4 | 4 |
+| Gemma 3 12B | 13/21 | 61.90% | 4 | 4 |
+| Llama 3.1 8B | 5/21 | 23.81% | 10 | 0* |
+| DeepSeek Coder V2 16B | 3/21 | 14.29% | 10 | 0* |
 
 `*` The original cross-model runs for these models predated aggregate
 rule-mismatch counting.
@@ -1217,10 +1266,24 @@ models.
 
 Each benchmark is reviewed by two independent passes:
 
-```text Diff + Current Source │ ┌──────────────┴──────────────┐ │ │ ↓
-↓ General Pass Specialist Pass v11 maintainability_v1 │ │ ↓ ↓ bug /
-security / duplicate_code performance long_function │ │
-└──────────────┬──────────────┘ ↓ Deterministic Merge ↓ Final CodeReview
+```text
+                 Diff + Current Source
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+             ↓                         ↓
+        General Pass             Specialist Pass
+            v11                maintainability_v1
+             │                         │
+             ↓                         ↓
+   bug / security /             duplicate_code
+      performance               long_function
+             │                         │
+             └────────────┬────────────┘
+                          ↓
+                Deterministic Merge
+                          ↓
+                  Final CodeReview
 ```
 
 The prompts, benchmark suite, evaluator, rule ownership, and
@@ -1230,17 +1293,14 @@ Only the model changed.
 
 ### Results
 
-| Model | Passed | Accuracy | FP | FN | Wrong Rules | Severity |
-Duration | | --- | ---: | ---: | ---: | ---: | ---: | ---: |
----: | | **Qwen 3.5 9B** | **20/21** |
-**95.24%** | **0** | **1** | **0** |
-10/10 (100%) | 81.12s | | Qwen 2.5 Coder 7B | 16/21 | 76.19% |
-**0** | 5 | 0 | 6/6 (100%) | **38.72s** | | Qwen
-2.5 Coder 14B | 16/21 | 76.19% | 5 | **0** | 0 | 11/11
-(100%) | 107.57s | | Gemma 3 12B | 14/21 | 66.67% | 7 |
-**0** | 0 | 11/11 (100%) | 183.03s | | Llama 3.1 8B | 9/21
-| 42.86% | 10 | 0 | 2 | 9/9 (100%) | 118.26s | | DeepSeek Coder
-V2 16B | 7/21 | 33.33% | 10 | 0 | 2 | 7/7 (100%) | 295.41s |
+| Model | Passed | Accuracy | FP | FN | Wrong Rules | Severity | Duration |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | **20/21** | **95.24%** | **0** | **1** | **0** | 10/10 (100%) | 81.12s |
+| Qwen 2.5 Coder 7B | 16/21 | 76.19% | **0** | 5 | 0 | 6/6 (100%) | **38.72s** |
+| Qwen 2.5 Coder 14B | 16/21 | 76.19% | 5 | **0** | 0 | 11/11 (100%) | 107.57s |
+| Gemma 3 12B | 14/21 | 66.67% | 7 | **0** | 0 | 11/11 (100%) | 183.03s |
+| Llama 3.1 8B | 9/21 | 42.86% | 10 | 0 | 2 | 9/9 (100%) | 118.26s |
+| DeepSeek Coder V2 16B | 7/21 | 33.33% | 10 | 0 | 2 | 7/7 (100%) | 295.41s |
 
 Qwen 3.5 9B remains clearly strongest under the specialized
 architecture.
@@ -1259,14 +1319,14 @@ while reaching:
 The specialized architecture improves aggregate accuracy for every
 tested model.
 
-| Model | Single-Pass v11 | Specialized | Change | | --- | ---:
-| ---: | ---: | | **Qwen 3.5 9B** | 80.95% |
-**95.24%** | **+14.29 pp** | | Qwen 2.5 Coder 7B |
-71.43% | **76.19%** | +4.76 pp | | Qwen 2.5 Coder 14B |
-61.90% | **76.19%** | +14.29 pp | | Gemma 3 12B | 61.90% |
-**66.67%** | +4.77 pp | | Llama 3.1 8B | 23.81% |
-**42.86%** | +19.05 pp | | DeepSeek Coder V2 16B | 14.29% |
-**33.33%** | +19.04 pp |
+| Model | Single-Pass v11 | Specialized | Change |
+| --- | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | 80.95% | **95.24%** | **+14.29 pp** |
+| Qwen 2.5 Coder 7B | 71.43% | **76.19%** | +4.76 pp |
+| Qwen 2.5 Coder 14B | 61.90% | **76.19%** | +14.29 pp |
+| Gemma 3 12B | 61.90% | **66.67%** | +4.77 pp |
+| Llama 3.1 8B | 23.81% | **42.86%** | +19.05 pp |
+| DeepSeek Coder V2 16B | 14.29% | **33.33%** | +19.04 pp |
 
 The important result is not merely that Qwen 3.5 9B improved.
 
@@ -1859,6 +1919,21 @@ specialization therefore depends on task complexity and reviewer
 responsibilities. - Specialization should be introduced only when
 benchmark evidence demonstrates a measurable benefit.
 
+## Reproducibility State
+
+Benchmark result schema version 2 now persists inference metadata.
+
+Current frozen specialized inference settings are:
+
+```text
+runtime       ollama
+context_size  4096
+temperature   0
+seed          42
+```
+
+These settings should remain fixed while unseen diff benchmarks are added so future changes measure generalization rather than simultaneous inference-configuration changes.
+
 ## Current Evaluation State
 
 ```text FULL-FILE REVIEW 65-case suite Prompt v5 Qwen 3.5 9B 60/65
@@ -1883,6 +1958,273 @@ CROSS-MODEL SPECIALIZED REVIEW │ ├── Qwen 3.5 9B │ └── 20/21 ---
 0 FN / 0 wrong │ ├── Llama 3.1 8B │ └── 9/21 --- 42.86% │ 10 FP / 0 FN /
 2 wrong │ └── DeepSeek Coder V2 16B └── 7/21 --- 33.33% 10 FP / 0 FN / 2
 wrong ```
+
+## Inference Configuration Metadata
+
+Benchmark runs now record the inference settings that materially affect local model evaluation.
+
+The persisted configuration is represented by an `InferenceConfig` and currently records:
+
+```text
+runtime
+context_size
+temperature
+seed
+```
+
+The default configuration is:
+
+```text
+runtime       ollama
+context_size  4096
+temperature   0
+seed          42
+```
+
+Benchmark result exports now use schema version 2 and include the inference block directly in JSON:
+
+```json
+{
+  "schema_version": 2,
+  "inference": {
+    "runtime": "ollama",
+    "context_size": 4096,
+    "temperature": 0,
+    "seed": 42
+  }
+}
+```
+
+The serializer already recursively supports dataclasses, so the nested inference configuration is serialized through the existing benchmark serialization pipeline.
+
+This change makes comparisons more reproducible because a result file now records both:
+
+```text
+what was evaluated
++
+how inference was configured
+```
+
+rather than requiring context size and deterministic generation settings to be reconstructed from external notes.
+
+The specialized diff benchmark exposes context size through:
+
+```bash
+uv run python main.py benchmark-diff-specialized \
+    diff_benchmarks \
+    --model qwen3.5:9b \
+    --context-size 4096
+```
+
+The default remains 4096.
+
+## Context-Window Experiment
+
+With context size configurable, the frozen specialized Qwen 3.5 9B architecture was evaluated at 4K, 8K, and 16K.
+
+The model, prompts, benchmark suite, temperature, seed, evaluator, and merge behavior were unchanged.
+
+Only context size changed.
+
+### Results
+
+| Context | Passed | Accuracy | FP | FN | Wrong Rules | Severity | Duration |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **4096** | **20/21** | **95.24%** | **0** | **1** | **0** | 10/10 (100%) | **81.58s** |
+| 8192 | 18/21 | 85.71% | 0 | 3 | 0 | 8/8 (100%) | 88.09s |
+| 16384 | 18/21 | 85.71% | 0 | 3 | 0 | 8/8 (100%) | 87.88s |
+
+Ollama reported Qwen 3.5 9B as 100% GPU-resident for all three configurations.
+
+Observed model size increased only modestly as the context window grew:
+
+```text
+4096   approximately 5.6 GB
+8192   approximately 5.9 GB
+16384  approximately 6.2 GB
+```
+
+The larger context windows did not improve benchmark behavior.
+
+The 8K and 16K runs both produced three false negatives, compared with one false negative at 4K.
+
+The current benchmark inputs therefore do not justify a larger context window.
+
+The preferred inference configuration remains:
+
+```text
+context_size 4096
+temperature  0
+seed         42
+```
+
+This experiment also demonstrates why context size should be recorded as benchmark metadata rather than treated as an invisible runtime detail.
+
+## Larger MoE Specialized Evaluation
+
+After freezing the specialized architecture and adding inference metadata, two larger MoE models were evaluated at the same 4096-token context.
+
+The experiment kept fixed:
+
+```text
+21 diff benchmarks
+v11 general prompt
+maintainability_v1 specialist
+deterministic rule ownership
+temperature 0
+seed 42
+context 4096
+same evaluator
+```
+
+Only the model changed.
+
+### Results
+
+| Model | Passed | Accuracy | FP | FN | Wrong Rules | Severity | Duration |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Qwen 3.5 9B** | **20/21** | **95.24%** | **0** | 1 | 0 | 10/10 (100%) | **81.58s** |
+| Gemma 4 26B | 17/21 | 80.95% | 4 | **0** | 0 | 11/11 (100%) | 146.98s |
+| Qwen 3.5 35B-A3B | 16/21 | 76.19% | 5 | **0** | 0 | 11/11 (100%) | 199.46s |
+
+### Gemma 4 26B
+
+Ollama reported:
+
+```text
+model      gemma4:26b
+size       18 GB
+processor  45% CPU / 55% GPU
+context    4096
+```
+
+The model detected every introduced positive issue, including both `long_function` positives.
+
+Its four failures were all false positives on pre-existing issues:
+
+```text
+mutable_default_argument
+unreachable_code
+duplicate_code
+long_function
+```
+
+The behavior is therefore:
+
+```text
+recognition strong
++
+attribution weaker
+```
+
+rather than a lack of issue-detection capability.
+
+### Qwen 3.5 35B-A3B
+
+Ollama reported:
+
+```text
+model      qwen3.5:35b-a3b
+size       23 GB
+processor  55% CPU / 45% GPU
+context    4096
+```
+
+This model also detected every expected positive issue.
+
+Its five failures were all false positives on pre-existing issues:
+
+```text
+mutable_default_argument
+unreachable_code
+duplicate_code
+string_concatenation_in_loop
+shell_injection
+```
+
+The MoE architecture therefore did not translate into a practical memory footprint comparable to a small dense model on this machine.
+
+Although only part of the model is active for a token, the model weights still require enough memory that Ollama offloads a substantial portion to system RAM.
+
+This contributes to the substantially longer runtime.
+
+## Larger-Model Hardware Comparison
+
+The local test system is:
+
+```text
+CPU   AMD Ryzen 5 5600X — 6 cores
+GPU   AMD Radeon RX 6700 XT — 12 GB VRAM
+RAM   32 GB
+OS    Arch Linux
+```
+
+Observed execution:
+
+| Model | Ollama size | CPU/GPU split | Duration |
+| --- | ---: | --- | ---: |
+| Qwen 3.5 9B | ~5.6 GB at 4K | 100% GPU | 81.58s |
+| Gemma 4 26B | 18 GB | 45% CPU / 55% GPU | 146.98s |
+| Qwen 3.5 35B-A3B | 23 GB | 55% CPU / 45% GPU | 199.46s |
+
+The larger models are runnable on the current machine, but neither is competitive with Qwen 3.5 9B on the combined quality/runtime metric.
+
+The experiment demonstrates that local model selection must consider:
+
+```text
+benchmark accuracy
++
+false-positive behavior
++
+false-negative behavior
++
+change attribution
++
+VRAM residency
++
+CPU offload
++
+latency
+```
+
+Parameter count alone is not a useful selection rule.
+
+## Updated Model Selection
+
+The preferred specialized diff-review configuration remains:
+
+```text
+Model             qwen3.5:9b
+Context           4096
+Temperature       0
+Seed              42
+General prompt    v11
+Specialist        maintainability_v1
+Merge             deterministic rule ownership
+
+Passed            20/21
+Accuracy          95.24%
+False positives   0
+False negatives   1
+Wrong rules       0
+Severity          100%
+Duration          81.58s
+Execution         100% GPU
+```
+
+The new experiments strengthen rather than weaken the existing model-selection decision.
+
+The larger MoE models have higher positive-case recall, but their weaker change attribution creates substantially more false positives.
+
+For a diff reviewer, that distinction is critical:
+
+```text
+finding a real issue somewhere in the file
+≠
+proving that the diff introduced the issue
+```
+
+The current Qwen 3.5 9B configuration provides the strongest balance of attribution precision, recall, latency, and hardware fit among the tested configurations.
 
 ## Current Conclusions
 
