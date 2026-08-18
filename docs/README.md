@@ -2226,6 +2226,568 @@ proving that the diff introduced the issue
 
 The current Qwen 3.5 9B configuration provides the strongest balance of attribution precision, recall, latency, and hardware fit among the tested configurations.
 
+## Frozen-Architecture Generalization Experiment
+
+After establishing the specialized Qwen 3.5 9B configuration as the strongest diff-review architecture, further prompt tuning was stopped.
+
+The frozen configuration was:
+
+```text
+Model             qwen3.5:9b
+General prompt    v11
+Specialist        maintainability_v1
+Merge             deterministic rule ownership
+Context           4096
+Temperature       0
+Seed              42
+```
+
+The established development benchmark result was:
+
+```text
+Benchmarks        21
+Passed            20
+Failed             1
+Accuracy          95.24%
+False positives    0
+False negatives    1
+Wrong rules        0
+Severity          100%
+```
+
+Rather than modifying the prompts to recover the remaining failure, the next experiment tested whether this result generalized to new benchmark examples.
+
+### Generalization Suite Design
+
+A separate suite was introduced:
+
+```text
+diff_benchmarks_generalization/
+```
+
+It is deliberately kept separate from:
+
+```text
+diff_benchmarks/
+```
+
+The distinction is:
+
+```text
+diff_benchmarks/
+        ↓
+development / architecture-selection evidence
+
+diff_benchmarks_generalization/
+        ↓
+unseen generalization evidence
+```
+
+The generalization cases were created after the architecture, prompts, model, and inference configuration had been frozen.
+
+They were therefore not used to produce the original 20/21 result.
+
+The suite contains **20 new cases covering all nine existing taxonomy rules**.
+
+The cases test:
+
+```text
+alternative positive manifestations
++
+pre-existing attribution boundaries
++
+safe changes
++
+maintainability boundaries
++
+specialist false-positive behavior
+```
+
+The same command and frozen architecture were then used across the complete generalization suite:
+
+```bash
+uv run python main.py benchmark-diff-specialized \
+    diff_benchmarks_generalization \
+    --model qwen3.5:9b \
+    --context-size 4096
+```
+
+## Generalization Result
+
+The frozen architecture produced:
+
+```text
+Model            qwen3.5:9b
+Prompt           v11+maintainability_v1
+Benchmarks       20
+Passed           16
+Failed            4
+Errors            0
+False positives   3
+False negatives   1
+Wrong rules       0
+Accuracy         80.00%
+Severity          8/8 (100.00%)
+Duration         81.17s
+```
+
+The comparison with the development suite is:
+
+| Suite | Passed | Accuracy | FP | FN | Wrong Rules | Severity |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Development | 20/21 | 95.24% | 0 | 1 | 0 | 100% |
+| Generalization | 16/20 | 80.00% | 3 | 1 | 0 | 100% |
+
+Across both suites:
+
+```text
+Benchmarks       41
+Passed           36
+Failed            5
+Accuracy         87.80%
+```
+
+The combined number is useful as a descriptive total, but the two suites should remain analytically separate.
+
+The development suite influenced architecture and prompt decisions.
+
+The generalization suite did not.
+
+## Generalization Benchmark-Level Analysis
+
+### Mutable Default Argument
+
+```text
+Changing None default to mutable set introduces shared state
+PASS
+
+Pre-existing mutable dict default is not introduced by diff
+FAIL
+```
+
+The failure is:
+
+```text
+expected    no issues
+actual      mutable_default_argument
+```
+
+This is a false-positive attribution failure.
+
+The reviewer correctly recognizes the alternative mutable-default manifestation using a set, but incorrectly reports a mutable dictionary default that already existed before the diff.
+
+Result:
+
+```text
+1/2
+```
+
+### Unreachable Code
+
+```text
+Adding statement after continue introduces unreachable code
+PASS
+
+Pre-existing unreachable code after return is not introduced by diff
+PASS
+```
+
+The reviewer generalizes both recognition and attribution to the new control-flow examples.
+
+Result:
+
+```text
+2/2
+```
+
+### SQL Injection
+
+```text
+Changing parameterized query to string concatenation introduces SQL injection
+PASS
+
+Pre-existing SQL injection is not introduced by diff
+PASS
+```
+
+Result:
+
+```text
+2/2
+```
+
+### Shell Injection
+
+```text
+Changing argument list to interpolated shell command introduces shell injection
+PASS
+
+Pre-existing shell injection is not introduced by diff
+PASS
+```
+
+Result:
+
+```text
+2/2
+```
+
+### Path Traversal
+
+```text
+Removing filename restriction introduces path traversal
+PASS
+
+Pre-existing direct user path is not introduced by diff
+PASS
+```
+
+Result:
+
+```text
+2/2
+```
+
+The complete unseen security subset therefore produces:
+
+```text
+sql_injection       2/2
+shell_injection     2/2
+path_traversal      2/2
+
+TOTAL               6/6
+```
+
+This is strong evidence that the existing security behavior generalizes across these alternative manifestations.
+
+### List Membership in Loops
+
+```text
+Changing membership container from set to list introduces repeated linear lookup
+PASS
+
+Pre-existing list membership in loop is not introduced by diff
+FAIL
+```
+
+The failure is unusual:
+
+```text
+expected    no issues
+actual      long_function
+```
+
+The reviewer does not incorrectly attribute `list_membership_in_loop`.
+
+Instead, the maintainability specialist generates an unrelated `long_function` finding.
+
+This is therefore classified as:
+
+```text
+false positive
++
+spurious specialist finding
+```
+
+rather than a performance-rule recognition failure.
+
+Result:
+
+```text
+1/2
+```
+
+### String Concatenation in Loops
+
+```text
+Replacing join with repeated string concatenation introduces loop allocation
+PASS
+
+Pre-existing string concatenation in loop is not introduced by diff
+PASS
+```
+
+Result:
+
+```text
+2/2
+```
+
+Both positive performance manifestations are therefore recognized successfully.
+
+### Duplicate Code
+
+The generalization family contains three cases:
+
+```text
+Duplicating validation logic introduces duplicate code
+PASS
+
+Pre-existing duplicate validation is not introduced by diff
+FAIL
+
+Similar validation functions are not meaningful duplicate code
+PASS
+```
+
+The positive case demonstrates successful recognition on new duplicated validation logic.
+
+The similar-but-distinct boundary also passes.
+
+The failure occurs when genuine duplication exists in both versions but was not introduced by the diff:
+
+```text
+expected    no issues
+actual      duplicate_code
+```
+
+This is an attribution false positive.
+
+Result:
+
+```text
+2/3
+```
+
+### Long Function
+
+The generalization family also contains three cases:
+
+```text
+Cohesive profile normalization growth is not a long function
+PASS
+
+Growing order processing into multiple responsibilities introduces a long function
+FAIL
+
+Pre-existing long function is not introduced by unrelated helper addition
+PASS
+```
+
+The safe cohesive-growth boundary passes.
+
+The pre-existing long-function attribution case also passes.
+
+The positive case fails:
+
+```text
+expected    long_function
+actual      no issues
+```
+
+This is a recognition false negative.
+
+Result:
+
+```text
+2/3
+```
+
+## Generalization Failure Classification
+
+The four failures can be grouped by cause.
+
+```text
+ATTRIBUTION
+
+mutable_default_argument
+└── pre-existing mutable dictionary
+    └── false positive
+
+duplicate_code
+└── pre-existing duplicate validation
+    └── false positive
+
+
+RECOGNITION
+
+long_function
+└── introduced multi-responsibility growth
+    └── false negative
+
+
+SPURIOUS SPECIALIST DETECTION
+
+performance safe case
+└── unrelated long_function prediction
+    └── false positive
+```
+
+Aggregate:
+
+```text
+False positives   3
+False negatives   1
+Wrong rules       0
+```
+
+Three of the four failures involve maintainability-specialist behavior:
+
+```text
+duplicate_code attribution FP
+long_function recognition FN
+spurious long_function FP
+```
+
+This makes maintainability the clearest current area for further investigation.
+
+However, the generalization set is still relatively small.
+
+The result is therefore recorded as evidence rather than immediately used to modify `maintainability_v1`.
+
+## Development vs Generalization Gap
+
+The main result of the experiment is:
+
+```text
+DEVELOPMENT
+
+20/21
+95.24%
+
+        ↓
+
+GENERALIZATION
+
+16/20
+80.00%
+```
+
+The difference is:
+
+```text
+-15.24 percentage points
+```
+
+This demonstrates that the development benchmark score was optimistic as an estimate of performance on new examples.
+
+That does not invalidate the specialized architecture.
+
+The architecture still substantially outperformed the earlier single-pass reviewer on the development suite and shows strong behavior on many unseen rule families.
+
+Instead, the result demonstrates why architecture selection and generalization measurement must be separated.
+
+The earlier experimental process was:
+
+```text
+benchmark
+    ↓
+inspect failures
+    ↓
+modify prompt / architecture
+    ↓
+benchmark again
+```
+
+That process is useful for development, but repeated optimization against the same suite makes the final score increasingly less informative about unseen behavior.
+
+The generalization suite introduces a second evaluation layer:
+
+```text
+DEVELOPMENT SUITE
+        ↓
+design / select architecture
+        ↓
+freeze architecture
+        ↓
+GENERALIZATION SUITE
+        ↓
+measure unseen behavior
+```
+
+This is a more rigorous evaluation structure.
+
+## Current Generalization Interpretation
+
+The unseen result exposes both strengths and weaknesses.
+
+Strong generalization currently appears in:
+
+```text
+unreachable_code
+sql_injection
+shell_injection
+path_traversal
+string_concatenation_in_loop
+```
+
+The new positive `list_membership_in_loop` manifestation also passes.
+
+The weaker areas are:
+
+```text
+change attribution on some non-security rules
++
+duplicate_code attribution
++
+long_function recognition
++
+maintainability-specialist precision
+```
+
+Security is particularly strong:
+
+```text
+6/6 unseen security cases
+```
+
+This is notable because change attribution was originally one of the main weaknesses of the diff reviewer.
+
+The current v11 security attribution behavior survives all six new security examples.
+
+## Generalization Methodology Going Forward
+
+The generalization suite should remain separate from the development suite.
+
+A failure in the generalization suite should not automatically trigger a prompt modification.
+
+Otherwise:
+
+```text
+generalization case
+        ↓
+prompt tuned to fix it
+        ↓
+case becomes development data
+        ↓
+generalization evidence weakened
+```
+
+Instead, changes should be motivated by repeated behavioral patterns across multiple examples.
+
+The preferred process is:
+
+```text
+observe failure
+        ↓
+classify failure
+        ↓
+add broader evidence where necessary
+        ↓
+identify repeated pattern
+        ↓
+design architectural or prompt hypothesis
+        ↓
+evaluate against development + held-out cases
+```
+
+This preserves the distinction between fixing a benchmark and improving the reviewer.
+
+The first generalization experiment therefore changes the next project priority.
+
+The project no longer needs to ask only:
+
+```text
+Can the current nine rules reach a higher score?
+```
+
+It should increasingly ask:
+
+```text
+Does the architecture remain useful as
+taxonomy and benchmark diversity increase?
+```
+
 ## Current Conclusions
 
 The project has now moved beyond both single-prompt optimization and
@@ -2379,16 +2941,116 @@ weakness.
 The 20/21 specialized diff result and 60/65 v5 full-file result
 should now remain frozen as the two architectural baselines.
 
-The next experimental priority should be benchmark generalization,
-especially expanding the diff suite with unseen cases while leaving
-v11 and maintainability_v1 unchanged.
+The first frozen-architecture generalization experiment is now complete.
 
-20/21 on known diff cases
+The current diff-review evidence is:
+
+```text
+DEVELOPMENT
+
+Qwen 3.5 9B
++
+v11
++
+maintainability_v1
++
+deterministic rule ownership
+
+20/21
+95.24%
+
+
+GENERALIZATION
+
+same model
++
+same prompts
++
+same architecture
++
+same 4K deterministic inference configuration
+
+16/20
+80.00%
+```
+
+This result is more informative than simply continuing to optimize the original 21 cases.
+
+It demonstrates that:
+
+```text
+high development benchmark accuracy
+        ≠
+equivalent unseen accuracy
+```
+
+while also showing that several rule families, especially security, generalize strongly.
+
+The current architecture should therefore remain frozen while the project moves into broader taxonomy and benchmark expansion.
+
+The next phase should focus on:
+
+```text
+new rules
++
+new benchmark families
++
+continued held-out generalization coverage
++
+failure-pattern analysis
+```
+
+rather than immediately modifying prompts to recover the four current generalization failures.
+
+Prompt or architecture changes should be justified by repeated patterns across multiple examples.
+
+The project has therefore progressed from:
+
+```text
+build reviewer
         ↓
-freeze architecture + prompts
+optimize reviewer
         ↓
-add unseen benchmark cases
+compare models
         ↓
-measure again
+specialize architecture
         ↓
-does 95.24% generalize?
+freeze architecture
+        ↓
+measure generalization
+```
+
+to the next phase:
+
+```text
+expand problem coverage
+        ↓
+measure whether architecture scales
+        ↓
+identify systematic weaknesses
+        ↓
+iterate only when evidence justifies it
+```
+
+The current frozen baselines are:
+
+```text
+FULL-FILE
+
+60/65
+92.31%
+
+
+DIFF DEVELOPMENT
+
+20/21
+95.24%
+
+
+DIFF GENERALIZATION
+
+16/20
+80.00%
+```
+
+These should remain clearly separated in future documentation and result analysis.

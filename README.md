@@ -50,10 +50,14 @@ The project emphasizes clean architecture, reproducible evaluation, controlled p
 - ✅ Benchmark result schema v2
 - ✅ Context-size experiments at 4K / 8K / 16K
 - ✅ Larger MoE model evaluation with Gemma 4 26B and Qwen 3.5 35B-A3B
-
+- ✅ Separate unseen diff generalization benchmark suite
+- ✅ Frozen-architecture generalization evaluation
+- 
 ### Planned
 
-- Continue benchmark and taxonomy expansion where useful
+- Expand the taxonomy with new rules and corresponding benchmark families
+- Continue expanding unseen generalization coverage
+- Investigate repeated generalization failure patterns before additional prompt tuning
 - Evaluate category-specialist review architecture
 - Measure accuracy vs inference-cost tradeoffs across review architectures
 - Evaluate larger local models on higher-VRAM hardware
@@ -450,6 +454,168 @@ pre-existing SQL injection + unrelated logging change
 → vulnerable SQL construction is unchanged
 → report nothing
 ```
+
+## Diff Generalization Benchmarks
+
+After reaching **20/21 — 95.24%** on the established diff benchmark suite, the specialized architecture was frozen before creating additional benchmark cases.
+
+The purpose was to distinguish performance on benchmarks used during architecture development from performance on genuinely new examples.
+
+A separate suite was therefore introduced:
+
+```text
+diff_benchmarks_generalization/
+```
+
+The original suite remains:
+
+```text
+diff_benchmarks/
+```
+
+The distinction is intentional:
+
+```text
+diff_benchmarks/
+        ↓
+development and architecture-selection evidence
+
+diff_benchmarks_generalization/
+        ↓
+unseen generalization evidence
+```
+
+The generalization cases were created without changing:
+
+```text
+Model             qwen3.5:9b
+General prompt    v11
+Specialist        maintainability_v1
+Context           4096
+Temperature       0
+Seed              42
+Merge             deterministic rule ownership
+```
+
+The generalization suite currently contains **20 cases covering all nine existing taxonomy rules**.
+
+The cases use different manifestations from the original development suite and include:
+
+- newly introduced issues
+- pre-existing issues that should not be attributed to the diff
+- safe boundary cases
+- alternative implementations of existing rules
+- maintainability cases testing specialist precision and recall
+
+### Generalization Result
+
+The frozen specialized architecture produced:
+
+```text
+Model            qwen3.5:9b
+Prompt           v11+maintainability_v1
+Benchmarks       20
+Passed           16
+Failed            4
+Errors            0
+False positives   3
+False negatives   1
+Wrong rules       0
+Accuracy         80.00%
+Severity          8/8 (100.00%)
+Duration         81.17s
+```
+
+Compared with the established development suite:
+
+| Suite | Passed | Accuracy | FP | FN | Wrong Rules | Severity |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Development | 20/21 | 95.24% | 0 | 1 | 0 | 100% |
+| Generalization | 16/20 | 80.00% | 3 | 1 | 0 | 100% |
+
+Across both suites:
+
+```text
+Passed      36/41
+Accuracy    87.80%
+```
+
+The development and generalization results should still be interpreted separately because they answer different experimental questions.
+
+### Generalization Failures
+
+The four failures expose several distinct weaknesses.
+
+```text
+mutable_default_argument
+└── pre-existing mutable dict default
+    └── false positive
+        └── attribution failure
+
+duplicate_code
+└── pre-existing duplicate validation
+    └── false positive
+        └── attribution failure
+
+long_function
+└── introduced multi-responsibility growth
+    └── false negative
+        └── recognition failure
+
+list_membership_in_loop safe case
+└── reported as long_function
+    └── false positive
+        └── spurious maintainability-specialist finding
+```
+
+Three of the four failures therefore involve behavior from the maintainability side of the specialized architecture.
+
+However, the generalization suite is intentionally treated as evaluation evidence rather than immediate prompt-training data.
+
+The current prompts remain frozen.
+
+### Generalization Findings
+
+The result demonstrates that the **95.24% development-suite score overestimates performance on new cases**.
+
+This validates the decision to create a separate generalization suite rather than continuing to tune against the original 21 benchmarks.
+
+At the same time, several areas generalize strongly.
+
+All six unseen security cases pass:
+
+```text
+sql_injection       2/2
+shell_injection     2/2
+path_traversal      2/2
+```
+
+The reviewer also correctly recognizes the new positive performance cases for:
+
+```text
+list_membership_in_loop
+string_concatenation_in_loop
+```
+
+The current progression is therefore:
+
+```text
+known development cases
+20/21
+95.24%
+        ↓
+freeze architecture and inference
+        ↓
+new unseen cases
+16/20
+80.00%
+        ↓
+generalization gap identified
+```
+
+This provides a more realistic distinction between benchmark optimization and evidence of generalization.
+
+The generalization suite remains separate from the original development suite so future prompt, architecture, model, and taxonomy changes can be evaluated against both.
 
 ## Diff Prompt Evolution
 
@@ -1396,7 +1562,7 @@ Wrong rules       0
 Severity          100%
 
 
-SPECIALIZED GIT-DIFF REVIEW
+SPECIALIZED GIT-DIFF DEVELOPMENT BASELINE
 
 Model             qwen3.5:9b
 Prompts           v11 + maintainability_v1
@@ -1408,24 +1574,46 @@ False positives   0
 False negatives   1
 Wrong rules       0
 Severity          100%
-Duration          81.12s
+
+
+SPECIALIZED GIT-DIFF GENERALIZATION BASELINE
+
+Model             qwen3.5:9b
+Prompts           v11 + maintainability_v1
+Context           4096
+Benchmarks        20
+Passed            16
+Accuracy          80.00%
+False positives   3
+False negatives   1
+Wrong rules       0
+Severity          100%
+Duration          81.17s
 ```
 
-The only remaining specialized diff-review failure is:
+The established 21-case development suite and the new 20-case generalization suite serve different purposes.
+
+The development suite records the strongest architecture obtained during experimentation:
 
 ```text
-long_function
+20/21
+95.24%
 ```
 
-specifically the weaker:
+The separately constructed generalization suite measures the same frozen architecture on new examples:
 
 ```text
-Adding multiple responsibilities introduces long function
+16/20
+80.00%
 ```
 
-The current evidence suggests that task specialization can substantially improve maintainability recall without increasing false positives.
+The difference demonstrates that performance on the development benchmark should not be interpreted directly as expected unseen accuracy.
 
-The specialized architecture is now frozen as the current diff-review baseline. The next experimental priority is benchmark generalization: add unseen diff cases while keeping v11, `maintainability_v1`, the merge strategy, and the 4K inference configuration unchanged.
+The architecture and prompts remain frozen for now.
+
+Future changes should be motivated by repeated patterns across benchmark families rather than tuning against individual generalization failures.
+
+The next phase is taxonomy and benchmark expansion while preserving the distinction between development and generalization evaluation.
 
 ## Project Goal
 
