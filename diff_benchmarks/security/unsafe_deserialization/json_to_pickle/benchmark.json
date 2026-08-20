@@ -1,0 +1,13 @@
+{
+  "name": "Replacing JSON parsing with pickle introduces unsafe deserialization",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "unsafe_deserialization",
+      "category": "security",
+      "explanation": "The diff replaces safe JSON parsing with pickle deserialization, allowing serialized data to construct arbitrary Python objects."
+    }
+  ]
+}

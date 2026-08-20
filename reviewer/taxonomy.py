@@ -26,6 +26,7 @@ IssueRule = Literal[
     "unreachable_code",
     "resource_leak",
     "broad_exception_handler",
+    "unsafe_deserialization",
 ]
 
 
@@ -55,6 +56,7 @@ VALID_RULES: set[str] = {
     "unreachable_code",
     "resource_leak",
     "broad_exception_handler",
+    "unsafe_deserialization",
 }
 
 RULE_SEVERITY = {
@@ -69,4 +71,5 @@ RULE_SEVERITY = {
     "unreachable_code": "medium",
     "resource_leak": "medium",
     "broad_exception_handler": "medium",
+    "unsafe_deserialization": "high",
 }

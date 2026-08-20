@@ -1,0 +1,6 @@
+{
+  "name": "JSON deserialization remains safe after unrelated processing change",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

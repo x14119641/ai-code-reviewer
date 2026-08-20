@@ -1,0 +1,13 @@
+{
+  "name": "Deserializing supplied payload with pickle introduces unsafe deserialization",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "unsafe_deserialization",
+      "category": "security",
+      "explanation": "The diff introduces pickle deserialization of externally supplied bytes, which may execute attacker-controlled behavior during object reconstruction."
+    }
+  ]
+}
