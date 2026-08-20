@@ -1,0 +1,6 @@
+{
+  "name": "Optional mapping checked for None before indexing remains safe",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

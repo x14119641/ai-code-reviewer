@@ -1,0 +1,13 @@
+{
+  "name": "Optional session used for method call without None check",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "missing_none_check",
+      "category": "bug",
+      "explanation": "The diff makes get_session potentially return None while the returned value is still used for a method call without checking it."
+    }
+  ]
+}
