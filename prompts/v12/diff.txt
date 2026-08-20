@@ -234,6 +234,7 @@ Do not report:
 * a resource leak that already existed before the change and was not made worse by the diff
 
 For diff review, report resource_leak only when the change introduces the missing cleanup or makes a previously safe resource lifecycle unsafe.
+A newly introduced return, raise, continue, break, or other exit path that can occur after resource acquisition but before cleanup should be reported as resource_leak.
 
 duplicate_code:
 
