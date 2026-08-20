@@ -652,6 +652,11 @@ def benchmark_diff_specialized_command(
         "qwen3.5:9b",
         help="Ollama model used for the specialized diff benchmark",
     ),
+    prompt_version: str = typer.Option(
+        "v11",
+        "--prompt-version",
+        help="General diff prompt version.",
+    ),
     context_size: int = typer.Option(
         4096,
         "--context-size",
@@ -664,9 +669,9 @@ def benchmark_diff_specialized_command(
 ) -> None:
     """Evaluate general + maintainability-specialist diff review."""
 
-    general_prompt_version = "v11"
+    general_prompt_version = prompt_version
     maintainability_prompt_version = "maintainability_v1"
-    experiment_version = "v11+maintainability_v1"
+    experiment_version = f"{general_prompt_version}+{maintainability_prompt_version}"
 
     def review_with_model(
         diff: str,
