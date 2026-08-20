@@ -1,0 +1,6 @@
+{
+  "name": "Expensive hash depending on current loop item cannot be hoisted",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

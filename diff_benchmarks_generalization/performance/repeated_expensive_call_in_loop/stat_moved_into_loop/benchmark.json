@@ -1,0 +1,13 @@
+{
+  "name": "Moving invariant file metadata lookup into loop introduces repeated expensive call",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "repeated_expensive_call_in_loop",
+      "category": "performance",
+      "explanation": "The diff moves the same filesystem metadata lookup inside the loop even though the path does not change between iterations."
+    }
+  ]
+}
