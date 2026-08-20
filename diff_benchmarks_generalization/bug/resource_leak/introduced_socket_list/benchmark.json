@@ -1,0 +1,13 @@
+{
+  "name": "Removing socket context manager introduces resource leak",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "resource_leak",
+      "category": "bug",
+      "explanation": "The diff replaces a context-managed socket with a directly created socket that is never closed, so the resource is not reliably released."
+    }
+  ]
+}
