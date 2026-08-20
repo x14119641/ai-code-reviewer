@@ -1,0 +1,6 @@
+{
+  "name": "Using safe YAML loader does not introduce unsafe deserialization",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

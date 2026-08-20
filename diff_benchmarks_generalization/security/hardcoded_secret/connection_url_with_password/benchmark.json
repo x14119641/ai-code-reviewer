@@ -1,0 +1,13 @@
+{
+  "name": "Replacing environment database URL with embedded credential introduces hardcoded secret",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "hardcoded_secret",
+      "category": "security",
+      "explanation": "The diff embeds a database password directly in the source code as part of the connection URL."
+    }
+  ]
+}

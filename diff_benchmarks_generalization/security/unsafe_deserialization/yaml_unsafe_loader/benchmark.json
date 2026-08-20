@@ -1,0 +1,13 @@
+{
+  "name": "Replacing safe YAML loading with unsafe loader introduces unsafe deserialization",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "unsafe_deserialization",
+      "category": "security",
+      "explanation": "The diff replaces safe YAML parsing with a loader capable of constructing arbitrary Python objects from supplied data."
+    }
+  ]
+}

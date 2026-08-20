@@ -1,0 +1,6 @@
+{
+  "name": "Pre-existing unsafe YAML deserialization is not introduced by diff",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

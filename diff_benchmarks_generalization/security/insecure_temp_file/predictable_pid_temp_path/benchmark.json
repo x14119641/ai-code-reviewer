@@ -1,0 +1,13 @@
+{
+  "name": "Replacing secure tempfile with predictable process ID path introduces insecure temp file",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "insecure_temp_file",
+      "category": "security",
+      "explanation": "The diff replaces secure temporary-file creation with a predictable process-ID-based filename in a shared temporary directory."
+    }
+  ]
+}

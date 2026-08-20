@@ -1,0 +1,6 @@
+{
+  "name": "Loading database credential from environment does not hardcode secret",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

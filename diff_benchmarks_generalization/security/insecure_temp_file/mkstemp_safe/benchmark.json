@@ -1,0 +1,6 @@
+{
+  "name": "Using mkstemp safely does not introduce insecure temporary file",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}
