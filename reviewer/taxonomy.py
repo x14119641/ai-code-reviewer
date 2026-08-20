@@ -30,8 +30,8 @@ IssueRule = Literal[
     "long_function",
     "list_membership_in_loop",
     "string_concatenation_in_loop",
+    "repeated_expensive_call_in_loop",
 ]
-
 
 VALID_SEVERITIES: set[str] = {
     "low",
@@ -63,6 +63,7 @@ VALID_RULES: set[str] = {
     "long_function",
     "list_membership_in_loop",
     "string_concatenation_in_loop",
+    "repeated_expensive_call_in_loop",
 }
 
 RULE_SEVERITY = {
@@ -81,4 +82,5 @@ RULE_SEVERITY = {
     "unsafe_deserialization": "high",
     "hardcoded_secret": "high",
     "insecure_temp_file": "high",
+    "repeated_expensive_call_in_loop": "medium",
 }

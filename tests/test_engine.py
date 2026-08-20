@@ -734,3 +734,57 @@ def test_review_file_normalizes_missing_none_check_severity(
             )
         ]
     )
+    
+def test_review_file_normalizes_repeated_expensive_call_in_loop_severity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_file = tmp_path / "example.py"
+    source_file.write_text(
+        "for value in values:\n    pattern = compile_pattern()\n",
+        encoding="utf-8",
+    )
+
+    def fake_generate_review(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
+        return """
+        {
+          "issues": [
+            {
+              "severity": "low",
+              "category": "performance",
+              "rule": "repeated_expensive_call_in_loop",
+              "title": "Repeated expensive call in loop",
+              "explanation": "An invariant expensive operation is repeated for every loop iteration.",
+              "recommendation": "Compute the value once before the loop."
+            }
+          ]
+        }
+        """
+
+    monkeypatch.setattr(
+        "reviewer.engine.generate_review",
+        fake_generate_review,
+    )
+
+    result = review_file(
+        path=source_file,
+        model="test-model",
+    )
+
+    assert result == CodeReview(
+        issues=[
+            Issue(
+                severity="medium",
+                category="performance",
+                rule="repeated_expensive_call_in_loop",
+                title="Repeated expensive call in loop",
+                explanation="An invariant expensive operation is repeated for every loop iteration.",
+                recommendation="Compute the value once before the loop.",
+            )
+        ]
+    )

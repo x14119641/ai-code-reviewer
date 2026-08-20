@@ -102,7 +102,7 @@ def print_benchmark_failures(run: BenchmarkRun) -> None:
         console.print(
             f"[bold red]ERROR[/bold red] "
             f"{failure.benchmark.name} "
-            f"[dim]({failure.benchmark.code_path.name})[/dim]"
+            f"[dim]({failure.benchmark.display_path.name})[/dim]"
         )
 
         console.print(f"  [dim]Type:[/dim] {failure.error_type}")

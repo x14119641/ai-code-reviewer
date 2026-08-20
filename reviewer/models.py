@@ -172,6 +172,10 @@ class BenchmarkRun:
     @property
     def rule_mismatches(self) -> int:
         return sum(evaluation.rule_mismatch for evaluation in self.evaluations)
+    
+    @property
+    def display_path(self) -> Path:
+        return self.code_path
 
 
 @dataclass(frozen=True)
