@@ -40,6 +40,7 @@ testpaths = ["tests"]
     "BLE001",
     "S110",
     "E722",
+    "SIM102",
 ]
 
 "diff_benchmarks_generalization/**/*.py" = [
@@ -48,4 +49,5 @@ testpaths = ["tests"]
     "BLE001",
     "S110",
     "E722",
+    "SIM102",
 ]
