@@ -1,0 +1,13 @@
+{
+  "name": "Introducing nested loop and branching structure creates excessive nesting",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "low",
+      "rule": "excessive_nesting",
+      "category": "maintainability",
+      "explanation": "The diff introduces multiple levels of nested iteration and conditional branching that could be flattened without changing behavior."
+    }
+  ]
+}

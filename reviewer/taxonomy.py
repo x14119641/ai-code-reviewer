@@ -28,6 +28,7 @@ IssueRule = Literal[
     "missing_none_check",
     "duplicate_code",
     "long_function",
+    "excessive_nesting",
     "list_membership_in_loop",
     "string_concatenation_in_loop",
     "repeated_expensive_call_in_loop",
@@ -61,6 +62,7 @@ VALID_RULES: set[str] = {
     "missing_none_check",
     "duplicate_code",
     "long_function",
+    "excessive_nesting",
     "list_membership_in_loop",
     "string_concatenation_in_loop",
     "repeated_expensive_call_in_loop",
@@ -83,4 +85,5 @@ RULE_SEVERITY = {
     "hardcoded_secret": "high",
     "insecure_temp_file": "high",
     "repeated_expensive_call_in_loop": "medium",
+    "excessive_nesting": "low",
 }

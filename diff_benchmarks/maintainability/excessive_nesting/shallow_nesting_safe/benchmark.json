@@ -1,0 +1,6 @@
+{
+  "name": "Simple loop with one conditional does not introduce excessive nesting",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

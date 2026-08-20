@@ -27,6 +27,7 @@ IGNORED_DIRECTORIES = {".git", ".venv", "__pycache__"}
 SPECIALIST_MAINTAINABILITY_RULES = {
     "duplicate_code",
     "long_function",
+    "excessive_nesting",
 }
 
 @dataclass
