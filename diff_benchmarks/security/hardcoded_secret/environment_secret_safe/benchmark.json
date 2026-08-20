@@ -1,0 +1,6 @@
+{
+  "name": "Loading secret from environment does not hardcode credential",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

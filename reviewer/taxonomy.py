@@ -18,15 +18,16 @@ IssueRule = Literal[
     "sql_injection",
     "shell_injection",
     "path_traversal",
+    "unsafe_deserialization",
+    "hardcoded_secret",
     "mutable_default_argument",
-    "long_function",
-    "duplicate_code",
-    "list_membership_in_loop",
-    "string_concatenation_in_loop",
     "unreachable_code",
     "resource_leak",
     "broad_exception_handler",
-    "unsafe_deserialization",
+    "duplicate_code",
+    "long_function",
+    "list_membership_in_loop",
+    "string_concatenation_in_loop",
 ]
 
 
@@ -48,15 +49,16 @@ VALID_RULES: set[str] = {
     "sql_injection",
     "shell_injection",
     "path_traversal",
+    "unsafe_deserialization",
+    "hardcoded_secret",
     "mutable_default_argument",
-    "long_function",
-    "duplicate_code",
-    "list_membership_in_loop",
-    "string_concatenation_in_loop",
     "unreachable_code",
     "resource_leak",
     "broad_exception_handler",
-    "unsafe_deserialization",
+    "duplicate_code",
+    "long_function",
+    "list_membership_in_loop",
+    "string_concatenation_in_loop",
 }
 
 RULE_SEVERITY = {
@@ -72,4 +74,5 @@ RULE_SEVERITY = {
     "resource_leak": "medium",
     "broad_exception_handler": "medium",
     "unsafe_deserialization": "high",
+    "hardcoded_secret": "high",
 }

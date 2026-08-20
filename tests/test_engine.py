@@ -571,3 +571,57 @@ def test_review_file_normalizes_unsafe_deserialization_severity(
             )
         ]
     )
+    
+def test_review_file_normalizes_hardcoded_secret_severity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_file = tmp_path / "example.py"
+    source_file.write_text(
+        'API_KEY = "sk_live_example_123456"\n',
+        encoding="utf-8",
+    )
+
+    def fake_generate_review(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
+        return """
+        {
+          "issues": [
+            {
+              "severity": "low",
+              "category": "security",
+              "rule": "hardcoded_secret",
+              "title": "Hardcoded secret",
+              "explanation": "A credential is embedded directly in source code.",
+              "recommendation": "Load the credential from a secure external source."
+            }
+          ]
+        }
+        """
+
+    monkeypatch.setattr(
+        "reviewer.engine.generate_review",
+        fake_generate_review,
+    )
+
+    result = review_file(
+        path=source_file,
+        model="test-model",
+    )
+
+    assert result == CodeReview(
+        issues=[
+            Issue(
+                severity="high",
+                category="security",
+                rule="hardcoded_secret",
+                title="Hardcoded secret",
+                explanation="A credential is embedded directly in source code.",
+                recommendation="Load the credential from a secure external source.",
+            )
+        ]
+    )
