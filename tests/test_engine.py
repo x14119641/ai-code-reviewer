@@ -788,3 +788,58 @@ def test_review_file_normalizes_repeated_expensive_call_in_loop_severity(
             )
         ]
     )
+    
+    
+def test_review_file_normalizes_excessive_nesting_severity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_file = tmp_path / "example.py"
+    source_file.write_text(
+        "def process() -> None:\n    pass\n",
+        encoding="utf-8",
+    )
+
+    def fake_generate_review(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
+        return """
+        {
+          "issues": [
+            {
+              "severity": "high",
+              "category": "maintainability",
+              "rule": "excessive_nesting",
+              "title": "Excessive nesting",
+              "explanation": "Deeply nested control flow makes the function difficult to follow.",
+              "recommendation": "Flatten the control flow or extract focused helpers."
+            }
+          ]
+        }
+        """
+
+    monkeypatch.setattr(
+        "reviewer.engine.generate_review",
+        fake_generate_review,
+    )
+
+    result = review_file(
+        path=source_file,
+        model="test-model",
+    )
+
+    assert result == CodeReview(
+        issues=[
+            Issue(
+                severity="low",
+                category="maintainability",
+                rule="excessive_nesting",
+                title="Excessive nesting",
+                explanation="Deeply nested control flow makes the function difficult to follow.",
+                recommendation="Flatten the control flow or extract focused helpers.",
+            )
+        ]
+    )

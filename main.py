@@ -177,6 +177,7 @@ def benchmark_command(
         print_error("Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
 
+
 @app.command("compare-results")
 def compare_results(
     directory: Path,
@@ -235,6 +236,7 @@ def compare_results(
         raise typer.Exit(code=1) from error
 
     print_table(table)
+
 
 @app.command("analyze-result")
 def analyze_result_command(
@@ -577,7 +579,6 @@ def review_diff_multi_pass_command(
         raise typer.Exit(code=1) from exc
 
 
-
 @app.command("benchmark-diff-multi-pass")
 def benchmark_diff_multi_pass_command(
     path: Path,
@@ -642,7 +643,6 @@ def benchmark_diff_multi_pass_command(
     ) as exc:
         print_error("Multi-pass Diff Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
-    
 
 
 @app.command("benchmark-diff-specialized")
@@ -657,6 +657,11 @@ def benchmark_diff_specialized_command(
         "--prompt-version",
         help="General diff prompt version.",
     ),
+    maintainability_prompt_version: str = typer.Option(
+        "maintainability_v1",
+        "--maintainability-prompt-version",
+        help="Maintainability specialist prompt version.",
+    ),
     context_size: int = typer.Option(
         4096,
         "--context-size",
@@ -670,7 +675,6 @@ def benchmark_diff_specialized_command(
     """Evaluate general + maintainability-specialist diff review."""
 
     general_prompt_version = prompt_version
-    maintainability_prompt_version = "maintainability_v1"
     experiment_version = f"{general_prompt_version}+{maintainability_prompt_version}"
 
     def review_with_model(
@@ -705,12 +709,7 @@ def benchmark_diff_specialized_command(
 
         if output is not None:
             if output.parent == Path("."):
-                output = (
-                    Path("results")
-                    / "diff"
-                    / experiment_version
-                    / output
-                )
+                output = Path("results") / "diff" / experiment_version / output
 
             save_benchmark_run(run, output)
             print_result_saved(output)
@@ -728,7 +727,7 @@ def benchmark_diff_specialized_command(
     ) as exc:
         print_error("Specialized Diff Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
-    
+
 
 @app.command("benchmark-specialized")
 def benchmark_specialized_command(
@@ -804,6 +803,7 @@ def benchmark_specialized_command(
     ) as exc:
         print_error("Specialized Benchmark Failed", str(exc))
         raise typer.Exit(code=1) from exc
-         
+
+
 if __name__ == "__main__":
     app()
