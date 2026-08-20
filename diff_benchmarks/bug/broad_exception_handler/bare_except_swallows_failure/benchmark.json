@@ -1,0 +1,13 @@
+{
+  "name": "Replacing narrow exception handling with bare except hides failures",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "broad_exception_handler",
+      "category": "bug",
+      "explanation": "The diff replaces narrow exception handling with a bare except that catches and suppresses unexpected failures."
+    }
+  ]
+}

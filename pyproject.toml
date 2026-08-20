@@ -29,14 +29,23 @@ testpaths = ["tests"]
     "I001",
     "SIM103",
     "UP031",
+    "BLE001",
+    "S110",
+    "E722",
 ]
 
 "diff_benchmarks/**/*.py" = [
     "B006",
     "SIM115",
+    "BLE001",
+    "S110",
+    "E722",
 ]
 
 "diff_benchmarks_generalization/**/*.py" = [
     "B006",
     "SIM115",
+    "BLE001",
+    "S110",
+    "E722",
 ]

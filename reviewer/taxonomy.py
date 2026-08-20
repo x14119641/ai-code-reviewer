@@ -25,6 +25,7 @@ IssueRule = Literal[
     "string_concatenation_in_loop",
     "unreachable_code",
     "resource_leak",
+    "broad_exception_handler",
 ]
 
 
@@ -53,6 +54,7 @@ VALID_RULES: set[str] = {
     "string_concatenation_in_loop",
     "unreachable_code",
     "resource_leak",
+    "broad_exception_handler",
 }
 
 RULE_SEVERITY = {
@@ -66,4 +68,5 @@ RULE_SEVERITY = {
     "string_concatenation_in_loop": "low",
     "unreachable_code": "medium",
     "resource_leak": "medium",
+    "broad_exception_handler": "medium",
 }

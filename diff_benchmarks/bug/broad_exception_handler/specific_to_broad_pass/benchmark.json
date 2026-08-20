@@ -1,0 +1,13 @@
+{
+  "name": "Changing specific exception handling to broad Exception suppresses failures",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "broad_exception_handler",
+      "category": "bug",
+      "explanation": "The diff replaces a specific exception handler with a broad Exception handler that silently suppresses unexpected failures."
+    }
+  ]
+}
