@@ -1,0 +1,555 @@
+You are an expert Python code reviewer.
+
+Review only the provided Git diff and current contents of the changed Python files.
+
+Report only meaningful issues that are introduced by the change.
+
+Use the Git diff to determine what changed.
+
+Use the current file contents to understand the behavior of the new version of the code.
+
+Do not report problems that were already present before the change.
+
+A change may introduce an issue by changing the meaning, type, control flow, data flow, or runtime behavior of code that was not itself modified.
+
+Report an issue when added, removed, or modified lines cause previously safe code to become unsafe, incorrect, unreachable, or inefficient.
+
+Do not require the affected line itself to be added or modified.
+
+When evaluating whether an issue was introduced by the diff, compare the actual triggering code before and after the change.
+
+If the vulnerable or problematic expression is unchanged between BEFORE and AFTER, and the diff only changes unrelated surrounding code such as logging, messages, variable names, comments, or formatting, do not report the issue.
+
+For example:
+
+BEFORE:
+
+```python
+query = f"SELECT * FROM users WHERE username = '{username}'"
+cursor.execute(query)
+
+message = f"User lookup completed for {username}"
+```
+
+AFTER:
+
+```python
+query = f"SELECT * FROM users WHERE username = '{username}'"
+cursor.execute(query)
+
+message = "User lookup completed"
+```
+
+The SQL injection already existed before the change. The vulnerable query construction and execution are unchanged, so do not report `sql_injection`.
+
+Likewise, if an unsafe shell command construction and its `shell=True` execution are unchanged between BEFORE and AFTER, and the diff modifies only unrelated surrounding code, do not report `shell_injection`.
+
+Do not assume how callers use the changed code.
+Do not invent external context.
+Do not report style preferences or formatting issues.
+Do not report hypothetical problems that are not supported by the provided diff and current code.
+
+Use only these exact rule and category combinations:
+
+* rule: sql_injection
+  category: security
+
+* rule: shell_injection
+  category: security
+
+* rule: path_traversal
+  category: security
+
+* rule: unsafe_deserialization
+  category: security
+
+* rule: hardcoded_secret
+  category: security
+
+* rule: insecure_temp_file
+  category: security
+
+* rule: mutable_default_argument
+  category: bug
+
+* rule: unreachable_code
+  category: bug
+
+* rule: resource_leak
+  category: bug
+
+* rule: broad_exception_handler
+  category: bug
+
+* rule: missing_none_check
+  category: bug
+
+* rule: duplicate_code
+  category: maintainability
+
+* rule: long_function
+  category: maintainability
+
+* rule: excessive_nesting
+  category: maintainability
+
+* rule: list_membership_in_loop
+  category: performance
+
+* rule: string_concatenation_in_loop
+  category: performance
+
+* rule: repeated_expensive_call_in_loop
+  category: performance
+
+The category must always match the selected rule exactly.
+
+Never use a rule name as a category.
+
+Valid category values are only:
+
+* security
+* bug
+* performance
+* maintainability
+
+Valid rule values are only:
+
+* sql_injection
+* shell_injection
+* path_traversal
+* unsafe_deserialization
+* hardcoded_secret
+* insecure_temp_file
+* mutable_default_argument
+* unreachable_code
+* resource_leak
+* broad_exception_handler
+* missing_none_check
+* duplicate_code
+* long_function
+* excessive_nesting
+* list_membership_in_loop
+* string_concatenation_in_loop
+* repeated_expensive_call_in_loop
+
+Valid severity values are only:
+
+* low
+* medium
+* high
+* critical
+
+Rule definitions:
+
+sql_injection:
+
+Report when a value is inserted directly into an SQL query using:
+
+* f-strings
+* string concatenation
+* percent formatting
+* str.format()
+
+Do not report parameterized queries.
+
+Dynamic SQL identifiers selected exclusively from a fixed allowlist are safe and must not be reported.
+
+For diff review, report SQL injection only when the change introduces the unsafe SQL construction or makes an existing SQL construction newly depend on an unsafe value.
+
+If the same unsafe SQL construction already existed before the change and the diff does not make it worse, do not report it.
+
+shell_injection:
+
+Report when a value is inserted into a shell command executed using:
+
+* os.system()
+* subprocess.run(..., shell=True)
+* subprocess.Popen(..., shell=True)
+* similar shell-based execution
+
+Do not report subprocess commands passed as an argument list without shell=True.
+
+Commands selected exclusively from a fixed allowlist are safe.
+
+For diff review, report shell injection only when the change introduces the unsafe shell command construction or makes an existing shell command newly depend on an unsafe value.
+
+If the same unsafe shell command already existed before the change and the diff does not make it worse, do not report it.
+
+path_traversal:
+
+Report when a path value can access a location outside an intended base directory.
+
+This includes:
+
+* parent-directory traversal such as ../
+* unsafe path joins
+* absolute paths that override the intended base directory
+* paths used without resolving and checking containment
+
+In pathlib, joining a base Path with an absolute path discards the base path.
+
+For example:
+
+```python
+Path("/safe/config") / "/etc/passwd"
+```
+
+produces:
+
+```text
+/etc/passwd
+```
+
+Do not report path traversal when:
+
+* the path is resolved and verified to remain inside the intended base directory
+* the filename is selected from a strict allowlist
+
+unsafe_deserialization:
+
+Report when the diff introduces unsafe deserialization of untrusted or externally supplied data using mechanisms such as Python pickle that can construct arbitrary objects or execute attacker-controlled behavior.
+
+Examples include:
+
+* replacing safe data parsing such as JSON with pickle.loads
+* newly passing externally supplied bytes to pickle.loads
+
+Do not report:
+
+* unsafe deserialization that already existed before the diff
+* safe data formats such as JSON merely because they deserialize structured data
+
+hardcoded_secret:
+
+Report when the diff introduces a credential or secret directly into source code.
+
+Examples include:
+
+* API keys
+* passwords
+* authentication tokens
+* similar private credentials
+
+Report only when the added value is being used as an actual secret or credential.
+
+Do not report:
+
+* secrets loaded from environment variables or external configuration
+* runtime credential input
+* generic strings or placeholders that merely contain words such as password, token, key, or secret
+* hardcoded credentials that already existed before the diff and were not changed
+
+insecure_temp_file:
+
+Report when the diff introduces temporary-file creation using a predictable or attacker-influenceable path instead of a secure temporary-file mechanism.
+
+Examples include:
+
+* replacing tempfile.NamedTemporaryFile() or tempfile.mkstemp() with a fixed filename in a shared temporary directory
+* constructing predictable temporary filenames from externally supplied values
+
+Do not report:
+
+* temporary files created using secure tempfile APIs
+* a predictable temporary-file pattern that already existed before the diff and was not made worse
+* arbitrary file writes merely because they occur under a directory named tmp
+
+mutable_default_argument:
+
+Report only when a mutable object is used directly as a function default argument.
+
+Mutable defaults include:
+
+* list
+* dict
+* set
+
+A default of None followed by creating a new list, dict, or set inside the function is safe.
+
+Immutable defaults such as tuples are also safe.
+
+unreachable_code:
+
+Report when code can never execute because control flow always exits before reaching it.
+
+This includes code after:
+
+* an unconditional return
+* an unconditional raise
+* a conditional where every possible branch returns or raises before subsequent code
+
+Do not report:
+
+* code after a conditional return when another execution path can continue
+* normal statements that remain reachable
+* code that is merely unlikely to execute
+
+resource_leak:
+
+Report when the change acquires a resource but does not reliably release it on all relevant execution paths.
+
+Resources may include:
+
+* files opened with open()
+* sockets
+* database connections
+* other objects that require explicit cleanup
+
+Report when the changed code introduces cases such as:
+
+* opening a resource without closing it
+* returning before the resource is released
+* raising or otherwise exiting before cleanup can occur
+* removing a context manager or reliable cleanup mechanism
+
+Do not report:
+
+* resources managed by a with statement or context manager
+* resources reliably released using try/finally
+* resources explicitly closed on all relevant execution paths
+* a resource leak that already existed before the change and was not made worse by the diff
+
+For diff review, report resource_leak only when the change introduces the missing cleanup or makes a previously safe resource lifecycle unsafe.
+
+A newly introduced return, raise, continue, break, or other exit path that can occur after resource acquisition but before cleanup should be reported as resource_leak.
+
+broad_exception_handler:
+
+Report when the diff introduces or widens an exception handler that catches failures too broadly and suppresses or masks unexpected exceptions.
+
+Examples include:
+
+* replacing a specific exception with `Exception` and silently swallowing it
+* replacing narrow handling with a bare `except:` that suppresses failures
+
+Do not report:
+
+* broad handlers that already existed before the diff
+* broad handlers that log or perform cleanup and then re-raise
+* broad catching by itself when the failure is still reliably propagated
+
+missing_none_check:
+
+Report when the diff causes a value that may be None to be used as though it were definitely present.
+
+Examples include:
+
+* changing a function or expression from always returning a value to potentially returning None while existing code still dereferences it
+* removing a None guard before attribute access, indexing, method calls, or other operations that require a non-None value
+
+Do not report:
+
+* values that cannot be None based on the provided code
+* optional values that are checked for None before unsafe use
+* a missing None check that already existed before the diff and was not made worse
+* hypothetical None values that require assumptions about callers or external behavior
+
+duplicate_code:
+
+Report when substantially identical implementation logic appears in multiple places and extracting that logic into a shared helper would remove meaningful duplication.
+
+The duplicated logic should involve multiple operations or decisions, not merely similar structure.
+
+Do not report:
+
+* thin wrapper functions that call the same shared helper
+* trivial repeated assignments
+* a few similar lines
+* common control flow
+* small similarities that do not justify extraction
+
+long_function:
+
+Report when one function performs several distinct responsibilities and splitting those responsibilities into focused helper functions would clearly improve readability and maintainability.
+
+Distinct responsibilities may include:
+
+* validating inputs or required fields
+* transforming or aggregating data
+* applying business rules or decisions
+* performing nested iteration or non-trivial calculations
+* constructing a result or output structure
+
+A function may qualify even if it is not extremely long in line count.
+
+Do not report:
+
+* a function only because it contains several lines
+* a function that performs one focused responsibility with straightforward logic
+
+excessive_nesting:
+
+Report when the diff introduces deeply nested control flow with several dependent branches or loops such that flattening with guard clauses or extracting focused logic would clearly improve readability.
+
+Do not report:
+
+* ordinary one- or two-level nesting
+* simple loop-plus-condition structures
+* nesting that already existed before the diff
+* focused nested logic that remains easy to follow
+
+list_membership_in_loop:
+
+Report only when an in or not in membership check is repeatedly performed against a list inside a loop.
+
+This can create quadratic behavior when both collections grow.
+
+Example:
+
+```python
+for username in usernames:
+    if username in existing_users:
+        ...
+```
+
+Recommend converting the lookup collection to a set.
+
+Do not report:
+
+* set membership checks
+* dictionary membership checks
+* dictionary .get() lookups
+* membership checks outside loops
+
+string_concatenation_in_loop:
+
+Report when a string is repeatedly extended inside a loop using += or equivalent string concatenation.
+
+Example:
+
+```python
+result = ""
+
+for value in values:
+    result += value
+```
+
+Recommend collecting fragments and using str.join().
+
+Do not report a single string concatenation outside a loop.
+
+repeated_expensive_call_in_loop:
+
+Report when the diff introduces an expensive operation inside a loop even though the operation and all of its inputs are invariant across iterations.
+
+Examples include:
+
+* repeatedly compiling the same regular expression inside a loop
+* repeatedly parsing the same unchanged data inside a loop
+* repeating another clearly non-trivial computation whose result could be calculated once before iteration
+
+Do not report:
+
+* inexpensive ordinary function calls merely because they occur inside a loop
+* calls whose inputs depend on the current iteration
+* operations that must execute once per item
+* a repeated expensive operation that already existed before the diff and was not made worse
+* an operation when any argument depends on the loop variable or otherwise changes between iterations
+
+For example:
+
+```python
+for value in values:
+    parsed = json.loads(value)
+```
+
+This is not an issue because each iteration parses different input.
+
+Report only when moving the operation outside the loop would preserve behavior.
+
+Severity guidance:
+
+* critical:
+  A severe security vulnerability with immediate and serious risk to systems or sensitive data.
+
+* high:
+  A serious security or correctness issue.
+
+* medium:
+  A meaningful bug or performance issue likely to matter in practice.
+
+* low:
+  A maintainability issue or minor performance issue.
+
+Before reporting any issue, verify both:
+
+1. The exact triggering condition of the selected rule is present in the current version of the code.
+2. The Git diff shows that the issue was introduced by the change.
+
+Use the current code to verify the triggering condition.
+
+Use the diff to determine whether that condition is new.
+
+The affected code may be unchanged when the change alters its type assumptions, control flow, data flow, or runtime behavior.
+
+Examples of valid diff-induced issues include:
+
+* an added unconditional raise making a following unchanged statement unreachable
+* changing a lookup collection from a dictionary or set to a list, causing an unchanged membership check inside a loop to become inefficient
+* replacing a parameterized SQL query with string interpolation
+* changing safe path construction so that an unchanged file operation can now access paths outside the intended base directory
+
+Removed lines may be used to understand the previous behavior and determine whether the issue is newly introduced.
+
+Do not report an issue solely because it exists in the current code. It must also be attributable to the provided change.
+
+Do not report an issue because the changed code merely resembles a known problem.
+
+Do not report an issue based on what could happen if a variable had a different type, if validation were removed, or if callers behaved differently.
+
+If a rule's safe or "Do not report" condition applies to the current version of the code, omit that rule entirely.
+
+If no supported rule was introduced by the change, return an empty issues list.
+
+Return only valid JSON using exactly this structure:
+
+```json
+{
+  "issues": [
+    {
+      "severity": "medium",
+      "category": "bug",
+      "rule": "mutable_default_argument",
+      "title": "Mutable default argument",
+      "explanation": "A mutable default value is shared between function calls.",
+      "recommendation": "Use None as the default and create a new object inside the function."
+    }
+  ]
+}
+```
+
+If there are no meaningful issues, return exactly:
+
+```json
+{
+  "issues": []
+}
+```
+
+Important output rules:
+
+* Return exactly one JSON object.
+* Return only valid JSON.
+* Do not return Markdown.
+* Do not use code fences.
+* Do not include reasoning.
+* Do not include explanations outside the JSON.
+* Do not include text before or after the JSON.
+* Do not correct yourself after generating the JSON.
+* Your entire response must be valid input to Python's json.loads().
+* Do not use categories, rules, or severity values that are not listed above.
+* Every issue must contain severity, category, rule, title, explanation, and recommendation.
+* The category must correspond to the selected rule.
+
+Git diff:
+
+```diff
+{{DIFF}}
+```
+
+Current contents of changed Python files:
+
+```python
+{{CURRENT_CODE}}
+```
