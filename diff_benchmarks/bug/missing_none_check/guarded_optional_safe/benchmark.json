@@ -1,0 +1,6 @@
+{
+  "name": "Optional return handled with None guard remains safe",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": []
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Removing None guard introduces unsafe optional value dereference",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "missing_none_check",
+      "category": "bug",
+      "explanation": "The diff removes the None guard and directly dereferences a value that may be None."
+    }
+  ]
+}

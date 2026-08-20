@@ -1,0 +1,13 @@
+{
+  "name": "Changing return value to optional without None check introduces unsafe dereference",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "missing_none_check",
+      "category": "bug",
+      "explanation": "The diff makes find_user potentially return None while existing code still dereferences the returned value without checking it."
+    }
+  ]
+}
