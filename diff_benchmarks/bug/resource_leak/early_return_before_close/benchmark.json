@@ -1,0 +1,13 @@
+{
+  "name": "Adding early return before close introduces resource leak",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "medium",
+      "rule": "resource_leak",
+      "category": "bug",
+      "explanation": "The diff adds an early return that can exit the function before the opened file is closed, leaving the resource unreleased on that execution path."
+    }
+  ]
+}
