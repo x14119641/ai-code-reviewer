@@ -625,3 +625,57 @@ def test_review_file_normalizes_hardcoded_secret_severity(
             )
         ]
     )
+    
+def test_review_file_normalizes_insecure_temp_file_severity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_file = tmp_path / "example.py"
+    source_file.write_text(
+        'path = "/tmp/report.tmp"\n',
+        encoding="utf-8",
+    )
+
+    def fake_generate_review(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
+        return """
+        {
+          "issues": [
+            {
+              "severity": "low",
+              "category": "security",
+              "rule": "insecure_temp_file",
+              "title": "Insecure temporary file",
+              "explanation": "A predictable temporary file path is used.",
+              "recommendation": "Use tempfile.NamedTemporaryFile or tempfile.mkstemp."
+            }
+          ]
+        }
+        """
+
+    monkeypatch.setattr(
+        "reviewer.engine.generate_review",
+        fake_generate_review,
+    )
+
+    result = review_file(
+        path=source_file,
+        model="test-model",
+    )
+
+    assert result == CodeReview(
+        issues=[
+            Issue(
+                severity="high",
+                category="security",
+                rule="insecure_temp_file",
+                title="Insecure temporary file",
+                explanation="A predictable temporary file path is used.",
+                recommendation="Use tempfile.NamedTemporaryFile or tempfile.mkstemp.",
+            )
+        ]
+    )

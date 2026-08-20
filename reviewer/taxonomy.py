@@ -20,6 +20,7 @@ IssueRule = Literal[
     "path_traversal",
     "unsafe_deserialization",
     "hardcoded_secret",
+    "insecure_temp_file",
     "mutable_default_argument",
     "unreachable_code",
     "resource_leak",
@@ -51,6 +52,7 @@ VALID_RULES: set[str] = {
     "path_traversal",
     "unsafe_deserialization",
     "hardcoded_secret",
+    "insecure_temp_file",
     "mutable_default_argument",
     "unreachable_code",
     "resource_leak",
@@ -75,4 +77,5 @@ RULE_SEVERITY = {
     "broad_exception_handler": "medium",
     "unsafe_deserialization": "high",
     "hardcoded_secret": "high",
+    "insecure_temp_file": "high",
 }

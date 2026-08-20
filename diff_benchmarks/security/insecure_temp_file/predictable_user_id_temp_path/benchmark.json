@@ -1,0 +1,13 @@
+{
+  "name": "Constructing predictable temporary filename from user identifier introduces insecure temp file",
+  "before_path": "before.py",
+  "after_path": "after.py",
+  "expected_issues": [
+    {
+      "severity": "high",
+      "rule": "insecure_temp_file",
+      "category": "security",
+      "explanation": "The diff replaces secure temporary-file creation with a predictable filename in a shared temporary directory."
+    }
+  ]
+}
