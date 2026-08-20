@@ -385,17 +385,17 @@ Qwen 3.5 9B with prompt v11 produces:
 
 ### Prompt Comparison
 
-  --------------------------------------------------------------------------
-  Prompt          Passed     Accuracy        False        False     Severity
-                                         Positives    Negatives 
-  --------- ------------ ------------ ------------ ------------ ------------
-  v9               15/21       71.43%            3            3   8/8 (100%)
+  ----------------------------------------------------------------------
+  Prompt         Passed     Accuracy       False       False    Severity
+                                       Positives   Negatives 
+  --------- ----------- ------------ ----------- ----------- -----------
+  v9              15/21       71.43%           3           3  8/8 (100%)
 
-  v10              15/21       71.43%            2            4   7/7 (100%)
+  v10             15/21       71.43%           2           4  7/7 (100%)
 
-  **v11**      **17/21**   **80.95%**        **0**        **4**        **7/7
-                                                                    (100%)**
-  --------------------------------------------------------------------------
+  **v11**     **17/21**   **80.95%**       **0**       **4**       **7/7
+                                                                (100%)**
+  ----------------------------------------------------------------------
 
 v11 improves accuracy by approximately **9.5 percentage points** over v9
 and v10.
@@ -488,7 +488,6 @@ The benchmark evaluator distinguishes three important failure modes:
 expected issue + nothing reported ↓ false negative
 
 expected issue + different rule reported ↓ wrong rule / rule mismatch
-
 
     A rule mismatch is counted when:
 
@@ -893,19 +892,20 @@ This is the strongest result produced by the diff reviewer so far.
 
 ### Architecture Comparison
 
-  ----------------------------------------------------------------------------------
-  Architecture            Passed     Accuracy           FP           FN  Wrong Rules
-  ----------------- ------------ ------------ ------------ ------------ ------------
-  v9 single-pass           15/21       71.43%            3            3          ---
+  ---------------------------------------------------------------------------
+  Architecture           Passed     Accuracy         FP         FN      Wrong
+                                                                        Rules
+  ----------------- ----------- ------------ ---------- ---------- ----------
+  v9 single-pass          15/21       71.43%          3          3        ---
 
-  v10 single-pass          15/21       71.43%            2            4          ---
+  v10 single-pass         15/21       71.43%          2          4        ---
 
-  v11 single-pass          17/21       80.95%            0            4            0
+  v11 single-pass         17/21       80.95%          0          4          0
 
-  **v11 +              **20/21**   **95.24%**        **0**        **1**        **0**
-  maintainability                                                       
-  specialist**                                                          
-  ----------------------------------------------------------------------------------
+  **v11 +             **20/21**   **95.24%**      **0**      **1**      **0**
+  maintainability                                                  
+  specialist**                                                     
+  ---------------------------------------------------------------------------
 
 Relative to v11, specialization changes:
 
@@ -943,7 +943,6 @@ unreachable_code ├── introduced PASS └── pre-existing PASS \`\`\`
 pre-existing PASS
 
 string_concatenation_in_loop ├── introduced PASS └── pre-existing PASS
-
 
     ### Security
 
@@ -1250,29 +1249,29 @@ Only the model changed.
 
 ### Results
 
-  -----------------------------------------------------------------------------------------
-  Model           Passed     Accuracy        FP        FN     Wrong   Severity     Duration
-                                                              Rules            
-  ---------- ----------- ------------ --------- --------- --------- ---------- ------------
-  **Qwen 3.5   **20/21**   **95.24%**     **0**     **1**     **0**      10/10       81.12s
-  9B**                                                                  (100%) 
+  -----------------------------------------------------------------------------------
+  Model           Passed     Accuracy      FP      FN   Wrong   Severity     Duration
+                                                        Rules            
+  ---------- ----------- ------------ ------- ------- ------- ---------- ------------
+  **Qwen 3.5   **20/21**   **95.24%**   **0**   **1**   **0**      10/10       81.12s
+  9B**                                                            (100%) 
 
-  Qwen 2.5         16/21       76.19%     **0**         5         0 6/6 (100%)   **38.72s**
-  Coder 7B                                                                     
+  Qwen 2.5         16/21       76.19%   **0**       5       0 6/6 (100%)   **38.72s**
+  Coder 7B                                                               
 
-  Qwen 2.5         16/21       76.19%         5     **0**         0      11/11      107.57s
-  Coder 14B                                                             (100%) 
+  Qwen 2.5         16/21       76.19%       5   **0**       0      11/11      107.57s
+  Coder 14B                                                       (100%) 
 
-  Gemma 3          14/21       66.67%         7     **0**         0      11/11      183.03s
-  12B                                                                   (100%) 
+  Gemma 3          14/21       66.67%       7   **0**       0      11/11      183.03s
+  12B                                                             (100%) 
 
-  Llama 3.1         9/21       42.86%        10         0         2 9/9 (100%)      118.26s
-  8B                                                                           
+  Llama 3.1         9/21       42.86%      10       0       2 9/9 (100%)      118.26s
+  8B                                                                     
 
-  DeepSeek          7/21       33.33%        10         0         2 7/7 (100%)      295.41s
-  Coder V2                                                                     
-  16B                                                                          
-  -----------------------------------------------------------------------------------------
+  DeepSeek          7/21       33.33%      10       0       2 7/7 (100%)      295.41s
+  Coder V2                                                               
+  16B                                                                    
+  -----------------------------------------------------------------------------------
 
 Qwen 3.5 9B remains clearly strongest under the specialized
 architecture.
@@ -1347,7 +1346,6 @@ Its failures are:
 long_function ├── weaker positive └── strong positive
 
 performance ├── list_membership_in_loop └── string_concatenation_in_loop
-
 
     The model therefore remains interesting as a smaller and faster
     alternative when precision is more important than recall.
@@ -2009,17 +2007,17 @@ Only context size changed.
 
 ### Results
 
-  --------------------------------------------------------------------------------------
-     Context      Passed     Accuracy       FP       FN    Wrong   Severity     Duration
-                                                           Rules            
-  ---------- ----------- ------------ -------- -------- -------- ---------- ------------
-    **4096**   **20/21**   **95.24%**    **0**    **1**    **0**      10/10   **81.58s**
-                                                                     (100%) 
+  -----------------------------------------------------------------------------------
+     Context      Passed     Accuracy      FP      FN   Wrong   Severity     Duration
+                                                        Rules            
+  ---------- ----------- ------------ ------- ------- ------- ---------- ------------
+    **4096**   **20/21**   **95.24%**   **0**   **1**   **0**      10/10   **81.58s**
+                                                                  (100%) 
 
-        8192       18/21       85.71%        0        3        0 8/8 (100%)       88.09s
+        8192       18/21       85.71%       0       3       0 8/8 (100%)       88.09s
 
-       16384       18/21       85.71%        0        3        0 8/8 (100%)       87.88s
-  --------------------------------------------------------------------------------------
+       16384       18/21       85.71%       0       3       0 8/8 (100%)       87.88s
+  -----------------------------------------------------------------------------------
 
 Ollama reported Qwen 3.5 9B as 100% GPU-resident for all three
 configurations.
@@ -2074,19 +2072,19 @@ Only the model changed.
 
 ### Results
 
-  ----------------------------------------------------------------------------------------
-  Model          Passed     Accuracy        FP        FN     Wrong   Severity     Duration
-                                                             Rules            
-  --------- ----------- ------------ --------- --------- --------- ---------- ------------
-  **Qwen      **20/21**   **95.24%**     **0**         1         0      10/10   **81.58s**
-  3.5 9B**                                                             (100%) 
+  ----------------------------------------------------------------------------------
+  Model          Passed     Accuracy      FP      FN   Wrong   Severity     Duration
+                                                       Rules            
+  --------- ----------- ------------ ------- ------- ------- ---------- ------------
+  **Qwen      **20/21**   **95.24%**   **0**       1       0      10/10   **81.58s**
+  3.5 9B**                                                       (100%) 
 
-  Gemma 4         17/21       80.95%         4     **0**         0      11/11      146.98s
-  26B                                                                  (100%) 
+  Gemma 4         17/21       80.95%       4   **0**       0      11/11      146.98s
+  26B                                                            (100%) 
 
-  Qwen 3.5        16/21       76.19%         5     **0**         0      11/11      199.46s
-  35B-A3B                                                              (100%) 
-  ----------------------------------------------------------------------------------------
+  Qwen 3.5        16/21       76.19%       5   **0**       0      11/11      199.46s
+  35B-A3B                                                        (100%) 
+  ----------------------------------------------------------------------------------
 
 ### Gemma 4 26B
 
@@ -3519,63 +3517,1243 @@ RESOURCE_LEAK GENERALIZATION
 The development suite and held-out suite should continue to remain
 separate.
 
-## Current Project Direction
+## Continued Taxonomy Expansion
 
-The project has now entered taxonomy expansion.
+After validating `resource_leak`, taxonomy expansion continued using the
+same experimental process:
 
-The experimental progression is:
+``` text
+define rule
+        ↓
+add development benchmarks
+        ↓
+make the minimum justified prompt/taxonomy change
+        ↓
+run targeted benchmark
+        ↓
+run complete development regression
+        ↓
+add separate generalization cases
+        ↓
+measure behavior on alternative manifestations
+```
+
+The objective of this phase is no longer to maximize the score of a
+small fixed benchmark.
+
+Instead, the project is testing whether the diff-review architecture
+continues to behave reliably as:
+
+``` text
+number of supported rules increases
++
+benchmark diversity increases
++
+rule boundaries become more difficult
+```
+
+The general reviewer has progressed from:
+
+``` text
+v11
+    ↓
+v12
+    ↓
+v13
+```
+
+while the established maintainability specialist remains independently
+versioned.
+
+The primary expanded specialized configuration evaluated during this
+phase is:
+
+``` text
+Model                   qwen3.5:9b
+General prompt          v13
+Maintainability prompt  maintainability_v1
+Context                 4096
+Temperature             0
+Seed                     42
+Merge                    deterministic rule ownership
+```
+
+The larger taxonomy means the new results should not be compared
+directly with the historical 20/21 nine-rule result as though the
+benchmark had remained unchanged.
+
+The historical baselines remain useful experimental checkpoints.
+
+## Expanded Security Taxonomy
+
+The security taxonomy was expanded with additional rules covering
+security problems that were absent from the original benchmark.
+
+Among the newly evaluated rules are:
+
+``` text
+hardcoded_secret
+unsafe_deserialization
+insecure_temp_file
+```
+
+These additions increase the diversity of security reasoning required
+from the general reviewer.
+
+The reviewer must distinguish not only whether dangerous code exists,
+but whether the Git diff actually introduced the triggering condition.
+
+### Unsafe Deserialization
+
+The development family includes cases such as:
+
+``` text
+JSON deserialization remains safe after unrelated processing change
+        ↓
+safe boundary
+
+Replacing JSON parsing with pickle introduces unsafe deserialization
+        ↓
+positive
+
+Deserializing supplied payload with pickle introduces unsafe deserialization
+        ↓
+positive
+
+Pre-existing pickle deserialization is not introduced by diff
+        ↓
+attribution boundary
+```
+
+Separate generalization cases were introduced using YAML-loading
+behavior rather than repeating the pickle examples.
+
+Generalization result:
+
+``` text
+Pre-existing unsafe YAML deserialization is not introduced by diff
+PASS
+
+Using safe YAML loader does not introduce unsafe deserialization
+PASS
+
+Replacing safe YAML loading with unsafe loader introduces unsafe deserialization
+PASS
+```
+
+Aggregate:
+
+``` text
+Benchmarks       3
+Passed           3
+Failed           0
+False positives  0
+False negatives  0
+Wrong rules      0
+Accuracy         100.00%
+Severity         1/1 (100.00%)
+```
+
+This provides evidence that the rule generalizes beyond the exact
+deserialization API used in development.
+
+### Hardcoded Secret
+
+The development suite includes multiple secret-introduction and
+attribution patterns, including:
+
+``` text
+environment-provided secret
+        ↓
+hardcoded credential
+
+runtime-provided password
+        ↓
+hardcoded credential
+
+pre-existing hardcoded credential
+        ↓
+unrelated change
+```
+
+Generalization cases were then created using alternative credential
+configurations.
+
+The initial generalization result was:
+
+``` text
+Replacing environment database URL with embedded credential introduces hardcoded secret
+PASS
+
+Loading database credential from environment does not hardcode secret
+PASS
+
+Pre-existing credential in configuration mapping is not introduced by diff
+FAIL
+```
+
+Result:
+
+``` text
+Benchmarks       3
+Passed           2
+Failed           1
+False positives  1
+False negatives  0
+Wrong rules      0
+Accuracy         66.67%
+Severity         1/1 (100.00%)
+```
+
+The failure was an attribution false positive:
+
+``` text
+expected    no issues
+actual      hardcoded_secret
+```
+
+This reinforces a recurring theme in diff review:
+
+``` text
+correctly recognizing a security problem
+        ≠
+correctly proving that the diff introduced it
+```
+
+### Insecure Temporary File
+
+The rule detects changes that replace secure temporary-file handling
+with predictable temporary paths.
+
+Generalization result:
+
+``` text
+Using mkstemp safely does not introduce insecure temporary file
+PASS
+
+Replacing secure tempfile with predictable process ID path introduces insecure temp file
+PASS
+
+Pre-existing predictable temporary path is not introduced by diff
+PASS
+```
+
+Aggregate:
+
+``` text
+Benchmarks       3
+Passed           3
+Failed           0
+False positives  0
+False negatives  0
+Wrong rules      0
+Accuracy         100.00%
+Severity         1/1 (100.00%)
+```
+
+The rule therefore successfully generalizes across alternative
+temporary-file construction patterns in the current held-out examples.
+
+## Expanded Bug Taxonomy
+
+The bug taxonomy was expanded beyond:
+
+``` text
+mutable_default_argument
+unreachable_code
+resource_leak
+```
+
+with additional behavioral rules.
+
+One of the new families is:
+
+``` text
+missing_none_check
+```
+
+The rule targets changes that introduce unsafe use of values that may
+now be `None`.
+
+Development examples include:
+
+``` text
+optional value protected by None guard
+        ↓
+safe
+
+existing unsafe optional use
+        ↓
+unrelated change
+        ↓
+pre-existing
+
+guard removed
+        ↓
+unsafe dereference
+
+return behavior changed to optional
+        ↓
+caller remains unchecked
+```
+
+A separate generalization family produced:
+
+``` text
+Optional session used for method call without None check
+FAIL
+
+Optional mapping checked for None before indexing remains safe
+PASS
+
+Pre-existing optional value indexing is not introduced by diff
+PASS
+```
+
+Result:
+
+``` text
+Benchmarks       3
+Passed           2
+Failed           1
+False positives  0
+False negatives  1
+Wrong rules      0
+Accuracy         66.67%
+```
+
+The failure is a recognition miss rather than an attribution error.
+
+This suggests that the current reviewer handles some optional-value
+patterns but does not yet apply the rule consistently across different
+dereference forms.
+
+## Expanded Performance Taxonomy
+
+The performance taxonomy was expanded with:
+
+``` text
+repeated_expensive_call_in_loop
+```
+
+The rule is intended to detect expensive work moved inside a loop when
+the operation is invariant across iterations and could remain outside
+the loop.
+
+The important boundary is:
+
+``` text
+expensive operation
++
+same input every iteration
+        ↓
+potential repeated_expensive_call_in_loop
+
+expensive operation
++
+input depends on current iteration
+        ↓
+cannot safely hoist
+        ↓
+do not report
+```
+
+### Development Cases
+
+The development family contains four cases:
+
+``` text
+Moving regex compilation into loop introduces repeated expensive call
+        ↓
+positive
+
+Expensive call with iteration-dependent input cannot be hoisted
+        ↓
+safe semantic boundary
+
+Pre-existing repeated regex compilation is not introduced by diff
+        ↓
+attribution boundary
+
+Moving invariant JSON parsing into loop introduces repeated expensive call
+        ↓
+positive alternative manifestation
+```
+
+The current v13 specialized result is:
+
+``` text
+Benchmarks       4
+Passed           3
+Failed           1
+Errors           0
+False positives  1
+False negatives  0
+Wrong rules      0
+Accuracy         75.00%
+Severity         2/2 (100.00%)
+```
+
+The remaining failure is:
+
+``` text
+Expensive call with iteration-dependent input cannot be hoisted
+
+expected    no issues
+actual      repeated_expensive_call_in_loop
+```
+
+This is an important semantic false positive.
+
+The model recognizes the expensive operation but fails to account for
+the fact that its input changes on every iteration.
+
+### Structured-Output Failure Discovered During Evaluation
+
+One complete-suite run also exposed an execution failure on the
+invariant JSON-parsing benchmark.
+
+The model began reasoning about `unsafe_deserialization` and produced an
+invalid JSON response instead of the required review object.
+
+This produced an execution error rather than an ordinary benchmark
+classification failure.
+
+A subsequent deterministic rerun returned valid output and correctly
+classified the case.
+
+This incident distinguishes:
+
+``` text
+review-quality failure
+```
+
+from:
+
+``` text
+model output / protocol failure
+```
+
+These should remain separate in benchmark reporting.
+
+### Generalization Cases
+
+The generalization family uses alternative expensive operations:
+
+``` text
+Expensive hash depending on current loop item cannot be hoisted
+PASS
+
+Pre-existing repeated file metadata lookup is not introduced by diff
+FAIL
+
+Moving invariant file metadata lookup into loop introduces repeated expensive call
+PASS
+```
+
+Result:
+
+``` text
+Benchmarks       3
+Passed           2
+Failed           1
+False positives  1
+False negatives  0
+Wrong rules      0
+Accuracy         66.67%
+Severity         1/1 (100.00%)
+```
+
+The failing benchmark was reported as:
+
+``` text
+long_function
+```
+
+rather than `repeated_expensive_call_in_loop`.
+
+This is another example of specialist precision affecting a benchmark
+outside the specialist's intended conceptual domain.
+
+## Expanded v13 Development Suite
+
+After the taxonomy additions, the complete specialized development suite
+contains:
+
+``` text
+49 benchmarks
+```
+
+The suite was evaluated using:
+
+``` text
+Model                   qwen3.5:9b
+General prompt          v13
+Maintainability prompt  maintainability_v1
+Context                 4096
+Temperature             0
+Seed                     42
+```
+
+A stable complete run produced:
+
+``` text
+Benchmarks       49
+Passed           45
+Failed            4
+Errors            0
+False positives   1
+False negatives   2
+Wrong rules       1
+Accuracy         91.84%
+Severity         22/22 (100.00%)
+Duration         192.08s
+```
+
+The four failures were:
+
+``` text
+RESOURCE LEAK
+
+Adding early return before close introduces resource leak
+expected    resource_leak
+actual      no issues
+
+→ false negative
+
+
+LONG FUNCTION
+
+Adding multiple responsibilities introduces long function
+expected    long_function
+actual      no issues
+
+→ false negative
+
+
+REPEATED EXPENSIVE CALL IN LOOP
+
+Expensive call with iteration-dependent input cannot be hoisted
+expected    no issues
+actual      repeated_expensive_call_in_loop
+
+→ false positive
+
+
+INSECURE TEMP FILE
+
+Constructing predictable temporary filename from user identifier introduces insecure temp file
+expected    insecure_temp_file
+actual      path_traversal
+
+→ wrong rule
+```
+
+The historical specialized baseline was:
+
+``` text
+21 cases
+9 rules
+20/21
+95.24%
+```
+
+The expanded evaluation is:
+
+``` text
+49 cases
+expanded taxonomy
+45/49
+91.84%
+```
+
+The lower percentage does not represent a direct regression on an
+unchanged benchmark.
+
+The reviewer is being evaluated against a substantially broader problem
+space.
+
+## v13 Context-Window Regression Check
+
+The expanded 49-case v13 suite was also tested at:
+
+``` text
+8192
+```
+
+while keeping the remaining configuration unchanged.
+
+Result:
+
+``` text
+Benchmarks       49
+Passed           45
+Failed            4
+Errors            0
+False positives   1
+False negatives   2
+Wrong rules       1
+Accuracy         91.84%
+Severity         22/22 (100.00%)
+Duration         208.46s
+```
+
+The benchmark-level failures were identical to the 4096-token run.
+
+Therefore:
+
+``` text
+4096
+45/49
+91.84%
+
+8192
+45/49
+91.84%
+```
+
+The larger context window provides no accuracy improvement on the
+expanded suite and increases runtime.
+
+The preferred context remains:
+
+``` text
+4096
+```
+
+## Benchmark Infrastructure Failure Rendering
+
+Taxonomy expansion also exposed a benchmark-runner bug that had
+previously remained dormant.
+
+The failure-rendering code assumed that every benchmark object
+contained:
+
+``` text
+benchmark.code_path
+```
+
+That is valid for the original full-file benchmark representation.
+
+Diff benchmarks instead contain:
+
+``` text
+before_path
+after_path
+```
+
+and expose the current review target through:
+
+``` text
+display_path
+```
+
+The bug only appeared when a diff benchmark produced an actual execution
+failure.
+
+Normal benchmark passes and ordinary evaluation failures never entered
+the execution-failure rendering path.
+
+The renderer was updated to use the common benchmark display abstraction
+rather than directly accessing the full-file-only `code_path` field.
+
+This is an infrastructure fix rather than a reviewer-quality change.
+
+It does not alter benchmark classification results.
+
+## Maintainability Taxonomy Expansion
+
+After expanding the general-review taxonomy, the latest rule
+investigated in the current expansion phase was:
+
+``` text
+excessive_nesting
+```
+
+Category:
+
+``` text
+maintainability
+```
+
+The development family contains four cases:
+
+``` text
+Replacing guard clauses with deeply nested conditions introduces excessive nesting
+        ↓
+positive
+
+Introducing nested loop and branching structure creates excessive nesting
+        ↓
+positive
+
+Pre-existing deeply nested control flow is not introduced by diff
+        ↓
+attribution boundary
+
+Simple loop with one conditional does not introduce excessive nesting
+        ↓
+safe boundary
+```
+
+## Excessive Nesting with Existing Specialist
+
+The first evaluation used:
+
+``` text
+v13
++
+maintainability_v1
+```
+
+Result:
+
+``` text
+Benchmarks       4
+Passed           2
+Failed           2
+Errors           0
+False positives  0
+False negatives  1
+Wrong rules      1
+Accuracy         50.00%
+```
+
+Benchmark behavior:
+
+``` text
+Replacing guard clauses with deeply nested conditions introduces excessive nesting
+FAIL
+expected    excessive_nesting
+actual      no issues
+
+Introducing nested loop and branching structure creates excessive nesting
+FAIL
+expected    excessive_nesting
+actual      long_function
+
+Pre-existing deeply nested control flow is not introduced by diff
+PASS
+
+Simple loop with one conditional does not introduce excessive nesting
+PASS
+```
+
+The result was expected to some extent because `maintainability_v1` was
+originally designed to own only:
+
+``` text
+duplicate_code
+long_function
+```
+
+It did not yet contain explicit `excessive_nesting` ownership.
+
+## Maintainability v2 Experiment
+
+A new experimental specialist version was introduced:
+
+``` text
+maintainability_v2
+```
+
+The purpose is to extend the maintainability specialist beyond its
+original two-rule taxonomy.
+
+The experiment also required the maintainability prompt version to
+become a configurable part of the specialized benchmark command rather
+than being implicitly fixed to `maintainability_v1`.
+
+This preserves reproducibility:
+
+``` text
+maintainability_v1
+        ↓
+historical two-rule specialist
+
+maintainability_v2
+        ↓
+expanded maintainability experiment
+```
+
+The older prompt is not overwritten.
+
+### Initial Specialized Evaluation
+
+Using the expanded specialist directly in the specialized architecture
+produced:
+
+``` text
+Benchmarks       4
+Passed           2
+Failed           2
+Errors           0
+False positives  0
+False negatives  0
+Wrong rules      2
+Accuracy         50.00%
+```
+
+The positive excessive-nesting cases were recognized as maintainability
+problems, but the specialist selected existing rules instead:
+
+``` text
+expected    excessive_nesting
+actual      long_function, duplicate_code
+```
+
+and:
+
+``` text
+expected    excessive_nesting
+actual      duplicate_code, long_function, duplicate_code
+```
+
+This is different from complete issue-recognition failure.
+
+The model recognizes structural maintainability complexity but does not
+reliably select the new taxonomy rule.
+
+### Multi-Pass Verification Evaluation
+
+The candidate + verifier multi-pass architecture was also evaluated
+using:
+
+``` text
+maintainability_v2
+```
+
+Result:
+
+``` text
+Benchmarks       4
+Passed           2
+Failed           2
+Errors           0
+False positives  0
+False negatives  2
+Wrong rules      0
+Accuracy         50.00%
+```
+
+Both positive cases became:
+
+``` text
+expected    excessive_nesting
+actual      no issues
+```
+
+The verifier therefore removed the incorrect maintainability candidates
+but could not recover the desired rule.
+
+This reproduces an architectural lesson already observed earlier:
+
+``` text
+candidate generation
+        ↓
+wrong or missing candidate
+        ↓
+verifier can reject
+        ↓
+verifier cannot independently invent correct finding
+```
+
+The verifier improves precision but does not solve rule discovery.
+
+## Excessive Nesting Interpretation
+
+The current `excessive_nesting` experiment should be recorded as an
+experimental taxonomy result rather than tuned immediately until it
+passes.
+
+Current evidence:
+
+``` text
+Development cases   4
+Passed              2
+Failed              2
+Accuracy            50.00%
+```
+
+The negative boundaries are currently strong:
+
+``` text
+pre-existing nesting
+PASS
+
+simple non-excessive nesting
+PASS
+```
+
+The weakness is positive rule identification.
+
+Under the original specialist:
+
+``` text
+positive 1
+        ↓
+no issue
+
+positive 2
+        ↓
+long_function
+```
+
+Under the expanded specialist:
+
+``` text
+positive cases
+        ↓
+maintainability complexity recognized
+        ↓
+wrong maintainability rules selected
+```
+
+Under candidate + verifier:
+
+``` text
+incorrect candidates
+        ↓
+rejected
+        ↓
+no correct excessive_nesting candidate remains
+```
+
+This suggests that `excessive_nesting` overlaps semantically with
+existing maintainability concepts strongly enough that taxonomy
+separation is harder for the current model.
+
+That raises a broader taxonomy-design question:
+
+``` text
+Can the model reliably distinguish:
+
+long_function
+vs
+duplicate_code
+vs
+excessive_nesting
+
+when several structural maintainability signals coexist?
+```
+
+No generalization result should be treated as meaningful for
+`excessive_nesting` until the development behavior and ownership
+strategy are settled.
+
+## Current Expanded Evaluation State
+
+Historical frozen results remain:
+
+``` text
+FULL-FILE BASELINE
+
+65 cases
+Qwen 3.5 9B
+v5 single-pass
+
+60/65
+92.31%
+
+
+NINE-RULE DIFF DEVELOPMENT BASELINE
+
+21 cases
+Qwen 3.5 9B
+v11 + maintainability_v1
+
+20/21
+95.24%
+0 FP / 1 FN / 0 wrong
+
+
+NINE-RULE DIFF GENERALIZATION
+
+20 cases
+same frozen architecture
+
+16/20
+80.00%
+3 FP / 1 FN / 0 wrong
+```
+
+Taxonomy expansion has produced the larger development evaluation:
+
+``` text
+EXPANDED DIFF DEVELOPMENT
+
+49 cases
+Qwen 3.5 9B
+v13 + maintainability_v1
+context 4096
+
+45/49
+91.84%
+
+False positives   1
+False negatives   2
+Wrong rules       1
+Errors            0
+Severity          22/22 — 100%
+Duration          192.08s
+```
+
+The same expanded suite at 8192 context produced:
+
+``` text
+45/49
+91.84%
+```
+
+with identical benchmark failures and higher runtime.
+
+The preferred context therefore remains:
+
+``` text
+4096
+```
+
+The current known expanded-suite failures are:
+
+``` text
+resource_leak
+└── early-return cleanup bypass
+    └── false negative
+
+long_function
+└── weaker multi-responsibility case
+    └── false negative
+
+repeated_expensive_call_in_loop
+└── iteration-dependent expensive operation
+    └── false positive
+
+insecure_temp_file
+└── predictable user-derived temp path
+    └── reported as path_traversal
+        └── wrong rule
+```
+
+Targeted generalization testing has also exposed further boundary
+behavior in newer rules, including:
+
+``` text
+hardcoded_secret
+└── pre-existing credential attribution weakness
+
+missing_none_check
+└── alternative dereference recognition weakness
+
+repeated_expensive_call_in_loop
+└── specialist false-positive interaction
+```
+
+The maintainability expansion experiment currently adds:
+
+``` text
+excessive_nesting
+
+development
+2/4
+50.00%
+```
+
+but this rule should still be considered experimental until its
+interaction with the maintainability specialist architecture is
+resolved.
+
+## Current Conclusions
+
+The taxonomy-expansion phase provides a more realistic picture of
+reviewer quality than the original 20/21 result alone.
+
+The reviewer has scaled from:
+
+``` text
+21 development cases
+```
+
+to:
+
+``` text
+49 development cases
+```
+
+while maintaining:
+
+``` text
+91.84% accuracy
+100% severity accuracy
+```
+
+under the current stable `v13 + maintainability_v1` architecture.
+
+The remaining failures cover several distinct failure classes:
+
+``` text
+RECOGNITION
+
+resource_leak
+long_function
+missing_none_check generalization
+
+
+ATTRIBUTION
+
+hardcoded_secret generalization
+
+
+SEMANTIC BOUNDARY PRECISION
+
+repeated_expensive_call_in_loop
+
+
+TAXONOMY SELECTION
+
+insecure_temp_file vs path_traversal
+
+
+SPECIALIST PRECISION
+
+spurious maintainability findings on unrelated benchmark families
+
+
+MAINTAINABILITY TAXONOMY OVERLAP
+
+excessive_nesting
+vs
+long_function
+vs
+duplicate_code
+```
+
+This is precisely the type of information taxonomy expansion was
+intended to produce.
+
+The project should therefore avoid optimizing every isolated failure.
+
+The next architectural decisions should be driven by repeated failure
+patterns rather than individual benchmark cases.
+
+## Current Preferred Architecture
+
+For the established expanded taxonomy excluding unresolved experimental
+maintainability ownership changes, the preferred configuration remains:
+
+``` text
+Model                   qwen3.5:9b
+General prompt          v13
+Maintainability prompt  maintainability_v1
+Context                 4096
+Temperature             0
+Seed                     42
+Runtime                  Ollama
+Merge                    deterministic rule ownership
+```
+
+Current expanded development result:
+
+``` text
+45/49
+91.84%
+```
+
+The 8192-token experiment provides no benefit.
+
+`maintainability_v2` should remain an experimental prompt version while
+the new `excessive_nesting` rule is investigated.
+
+It should not silently replace the established `maintainability_v1`
+baseline.
+
+## Next Experimental Phase
+
+The immediate objective is no longer simply:
+
+``` text
+add another rule
+```
+
+The taxonomy has become large enough to evaluate the architecture
+itself.
+
+The next phase should consolidate the expansion work and answer:
+
+``` text
+Does each rule have sufficient:
+
+development coverage
++
+positive manifestations
++
+safe boundaries
++
+pre-existing attribution boundaries
++
+held-out generalization coverage?
+```
+
+The workflow should therefore be:
+
+``` text
+1. Freeze the current expanded development state
+
+2. Complete generalization families for the newly added stable rules
+
+3. Keep development and generalization results separate
+
+4. Classify failures by:
+       recognition
+       attribution
+       semantic boundary
+       taxonomy selection
+       specialist interaction
+
+5. Evaluate excessive_nesting as an experimental maintainability rule
+
+6. Decide whether the maintainability specialist should:
+       expand ownership
+       remain two-rule
+       split into narrower specialists
+       or use another architecture
+
+7. Only then modify prompts if repeated evidence justifies it
+```
+
+The project has therefore progressed from:
 
 ``` text
 build reviewer
         ↓
-optimize general prompts
+optimize prompts
         ↓
-improve change attribution
+improve attribution
         ↓
 compare models
         ↓
-introduce specialization
+specialize maintainability
         ↓
 freeze architecture
         ↓
 measure generalization
         ↓
 expand taxonomy
-        ↓
-measure new-rule generalization
 ```
 
-The first taxonomy-expansion experiment provides useful evidence.
-
-`resource_leak` can be added without introducing a dedicated specialist,
-and the rule generalizes successfully to the current held-out socket
-examples.
-
-At the same time, the control-flow cleanup case exposes a remaining
-reasoning weakness.
-
-The correct next priority is therefore not to optimize `resource_leak`
-until it reaches 100%.
-
-Instead, the project should continue expanding the taxonomy with another
-meaningful rule and repeat the same process:
+to:
 
 ``` text
-define rule
+broader taxonomy
         ↓
-add development cases
+broader development suite
         ↓
-make minimum justified reviewer change
+per-rule generalization
         ↓
-run full development regression
+failure-pattern analysis
         ↓
-freeze
-        ↓
-add held-out manifestations
-        ↓
-measure generalization
+architecture scaling evaluation
 ```
 
-This keeps benchmark expansion ahead of prompt optimization and provides
-better evidence about whether the reviewer architecture scales as the
-supported problem space becomes larger.
+This is the appropriate point to stop treating individual benchmark
+failures as prompt-tuning targets and begin evaluating whether the
+reviewer design scales as a complete system.
