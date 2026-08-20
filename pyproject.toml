@@ -34,3 +34,7 @@ testpaths = ["tests"]
 "diff_benchmarks/**/*.py" = [
     "B006",
 ]
+
+"diff_benchmarks_generalization/**/*.py" = [
+    "B006",
+]

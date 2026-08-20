@@ -36,6 +36,7 @@ REVIEW_RESPONSE_SCHEMA: dict[str, Any] = {
                             "long_function",
                             "list_membership_in_loop",
                             "string_concatenation_in_loop",
+                            "resource_leak",
                         ],
                     },
                     "title": {"type": "string"},

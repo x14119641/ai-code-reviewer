@@ -406,3 +406,58 @@ def test_merge_specialized_reviews_uses_specialist_for_maintainability() -> None
     assert merged.issues[0].rule == "sql_injection"
     assert merged.issues[1].rule == "duplicate_code"
     assert merged.issues[1].title == "Specialist duplicate"
+
+
+def test_review_file_normalizes_resource_leak_severity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_file = tmp_path / "example.py"
+    source_file.write_text(
+        'file = open("data.txt")\n',
+        encoding="utf-8",
+    )
+
+    def fake_generate_review(
+        prompt: str,
+        model: str,
+        *,
+        context_size: int = 4096,
+    ) -> str:
+        return """
+        {
+          "issues": [
+            {
+              "severity": "low",
+              "category": "bug",
+              "rule": "resource_leak",
+              "title": "Resource is not closed",
+              "explanation": "The opened resource is not reliably released.",
+              "recommendation": "Use a context manager."
+            }
+          ]
+        }
+        """
+
+    monkeypatch.setattr(
+        "reviewer.engine.generate_review",
+        fake_generate_review,
+    )
+
+    result = review_file(
+        path=source_file,
+        model="test-model",
+    )
+
+    assert result == CodeReview(
+        issues=[
+            Issue(
+                severity="medium",
+                category="bug",
+                rule="resource_leak",
+                title="Resource is not closed",
+                explanation="The opened resource is not reliably released.",
+                recommendation="Use a context manager.",
+            )
+        ]
+    )
