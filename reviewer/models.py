@@ -268,3 +268,9 @@ class BenchmarkResultComparison:
 class DiffReviewInput:
     diff: str
     current_code: str
+
+
+@dataclass(frozen=True)
+class AttributionResult:
+    introduced_or_worsened: bool
+    reason: str

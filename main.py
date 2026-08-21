@@ -7,12 +7,14 @@ from reviewer.benchmark_runner import find_benchmark_files, run_benchmarks
 from reviewer.benchmark_serialization import save_benchmark_run
 from reviewer.diff_benchmark_runner import find_diff_benchmarks, run_diff_benchmarks
 from reviewer.engine import (
+    attribute_diff_candidate,
     build_changed_files_context,
     find_diff_candidates,
     find_python_files,
     review_diff,
     review_diff_multi_pass,
     review_diff_specialized,
+    review_diff_specialized_attributed,
     review_file,
     review_file_specialized,
     review_files,
@@ -24,7 +26,7 @@ from reviewer.git_diff import (
     get_git_diff,
     get_git_diff_against,
 )
-from reviewer.models import CodeReview, InferenceConfig
+from reviewer.models import CodeReview, InferenceConfig, Issue
 from reviewer.prompts import DEFAULT_PROMPT_VERSION
 from reviewer.rendering import (
     build_category_comparison_table,
@@ -819,5 +821,215 @@ def benchmark_specialized_command(
         raise typer.Exit(code=1) from exc
 
 
+@app.command("benchmark-diff-attribution")
+def benchmark_diff_attribution_command(
+    path: Path,
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for attribution evaluation.",
+    ),
+    candidate_prompt_version: str = typer.Option(
+        "maintainability_v1",
+        "--candidate-prompt-version",
+        help="Prompt version used to generate candidate findings.",
+    ),
+    attribution_prompt_version: str = typer.Option(
+        "attribution_v1",
+        "--attribution-prompt-version",
+        help="Prompt version used to evaluate change attribution.",
+    ),
+    use_general_reviewer: bool = typer.Option(
+        False,
+        "--use-general-reviewer",
+        help="Use the normal diff reviewer instead of a candidate-generation prompt.",
+    ),
+    context_size: int = typer.Option(
+        4096,
+        "--context-size",
+        help="Ollama context window size.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
+) -> None:
+    """Evaluate candidate findings after an attribution-only stage."""
+
+    experiment_version = f"{candidate_prompt_version}+{attribution_prompt_version}"
+
+    def review_with_model(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        if use_general_reviewer:
+            candidates = review_diff(
+                diff=diff,
+                current_code=current_code,
+                model=model,
+                prompt_version=candidate_prompt_version,
+                context_size=context_size,
+            )
+        else:
+            candidates = find_diff_candidates(
+                diff=diff,
+                current_code=current_code,
+                model=model,
+                prompt_version=candidate_prompt_version,
+                context_size=context_size,
+            )
+
+        attributed_issues: list[Issue] = []
+
+        for candidate in candidates.issues:
+            attribution = attribute_diff_candidate(
+                diff=diff,
+                current_code=current_code,
+                candidate=candidate,
+                model=model,
+                prompt_version=attribution_prompt_version,
+                context_size=context_size,
+            )
+
+            if attribution.introduced_or_worsened:
+                attributed_issues.append(candidate)
+
+        return CodeReview(issues=attributed_issues)
+
+    try:
+        benchmark_paths = find_diff_benchmarks(path)
+
+        if not benchmark_paths:
+            print_warning("No diff benchmark cases found.")
+            return
+
+        run = run_diff_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
+            prompt_version=experiment_version,
+            inference=InferenceConfig(
+                context_size=context_size,
+            ),
+        )
+
+        if output is not None:
+            if output.parent == Path("."):
+                output = Path("results") / "diff" / experiment_version / output
+
+            save_benchmark_run(run, output)
+            print_result_saved(output)
+
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
+
+    except (
+        FileNotFoundError,
+        NotADirectoryError,
+        TypeError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        print_error("Attribution Benchmark Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+
+@app.command("benchmark-diff-attributed")
+def benchmark_diff_attributed_command(
+    path: Path,
+    model: str = typer.Option(
+        "qwen3.5:9b",
+        help="Ollama model used for the attributed specialized benchmark.",
+    ),
+    prompt_version: str = typer.Option(
+        "v13",
+        "--prompt-version",
+        help="General diff prompt version.",
+    ),
+    maintainability_prompt_version: str = typer.Option(
+        "maintainability_v1",
+        "--maintainability-prompt-version",
+        help="Maintainability specialist prompt version.",
+    ),
+    attribution_prompt_version: str = typer.Option(
+        "attribution_v1",
+        "--attribution-prompt-version",
+        help="Attribution prompt version.",
+    ),
+    context_size: int = typer.Option(
+        4096,
+        "--context-size",
+        help="Ollama context window size.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        help="Output filename or path.",
+    ),
+) -> None:
+    """Evaluate attribution-aware specialized diff review."""
+
+    experiment_version = (
+        f"{prompt_version}"
+        f"+{maintainability_prompt_version}"
+        f"+{attribution_prompt_version}"
+    )
+
+    def review_with_model(
+        diff: str,
+        current_code: str,
+    ) -> CodeReview:
+        return review_diff_specialized_attributed(
+            diff=diff,
+            current_code=current_code,
+            model=model,
+            general_prompt_version=prompt_version,
+            maintainability_prompt_version=maintainability_prompt_version,
+            attribution_prompt_version=attribution_prompt_version,
+            context_size=context_size,
+        )
+
+    try:
+        benchmark_paths = find_diff_benchmarks(path)
+
+        if not benchmark_paths:
+            print_warning("No diff benchmark cases found.")
+            return
+
+        run = run_diff_benchmarks(
+            benchmark_paths=benchmark_paths,
+            review_function=review_with_model,
+            model=model,
+            prompt_version=experiment_version,
+            inference=InferenceConfig(
+                context_size=context_size,
+            ),
+        )
+
+        if output is not None:
+            if output.parent == Path("."):
+                output = (
+                    Path("results")
+                    / "diff"
+                    / experiment_version
+                    / output
+                )
+
+            save_benchmark_run(run, output)
+            print_result_saved(output)
+
+        print_benchmark_evaluations(run)
+        print_benchmark_failures(run)
+        print_benchmark_summary(run)
+
+    except (
+        FileNotFoundError,
+        NotADirectoryError,
+        TypeError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        print_error("Attributed Diff Benchmark Failed", str(exc))
+        raise typer.Exit(code=1) from exc
+    
+    
 if __name__ == "__main__":
     app()

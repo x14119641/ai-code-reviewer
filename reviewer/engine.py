@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import Any, cast
 
 from reviewer.llm import REVIEW_RESPONSE_SCHEMA, generate_review
-from reviewer.models import CodeReview, Issue
+from reviewer.models import AttributionResult, CodeReview, Issue
 from reviewer.prompts import (
     DEFAULT_PROMPT_VERSION,
+    build_diff_attribution_prompt,
     build_diff_candidates_prompt,
     build_diff_prompt,
     build_diff_verifier_prompt,
@@ -29,6 +30,7 @@ SPECIALIST_MAINTAINABILITY_RULES = {
     "long_function",
     "excessive_nesting",
 }
+
 
 @dataclass
 class ReviewResult:
@@ -129,6 +131,37 @@ def parse_review_response(response: str) -> CodeReview:
     return CodeReview(issues=issues)
 
 
+def parse_attribution_response(response: str) -> AttributionResult:
+    cleaned_response = clean_json_response(response)
+
+    try:
+        data: Any = json.loads(cleaned_response)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"The model returned invalid attribution JSON:\n\n{response}"
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise TypeError("The attribution response must be a JSON object.")
+
+    introduced_or_worsened = data.get("introduced_or_worsened")
+    reason = data.get("reason")
+
+    if not isinstance(introduced_or_worsened, bool):
+        raise TypeError(
+            "The attribution response must contain a boolean "
+            "'introduced_or_worsened'."
+        )
+
+    if not isinstance(reason, str):
+        raise TypeError("The attribution response must contain a string 'reason'.")
+
+    return AttributionResult(
+        introduced_or_worsened=introduced_or_worsened,
+        reason=reason,
+    )
+
+
 def review_file(
     path: Path,
     model: str,
@@ -148,16 +181,28 @@ def review_file(
         prompt_version=prompt_version,
     )
 
-    response = generate_review(prompt=prompt, model=model, context_size=context_size,)
+    response = generate_review(
+        prompt=prompt,
+        model=model,
+        context_size=context_size,
+    )
 
     return parse_review_response(response)
 
 
-def review_folder(path: Path, model: str, context_size: int = 4096,) -> Iterator[ReviewResult]:
+def review_folder(
+    path: Path,
+    model: str,
+    context_size: int = 4096,
+) -> Iterator[ReviewResult]:
     """Review all Python files found in a directory."""
     files = find_python_files(path=path)
 
-    yield from review_files(files, model,context_size=context_size,)
+    yield from review_files(
+        files,
+        model,
+        context_size=context_size,
+    )
 
 
 def review_files(
@@ -168,7 +213,12 @@ def review_files(
 ) -> Iterator[ReviewResult]:
     """Review an iterable of Python files one at a time."""
     for file in files:
-        review = review_file(file, model, prompt_version=prompt_version, context_size=context_size,)
+        review = review_file(
+            file,
+            model,
+            prompt_version=prompt_version,
+            context_size=context_size,
+        )
         yield ReviewResult(path=file, review=review)
 
 
@@ -253,6 +303,122 @@ def serialize_review(review: CodeReview) -> str:
     )
 
 
+def attribute_diff_candidate(
+    diff: str,
+    current_code: str,
+    candidate: Issue,
+    model: str,
+    prompt_version: str = "attribution_v1",
+    context_size: int = 4096,
+) -> AttributionResult:
+    """Determine whether the diff introduced or worsened one candidate issue."""
+
+    candidate_json = json.dumps(
+        {
+            "severity": candidate.severity,
+            "category": candidate.category,
+            "rule": candidate.rule,
+            "title": candidate.title,
+            "explanation": candidate.explanation,
+            "recommendation": candidate.recommendation,
+        },
+        indent=2,
+    )
+
+    prompt = build_diff_attribution_prompt(
+        diff=diff,
+        current_code=current_code,
+        candidate=candidate_json,
+        prompt_version=prompt_version,
+    )
+
+    response = generate_review(
+        prompt=prompt,
+        model=model,
+        context_size=context_size,
+    )
+
+    return parse_attribution_response(response)
+
+
+def attribute_review_issues(
+    diff: str,
+    current_code: str,
+    review: CodeReview,
+    model: str,
+    prompt_version: str = "attribution_v1",
+    context_size: int = 4096,
+) -> CodeReview:
+    """Keep only findings introduced or materially worsened by the diff."""
+
+    attributed_issues: list[Issue] = []
+
+    for issue in review.issues:
+        attribution = attribute_diff_candidate(
+            diff=diff,
+            current_code=current_code,
+            candidate=issue,
+            model=model,
+            prompt_version=prompt_version,
+            context_size=context_size,
+        )
+
+        if attribution.introduced_or_worsened:
+            attributed_issues.append(issue)
+
+    return CodeReview(issues=attributed_issues)
+
+def review_diff_specialized_attributed(
+    diff: str,
+    current_code: str,
+    model: str,
+    general_prompt_version: str = "v13",
+    maintainability_prompt_version: str = "maintainability_v1",
+    attribution_prompt_version: str = "attribution_v1",
+    context_size: int = 4096,
+) -> CodeReview:
+    """Review a diff using specialist detection plus explicit attribution."""
+
+    general_review = review_diff(
+        diff=diff,
+        current_code=current_code,
+        model=model,
+        prompt_version=general_prompt_version,
+        context_size=context_size,
+    )
+
+    attributed_general_review = attribute_review_issues(
+        diff=diff,
+        current_code=current_code,
+        review=general_review,
+        model=model,
+        prompt_version=attribution_prompt_version,
+        context_size=context_size,
+    )
+
+    maintainability_candidates = find_diff_candidates(
+        diff=diff,
+        current_code=current_code,
+        model=model,
+        prompt_version=maintainability_prompt_version,
+        context_size=context_size,
+    )
+
+    attributed_maintainability_review = attribute_review_issues(
+        diff=diff,
+        current_code=current_code,
+        review=maintainability_candidates,
+        model=model,
+        prompt_version=attribution_prompt_version,
+        context_size=context_size,
+    )
+
+    return merge_specialized_reviews(
+        general_review=attributed_general_review,
+        maintainability_review=attributed_maintainability_review,
+    )
+    
+    
 def verify_diff_candidates(
     diff: str,
     current_code: str,
@@ -331,7 +497,7 @@ def merge_specialized_reviews(
             *maintainability_issues,
         ]
     )
-    
+
 
 def review_diff_specialized(
     diff: str,
@@ -376,6 +542,7 @@ def review_diff_specialized(
         general_review=general_review,
         maintainability_review=maintainability_review,
     )
+
 
 def review_file_specialized(
     path: Path,

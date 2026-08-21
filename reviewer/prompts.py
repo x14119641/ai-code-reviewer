@@ -5,6 +5,7 @@ SOURCE_CODE_PLACEHOLDER = "{{SOURCE_CODE}}"
 DIFF_PLACEHOLDER = "{{DIFF}}"
 CURRENT_CODE_PLACEHOLDER = "{{CURRENT_CODE}}"
 CANDIDATES_PLACEHOLDER = "{{CANDIDATES}}"
+ATTRIBUTION_PLACEHOLDER = "{{CANDIDATE}}"
 
 DEFAULT_PROMPT_VERSION = "v11"
 
@@ -12,6 +13,7 @@ REVIEW_PROMPT_TYPE = "review"
 DIFF_PROMPT_TYPE = "diff"
 DIFF_CANDIDATES_PROMPT_TYPE = "diff_candidates"
 DIFF_VERIFIER_PROMPT_TYPE = "diff_verify"
+DIFF_ATTRIBUTION_PROMPT_TYPE = "diff_attribution"
 
 def load_prompt_template(
     prompt_version: str,
@@ -44,7 +46,23 @@ def build_diff_candidates_prompt(
         },
     )
 
-
+def build_diff_attribution_prompt(
+    diff: str,
+    current_code: str,
+    candidate: str,
+    prompt_version: str,
+) -> str:
+    """Build an attribution-only prompt for a candidate finding."""
+    return _build_prompt(
+        prompt_version=prompt_version,
+        prompt_type=DIFF_ATTRIBUTION_PROMPT_TYPE,
+        replacements={
+            DIFF_PLACEHOLDER: diff,
+            CURRENT_CODE_PLACEHOLDER: current_code,
+            ATTRIBUTION_PLACEHOLDER: candidate,
+        },
+    )
+    
 def _build_prompt(
     prompt_version: str,
     prompt_type: str,
