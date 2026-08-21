@@ -662,6 +662,11 @@ def benchmark_diff_specialized_command(
         "--maintainability-prompt-version",
         help="Maintainability specialist prompt version.",
     ),
+    maintainability_verifier_prompt_version: str | None = typer.Option(
+        None,
+        "--maintainability-verifier-prompt-version",
+        help="Optional maintainability verifier prompt version.",
+    ),
     context_size: int = typer.Option(
         4096,
         "--context-size",
@@ -675,7 +680,15 @@ def benchmark_diff_specialized_command(
     """Evaluate general + maintainability-specialist diff review."""
 
     general_prompt_version = prompt_version
-    experiment_version = f"{general_prompt_version}+{maintainability_prompt_version}"
+    experiment_parts = [
+        general_prompt_version,
+        maintainability_prompt_version,
+    ]
+
+    if maintainability_verifier_prompt_version is not None:
+        experiment_parts.append(maintainability_verifier_prompt_version)
+
+    experiment_version = "+".join(experiment_parts)
 
     def review_with_model(
         diff: str,
@@ -687,6 +700,7 @@ def benchmark_diff_specialized_command(
             model=model,
             general_prompt_version=general_prompt_version,
             maintainability_prompt_version=maintainability_prompt_version,
+            maintainability_verifier_prompt_version=maintainability_verifier_prompt_version,
             context_size=context_size,
         )
 

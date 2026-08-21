@@ -339,6 +339,7 @@ def review_diff_specialized(
     model: str,
     general_prompt_version: str = "v11",
     maintainability_prompt_version: str = "maintainability_v1",
+    maintainability_verifier_prompt_version: str | None = None,
     context_size: int = 4096,
 ) -> CodeReview:
     """Review a Git diff using general and maintainability-specialist passes."""
@@ -351,7 +352,7 @@ def review_diff_specialized(
         context_size=context_size,
     )
 
-    maintainability_review = find_diff_candidates(
+    maintainability_candidates = find_diff_candidates(
         diff=diff,
         current_code=current_code,
         model=model,
@@ -359,11 +360,22 @@ def review_diff_specialized(
         context_size=context_size,
     )
 
+    if maintainability_verifier_prompt_version is not None:
+        maintainability_review = verify_diff_candidates(
+            diff=diff,
+            current_code=current_code,
+            candidates=maintainability_candidates,
+            model=model,
+            prompt_version=maintainability_verifier_prompt_version,
+            context_size=context_size,
+        )
+    else:
+        maintainability_review = maintainability_candidates
+
     return merge_specialized_reviews(
         general_review=general_review,
         maintainability_review=maintainability_review,
     )
-    
 
 def review_file_specialized(
     path: Path,
