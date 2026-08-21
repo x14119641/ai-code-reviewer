@@ -5322,3 +5322,640 @@ architecture scaling evaluation
 This is the appropriate point to stop treating individual benchmark
 failures as prompt-tuning targets and begin evaluating whether the
 reviewer design scales as a complete system.
+
+## Explicit Diff Attribution Experiment
+
+The maintainability-verifier experiments showed that issue discovery and change attribution were still too tightly coupled.
+
+In particular, the maintainability specialist could correctly discover `duplicate_code` in the current source while still reporting the issue when the duplicated implementations already existed before the diff.
+
+Rather than continuing to enlarge the verifier prompt, the next architectural experiment separated attribution into an explicit stage.
+
+The experimental pipeline is:
+
+```text
+                 Diff + Current Source
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+             ↓                         ↓
+        General Pass             Specialist Pass
+            v13                maintainability_v1
+             │                         │
+             └────────────┬────────────┘
+                          ↓
+                   Candidate Issues
+                          │
+                          ↓
+                  Attribution Pass
+                    attribution_v1
+                          │
+                          ↓
+                Deterministic Merge
+                          │
+                          ↓
+                  Final CodeReview
+```
+
+The attribution stage is not intended to discover new issues.
+
+Its responsibility is to decide whether an already discovered candidate is actually attributable to the Git diff.
+
+Conceptually:
+
+```text
+DISCOVERY
+Is there an issue in the resulting code?
+        ↓
+candidate
+        ↓
+ATTRIBUTION
+Did this diff introduce or materially worsen the triggering condition?
+        ↓
+keep / reject
+```
+
+This separates two questions that had repeatedly interfered with each other during earlier prompt experiments.
+
+### attribution_v1
+
+The first explicit attribution prompt was introduced as:
+
+```text
+attribution_v1
+```
+
+It evaluates candidate findings using the before/after change and requires evidence that the triggering condition was introduced or materially worsened by the diff.
+
+The stage can be exercised independently with `benchmark-diff-attribution` and as part of the complete experimental architecture with `benchmark-diff-attributed`.
+
+## Targeted Attribution Validation
+
+Before running the complete suites, the attribution stage was evaluated against benchmark families that had exposed known attribution weaknesses.
+
+### Mutable Default Argument
+
+Using the general reviewer as candidate generator:
+
+```text
+Model                       qwen3.5:9b
+Candidate prompt            v13
+Attribution prompt          attribution_v1
+Candidate source            general reviewer
+Context                     4096
+```
+
+Result:
+
+```text
+Changing None default to mutable set introduces shared state
+PASS
+
+Pre-existing mutable dict default is not introduced by diff
+PASS
+```
+
+Aggregate:
+
+```text
+Benchmarks       2
+Passed           2
+Failed           0
+False positives  0
+False negatives  0
+Wrong rules      0
+Accuracy         100.00%
+Severity         1/1 (100.00%)
+Duration         11.86s
+```
+
+This is significant because the pre-existing mutable-dictionary case had previously produced an attribution false positive in the held-out suite.
+
+### Hardcoded Secret
+
+The same experiment was run against the held-out `hardcoded_secret` family.
+
+Result:
+
+```text
+Replacing environment database URL with embedded credential introduces hardcoded secret
+PASS
+
+Loading database credential from environment does not hardcode secret
+PASS
+
+Pre-existing credential in configuration mapping is not introduced by diff
+PASS
+```
+
+Aggregate:
+
+```text
+Benchmarks       3
+Passed           3
+Failed           0
+False positives  0
+False negatives  0
+Wrong rules      0
+Accuracy         100.00%
+Severity         1/1 (100.00%)
+Duration         12.32s
+```
+
+The explicit attribution stage therefore recovers the previously failing pre-existing credential boundary without losing the introduced positive.
+
+### Duplicate Code
+
+The maintainability specialist was used as the candidate generator:
+
+```text
+Model                       qwen3.5:9b
+Candidate prompt            maintainability_v1
+Attribution prompt          attribution_v1
+Context                     4096
+```
+
+Result:
+
+```text
+Duplicating validation logic introduces duplicate code
+PASS
+
+Pre-existing duplicate validation is not introduced by diff
+PASS
+
+Similar validation functions are not meaningful duplicate code
+PASS
+```
+
+Aggregate:
+
+```text
+Benchmarks       3
+Passed           3
+Failed           0
+False positives  0
+False negatives  0
+Wrong rules      0
+Accuracy         100.00%
+Severity         1/1 (100.00%)
+Duration         12.71s
+```
+
+This is the strongest targeted evidence for the new separation of responsibilities.
+
+Earlier candidate-stage isolation showed that `maintainability_v1` discovered `duplicate_code` in both the introduced and pre-existing cases.
+
+The verifier prompts could not reliably separate them.
+
+With explicit attribution:
+
+```text
+specialist discovery
+        ↓
+introduced duplicate candidate
+pre-existing duplicate candidate
+        ↓
+attribution_v1
+        ↓
+introduced candidate kept
+pre-existing candidate rejected
+```
+
+The targeted duplicate-code family therefore improves from the earlier attribution experiments to:
+
+```text
+3/3
+100%
+0 FP
+0 FN
+```
+
+## Complete Attributed Generalization Run
+
+After the targeted checks, the complete generalization suite was evaluated using the full attributed architecture:
+
+```text
+Model                   qwen3.5:9b
+General prompt          v13
+Maintainability prompt  maintainability_v1
+Attribution prompt      attribution_v1
+Context                 4096
+```
+
+Result:
+
+```text
+Benchmarks       41
+Passed           34
+Failed            7
+Errors            0
+False positives   2
+False negatives   5
+Wrong rules       0
+Accuracy         82.93%
+Severity         11/11 (100.00%)
+Duration         184.48s
+```
+
+The seven failures are:
+
+```text
+RECOGNITION FALSE NEGATIVES
+
+missing_none_check
+└── Optional session used for method call without None check
+
+unreachable_code
+└── Adding statement after continue introduces unreachable code
+
+long_function
+└── Growing order processing into multiple responsibilities introduces a long function
+
+repeated_expensive_call_in_loop
+└── Moving invariant file metadata lookup into loop introduces repeated expensive call
+
+string_concatenation_in_loop
+└── Replacing join with repeated string concatenation introduces loop allocation
+
+
+FALSE POSITIVES
+
+list_membership_in_loop pre-existing boundary
+└── actual: long_function
+
+repeated_expensive_call_in_loop pre-existing boundary
+└── actual: long_function
+```
+
+An important result is that the previously problematic targeted attribution cases now pass:
+
+```text
+pre-existing mutable default
+PASS
+
+pre-existing hardcoded secret
+PASS
+
+pre-existing duplicate code
+PASS
+```
+
+The remaining false positives are both unrelated `long_function` findings emitted from maintainability processing on benchmarks belonging to other rule families.
+
+Therefore the complete generalization run suggests:
+
+```text
+explicit attribution
+        ↓
+can fix genuine attribution failures
+
+but
+
+candidate discovery / specialist precision
+        ↓
+remain independent failure sources
+```
+
+The architecture cannot attribute a finding that was never discovered, and attribution does not automatically prevent an unrelated candidate from another rule from surviving unless that candidate's own attribution evidence is rejected.
+
+## Complete Attributed Development Run
+
+The full expanded development suite was then evaluated using the same architecture.
+
+Result:
+
+```text
+Model            qwen3.5:9b
+Prompt           v13+maintainability_v1+attribution_v1
+Benchmarks       53
+Passed           45
+Failed            8
+Errors            1
+False positives   1
+False negatives   6
+Wrong rules       0
+Accuracy         84.91%
+Severity         20/20 (100.00%)
+Duration         230.36s
+```
+
+The ordinary benchmark failures are:
+
+```text
+FALSE NEGATIVES
+
+resource_leak
+└── Adding early return before close introduces resource leak
+
+excessive_nesting
+├── Replacing guard clauses with deeply nested conditions introduces excessive nesting
+└── Introducing nested loop and branching structure creates excessive nesting
+
+long_function
+├── Adding multiple responsibilities introduces long function
+└── Introducing substantial multi-responsibility order processing
+
+string_concatenation_in_loop
+└── Changing join-based construction to concatenation in loop
+
+
+FALSE POSITIVE
+
+repeated_expensive_call_in_loop
+└── Expensive call with iteration-dependent input cannot be hoisted
+    └── actual: repeated_expensive_call_in_loop
+```
+
+There were no wrong-rule benchmark failures in this run.
+
+### Execution Failure
+
+One benchmark produced an execution/protocol failure rather than an ordinary classification failure:
+
+```text
+Replacing secure temporary file with predictable path introduces insecure temp file
+```
+
+The model generated the intended `insecure_temp_file` finding, but the returned response contained invalid JSON because the explanation included an unescaped newline inside a JSON string.
+
+The benchmark runner therefore reported:
+
+```text
+Errors 1
+```
+
+This should not be interpreted as the same type of failure as a false positive, false negative, or wrong-rule result.
+
+The incident reinforces the existing distinction between:
+
+```text
+review reasoning quality
+```
+
+and:
+
+```text
+model output / protocol reliability
+```
+
+## Attribution Experiment Interpretation
+
+The explicit attribution experiment answers the architectural question more clearly than the earlier verifier-prompt iterations.
+
+The strongest positive evidence is targeted:
+
+```text
+mutable_default_argument
+2/2
+
+hardcoded_secret
+3/3
+
+duplicate_code
+3/3
+```
+
+In all three families, introduced findings are preserved while the tested pre-existing boundaries are rejected correctly.
+
+This supports the architectural separation:
+
+```text
+discovery
+        ≠
+attribution
+```
+
+and provides stronger evidence than simply adding more attribution wording to the maintainability verifier.
+
+However, the complete-suite results are more mixed.
+
+Generalization:
+
+```text
+34/41
+82.93%
+2 FP
+5 FN
+0 wrong rules
+```
+
+Development:
+
+```text
+45/53
+84.91%
+1 FP
+6 FN
+0 wrong rules
+1 execution error
+```
+
+The attributed architecture therefore does not currently justify replacing the established architecture solely on aggregate benchmark accuracy.
+
+Several failures are unrelated to attribution:
+
+```text
+issue never discovered
+        ↓
+attribution cannot recover it
+
+specialist emits unrelated maintainability candidate
+        ↓
+attribution may still preserve it if it appears attributable
+
+model emits malformed structured output
+        ↓
+architecture cannot classify result normally
+```
+
+The experiment therefore narrows the architectural diagnosis rather than solving every reviewer weakness.
+
+## Discovery vs Attribution vs Verification
+
+The accumulated experiments now support a clearer responsibility model.
+
+### Discovery
+
+```text
+Does the resulting code contain a supported issue?
+```
+
+The general reviewer and maintainability specialist are primarily discovery mechanisms.
+
+Discovery failures currently include cases such as:
+
+```text
+resource_leak early-return cleanup bypass
+missing_none_check alternative dereference
+long_function positives
+excessive_nesting positives
+string_concatenation_in_loop in some runs
+```
+
+If discovery returns no candidate, later stages cannot recover the issue unless they are explicitly designed to perform independent discovery.
+
+### Attribution
+
+```text
+Did the diff introduce or materially worsen the candidate's triggering condition?
+```
+
+The targeted `attribution_v1` results provide evidence that this responsibility benefits from being isolated.
+
+It successfully distinguishes introduced from pre-existing findings for the tested:
+
+```text
+mutable_default_argument
+hardcoded_secret
+duplicate_code
+```
+
+families.
+
+### Verification
+
+```text
+Is the final candidate sufficiently supported and correctly classified?
+```
+
+Earlier maintainability-verifier experiments showed some precision benefit but did not reliably solve attribution when attribution remained embedded inside the verifier's broader responsibility.
+
+The current evidence therefore suggests the conceptual pipeline:
+
+```text
+DISCOVERY
+        ↓
+ATTRIBUTION
+        ↓
+optional VERIFICATION
+        ↓
+FINAL REVIEW
+```
+
+rather than treating attribution and verification as interchangeable operations.
+
+This remains an experimental architectural direction rather than a new frozen production baseline.
+
+## Current Architecture Status
+
+The explicit attribution stage should be retained as a successful architectural experiment.
+
+It has demonstrated that previously difficult attribution boundaries can be solved when attribution is isolated from candidate discovery.
+
+However, the current complete-suite evidence does not yet justify declaring the attributed architecture universally superior.
+
+The established expanded baseline remains useful for comparison:
+
+```text
+v13 + maintainability_v1
+49 development benchmarks
+45/49
+91.84%
+```
+
+The attributed development experiment is:
+
+```text
+v13 + maintainability_v1 + attribution_v1
+53 benchmarks
+45/53
+84.91%
+1 execution error
+```
+
+These results are not directly comparable as a simple regression because the development suite has also expanded to 53 cases, including experimental maintainability coverage.
+
+The important evidence from the attribution experiment is therefore benchmark-level rather than only aggregate:
+
+```text
+known attribution boundaries
+        ↓
+explicit attribution succeeds
+```
+
+while:
+
+```text
+recognition weaknesses
+specialist precision
+experimental excessive_nesting ownership
+protocol reliability
+```
+
+remain separate problems.
+
+## Updated Next Experimental Phase
+
+The project should now stop treating the maintainability verifier as the main route to attribution improvement.
+
+The explicit attribution experiment provides a cleaner architectural direction.
+
+The next work should be:
+
+```text
+1. Keep attribution_v1 as an explicit experimental stage.
+
+2. Do not immediately tune attribution_v1 against the remaining complete-suite failures.
+
+3. Separate failures into:
+       discovery
+       attribution
+       semantic boundary
+       taxonomy selection
+       specialist interaction
+       protocol / structured-output failure
+
+4. Test attribution_v1 across additional attribution families rather than only duplicate_code, mutable_default_argument, and hardcoded_secret.
+
+5. Determine whether attribution should apply:
+       to every candidate
+       only to specialist candidates
+       or selectively to rules with demonstrated attribution risk.
+
+6. Measure the runtime cost of explicit attribution against the precision benefit.
+
+7. Keep excessive_nesting experimental until maintainability rule ownership is resolved.
+
+8. Investigate discovery weaknesses independently from attribution.
+
+9. Only add a final verification stage if benchmark evidence shows a failure class that attribution does not address and verification can measurably improve.
+
+10. Continue taxonomy and held-out benchmark expansion without optimizing isolated failures.
+```
+
+The architecture investigation has therefore progressed from:
+
+```text
+general reviewer
+        ↓
+general + specialist
+        ↓
+candidate + verifier
+        ↓
+maintainability verification
+        ↓
+explicit discovery / attribution separation
+```
+
+The main architectural lesson from the latest experiment is:
+
+```text
+finding an issue
+        ≠
+proving the diff introduced it
+```
+
+and those responsibilities can benefit from being represented as separate stages.
+
+At the same time:
+
+```text
+better attribution
+        ≠
+better discovery
+```
+
+so the remaining false negatives should not be addressed by simply adding more attribution instructions.
+
+The next architecture decision should be based on broader attribution-family evidence and complete-suite precision/runtime trade-offs rather than on the success of a single targeted benchmark family.
